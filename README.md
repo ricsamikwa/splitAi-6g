@@ -1,4 +1,4 @@
-# splitai-6g
+# splitAi-6g
 
 splitai-6g is a research framework for **layer-wise partitioning of deep neural networks (DNNs)** across heterogeneous computation nodes in **6G edge-cloud environments**. The project focuses on **energy-efficient and low-latency collaborative inference**, where DNN layers can be dynamically split and deployed on user equipment (UE), base stations, edge servers, or the cloud.
 
