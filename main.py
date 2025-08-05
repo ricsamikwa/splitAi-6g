@@ -7,11 +7,10 @@ from utils.param_generator import generate_params
 from utils.comm_utils import calculate_comm_time, calculate_comm_energy
 from utils.split_generator import generate_random_split
 
-# -----------------------
+
 # Setup
-# -----------------------
 num_nodes = 4  # UE + 3 network nodes
-total_layers = 21  # Adjust based on your custom VGG16
+total_layers = 21  # VGG16
 freqs, flops_cycle, bandwidth = generate_params(num_nodes)
 energy_cost = 2e-6  # J/byte for UE communication
 
@@ -32,7 +31,7 @@ split_config = generate_random_split(total_layers, num_nodes)
 flops_per_segment = {i: 1e9 for i in range(num_nodes)}
 
 # -----------------------
-# Inference Execution
+# Inference execution
 # -----------------------
 total_time = 0.0
 ue_energy_comp = 0.0
@@ -64,9 +63,7 @@ for i, (node_id, start, end) in enumerate(split_config):
         if node_id == 0 or next_node_id == 0:
             ue_energy_comm += calculate_comm_energy(data_size, energy_cost)
 
-# -----------------------
-# Print Results
-# -----------------------
+# Print results
 print("=== Multi-Node Split AI Inference ===")
 print(f"Split Config: {split_config}")
 print(f"Node Frequencies (GHz): {freqs}")
@@ -75,9 +72,7 @@ print(f"Total Inference Time: {total_time:.6f}s")
 print(f"UE Energy (Compute): {ue_energy_comp:.6f} J")
 print(f"UE Energy (Comm): {ue_energy_comm:.6f} J")
 
-# -----------------------
-# Print Accuracy
-# -----------------------
+# Print accuracy
 with torch.no_grad():
     final_output = F.softmax(current_output, dim=1)
     top1 = torch.topk(final_output, 1).indices.item()
