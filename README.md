@@ -13,23 +13,19 @@ splitai-6g is a research framework for **layer-wise partitioning of deep neural 
 
 ## Repository Structure
 
-split_ai_eval/
-│
-├── models/
-│   └── vgg16_model.py          # Custom VGG16 model definition
-│
-├── nodes/
-│   ├── ue_node.py              # User Equipment (UE) class handling compute & energy
-│   └── network_node.py         # Network compute node class (edge/cloud)
-│
-├── utils/
-│   ├── flop_utils.py           # FLOPs estimation and computation time calculation
-│   ├── flops_profile.py        # FLOPs per-layer profiler using flattened VGG16 layers
-│   ├── energy_utils.py         # UE-specific energy consumption functions
-│   ├── param_generator.py      # Generates random CPU frequencies, FLOPs, bandwidth
-│   └── comm_utils.py           # Communication latency and energy modeling utilities
-│
-├── main.py                     # End-to-end collaborative inference evaluation
-└── README.md            
+- **splitAi-6g/**
+  - **models/**
+    - `vgg16_model.py` → VGG16 model definition  
+  - **nodes/**
+    - `ue_node.py` → UE class handling compute & energy  
+    - `network_node.py` → Network compute node class (edge/cloud)  
+  - **utils/**
+    - `flop_utils.py` → FLOPs computation time calculation  
+    - `flops_profile.py` → FLOPs per-layer (segment) aprofiler using flattened VGG16 layers  
+    - `energy_utils.py` → UE-specific energy consumption functions  
+    - `param_generator.py` → Generates random CPU frequencies, FLOPs, bandwidth  
+    - `comm_utils.py` → Communication latency and energy modeling utilities  
+  - `main.py` → End-to-end collaborative inference evaluation  
+  - `README.md` → Project documentation  
 
 
