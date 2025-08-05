@@ -10,7 +10,7 @@ from utils.split_generator import generate_random_split
 
 # Setup
 num_nodes = 4  # UE + 3 network nodes
-total_layers = 21  # VGG16
+# total_layers = 21  # VGG16
 freqs, flops_cycle, bandwidth = generate_params(num_nodes)
 energy_cost = 2e-6  # J/byte for UE communication
 
@@ -19,7 +19,8 @@ ue = UENode(cpu_freq=freqs[0], flops_per_cycle=flops_cycle[0], power=5)
 network_nodes = [NetworkNode(i, freqs[i], flops_cycle[i]) for i in range(1, num_nodes)]
 
 # Load model
-model = VGG16(n_classes=1000)
+model = VGG16(n_classes=10)
+total_layers = len(list(model.conv_layers.children()))
 x = torch.randn(1, 3, 224, 224)
 
 # -----------------------
