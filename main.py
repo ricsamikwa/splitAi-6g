@@ -23,10 +23,20 @@ model = VGG16(n_classes=10)
 total_layers = len(list(model.conv_layers.children()))
 x = torch.randn(1, 3, 224, 224)
 
+# Splits definition
+allowed_splits = [0, 3, 6, 10, 14, 18]
+# Explanation:
+# 0 → start of model
+# 5 → after block1
+# 10 → after block2
+# 17 → after block3
+# 24 → after block4
+# 31 → after block5 (end of conv_layers)
+
 # -----------------------
 # Generate random split
 # -----------------------
-split_config = generate_random_split(total_layers, num_nodes)
+split_config = generate_random_split(allowed_splits, num_nodes)
 
 # Placeholder FLOPs per segment (layer-wise calculation to be refined)
 flops_per_segment = {i: 1e9 for i in range(num_nodes)}
