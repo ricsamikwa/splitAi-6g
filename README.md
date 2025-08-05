@@ -13,41 +13,23 @@ splitai-6g is a research framework for **layer-wise partitioning of deep neural 
 
 ## Repository Structure
 
-split_ai_eval
-│── models/
-│   └── vgg16_model.py        
-│       # Custom VGG16 model definition
+split_ai_eval/
 │
-│── nodes/
-│   ├── ue_node.py            
-│   │   # User Equipment (UE) class handling compute & energy
-│   ├── network_node.py       
-│       # Network compute node class (edge/cloud)
+├── models/
+│   └── vgg16_model.py          # Custom VGG16 model definition
 │
-│── utils/
-│   ├── flop_utils.py         
-│   │   # FLOPs estimation and computation time calculation
-│   ├── energy_utils.py       
-│   │   # UE-specific energy consumption functions
-│   ├── param_generator.py    
-│   │   # Generates random CPU frequencies, FLOPs, bandwidth
-│   ├── comm_utils.py         
-│       # Communication latency and energy modeling utilities
+├── nodes/
+│   ├── ue_node.py              # User Equipment (UE) class handling compute & energy
+│   └── network_node.py         # Network compute node class (edge/cloud)
 │
-│── scripts/
-│   ├── main.py               
-│   │   # End-to-end collaborative inference evaluation
-│   ├── rl_train.py           
-│   │   # Reinforcement learning agent training for adaptive split decisions
-│   ├── train_model.py        
-│   │   # (Optional) Train and save model weights
-│   └── visualize_results.py  
-│       # (Optional) Visualization of split and performance
+├── utils/
+│   ├── flop_utils.py           # FLOPs estimation and computation time calculation
+│   ├── flops_profile.py        # FLOPs per-layer profiler using flattened VGG16 layers
+│   ├── energy_utils.py         # UE-specific energy consumption functions
+│   ├── param_generator.py      # Generates random CPU frequencies, FLOPs, bandwidth
+│   └── comm_utils.py           # Communication latency and energy modeling utilities
 │
-│── config.py                 
-│   # Configuration file for hyperparameters and setup
-│
-│── README.md
-│── requirements.txt          
-│   # Python dependencies
+├── main.py                     # End-to-end collaborative inference evaluation
+└── README.md            
+
 
