@@ -8,6 +8,8 @@ from nodes.network_node import NetworkNode
 from utils.param_generator import generate_params
 from utils.comm_utils import calculate_comm_time, calculate_comm_energy
 from utils.split_generator import generate_random_split
+from PIL import Image
+import torchvision.transforms as transforms
 
 # -----------------------
 # Setup and Parameters
@@ -26,10 +28,34 @@ network_nodes = [NetworkNode(i, freqs[i], flops_cycle[i]) for i in range(1, num_
 model = VGG16(n_classes=10)
 model.eval()  
 total_layers = len(list(model.conv_layers.children()))
-x = torch.randn(1, 3, 224, 224)  # Dummy input
 
 # -----------------------
-# Define Safe Split Indices
+# Load and preprocess image
+# -----------------------
+filename = "input/dog.jpg"  # Path to image input
+input_image = Image.open(filename).convert("RGB") 
+
+# Transformation pipeline
+preprocess = transforms.Compose([
+    transforms.Resize(256),                # Resize shorter side to 256
+    transforms.CenterCrop(224),            # Crop to 224x224
+    transforms.ToTensor(),                 # Convert to tensor
+    transforms.Normalize(                  # Normalize for VGG
+        mean=[0.485, 0.456, 0.406],
+        std=[0.229, 0.224, 0.225]
+    ),
+])
+
+# Apply preprocessing
+input_tensor = preprocess(input_image)
+
+# Add batch dimension and move to device
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+current_output = input_tensor.unsqueeze(0).to(device)
+model.to(device)
+
+# -----------------------
+# Possible Split Indices for VGG16
 # -----------------------
 allowed_splits = [0, 3, 6, 10, 14, 18]  # Safe boundaries (post-MaxPool layers)
 
@@ -49,7 +75,6 @@ flops_per_segment = compute_flops_per_segment(model, flops_dict, split_config, l
 total_time = 0.0
 ue_energy_comp = 0.0
 ue_energy_comm = 0.0
-current_output = x
 
 # Last active node to end at the final conv layer (18)
 split_config[last_active_idx] = (
