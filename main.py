@@ -65,14 +65,14 @@ for i, (node_id, start, end) in enumerate(split_config):
         )
         total_time += comp_time
 
-    # Communication to next node if exists
+        # Communication to next node if exists
     if i < len(split_config) - 1:
-        next_node_id = split_config[i + 1][0]
         data_size = flops_per_segment[node_id] / 10
-        comm_time = calculate_comm_time(data_size, bandwidth[node_id, next_node_id])
+        comm_time = calculate_comm_time(data_size, bandwidth[i])
         total_time += comm_time
-        if node_id == 0 or next_node_id == 0:
+        if node_id == 0 or split_config[i + 1][0] == 0:
             ue_energy_comm += calculate_comm_energy(data_size, energy_cost)
+
 
 # Print results
 print("=== Multi-Node Split AI Inference ===")
