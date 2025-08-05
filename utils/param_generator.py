@@ -19,7 +19,7 @@ def generate_params(num_nodes):
             flops_per_cycle (ndarray): FLOPs that can be executed per CPU cycle for each node
             bandwidth (ndarray): Available bandwidth between consecutive nodes (in MB/s)
     """
-    freqs = np.random.uniform(1.0, 3.0, num_nodes)  # GHz
-    flops_per_cycle = np.random.uniform(2, 5, num_nodes)
-    bandwidth = np.random.uniform(50, 200, num_nodes - 1)  # MB/s
+    freqs = np.random.uniform(2.5, 3.5, num_nodes)  # GHz
+    flops_per_cycle = np.random.uniform(4, 8, num_nodes)
+    bandwidth = np.random.uniform(100, 500, num_nodes)  # MB/s
     return freqs, flops_per_cycle, bandwidth

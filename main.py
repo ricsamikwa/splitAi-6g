@@ -14,7 +14,7 @@ from utils.split_generator import generate_random_split
 # -----------------------
 num_nodes = 4  # UE + 3 network nodes
 freqs, flops_cycle, bandwidth = generate_params(num_nodes)
-energy_cost = 2e-6  # J/byte for UE communication
+energy_cost = 1e-7  # J/byte for UE communication
 
 # Instantiate computation nodes
 ue = UENode(cpu_freq=freqs[0], flops_per_cycle=flops_cycle[0], power=5)
