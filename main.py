@@ -7,86 +7,106 @@ from utils.param_generator import generate_params
 from utils.comm_utils import calculate_comm_time, calculate_comm_energy
 from utils.split_generator import generate_random_split
 
-
-# Setup
+# -----------------------
+# Setup and Parameters
+# -----------------------
 num_nodes = 4  # UE + 3 network nodes
-# total_layers = 21  # VGG16
 freqs, flops_cycle, bandwidth = generate_params(num_nodes)
 energy_cost = 2e-6  # J/byte for UE communication
 
-# Instantiate nodes
+# Instantiate computation nodes
 ue = UENode(cpu_freq=freqs[0], flops_per_cycle=flops_cycle[0], power=5)
 network_nodes = [NetworkNode(i, freqs[i], flops_cycle[i]) for i in range(1, num_nodes)]
 
-# Load model
+# -----------------------
+# Load Model
+# -----------------------
 model = VGG16(n_classes=10)
+model.eval()  
 total_layers = len(list(model.conv_layers.children()))
-x = torch.randn(1, 3, 224, 224)
-
-# Splits definition
-allowed_splits = [0, 3, 6, 10, 14, 18]
-# Explanation:
-# 0 → start of model
-# 5 → after block1
-# 10 → after block2
-# 17 → after block3
-# 24 → after block4
-# 31 → after block5 (end of conv_layers)
+x = torch.randn(1, 3, 224, 224)  # Dummy input
 
 # -----------------------
-# Generate random split
+# Define Safe Split Indices
 # -----------------------
+allowed_splits = [0, 3, 6, 10, 14, 18]  # Safe boundaries (post-MaxPool layers)
+
+# Generate random split configuration
 split_config = generate_random_split(allowed_splits, num_nodes)
 
-# Placeholder FLOPs per segment (layer-wise calculation to be refined)
+# Placeholder FLOPs per segment (to be refined)
 flops_per_segment = {i: 1e9 for i in range(num_nodes)}
 
 # -----------------------
-# Inference execution
+# Inference Execution
 # -----------------------
 total_time = 0.0
 ue_energy_comp = 0.0
 ue_energy_comm = 0.0
-
 current_output = x
 
 for i, (node_id, start, end) in enumerate(split_config):
+    if start == end:
+        print(f"Skipping Node {node_id} (no layers assigned).")
+        continue  # Skip nodes with no layers
+
+    is_last_active = (i == len(split_config) - 1)  # Last node to process data
+
     if node_id == 0:
-        # UE computation
         current_output, comp_time, energy = ue.compute(
-            model, current_output, start, end, flops_per_segment[node_id]
+            model, current_output, start, end,
+            flops_per_segment[node_id],
+            include_fc=is_last_active   # Add FC on UE if last node
         )
         ue_energy_comp += energy
         total_time += comp_time
     else:
         node = network_nodes[node_id - 1]
         current_output, comp_time = node.compute(
-            model, current_output, start, end, flops_per_segment[node_id]
+            model, current_output, start, end,
+            flops_per_segment[node_id],
+            include_fc=is_last_active 
         )
         total_time += comp_time
 
-        # Communication to next node if exists
+
+    # Communication to the next node (if exists)
     if i < len(split_config) - 1:
         data_size = flops_per_segment[node_id] / 10
         comm_time = calculate_comm_time(data_size, bandwidth[i])
         total_time += comm_time
+
         if node_id == 0 or split_config[i + 1][0] == 0:
             ue_energy_comm += calculate_comm_energy(data_size, energy_cost)
 
-
-# Print results
+# -----------------------
+# Print Results
+# -----------------------
 print("=== Multi-Node Split AI Inference ===")
 print(f"Split Config: {split_config}")
 print(f"Node Frequencies (GHz): {freqs}")
-print(f"Bandwidth Matrix (MB/s):\n{bandwidth}")
+print(f"Bandwidth (MB/s): {bandwidth}")
 print(f"Total Inference Time: {total_time:.6f}s")
 print(f"UE Energy (Compute): {ue_energy_comp:.6f} J")
 print(f"UE Energy (Comm): {ue_energy_comm:.6f} J")
 
-# Print accuracy
+# -----------------------
+# Final Classification Output
+# -----------------------
 with torch.no_grad():
     final_output = F.softmax(current_output, dim=1)
-    top1 = torch.topk(final_output, 1).indices.item()
-    top3 = torch.topk(final_output, 3).indices.squeeze().tolist()
-print(f"Top-1 Predicted Class: {top1}")
-print(f"Top-3 Predicted Classes: {top3}")
+
+    top1_prob, top1_idx = torch.topk(final_output, 1)
+    top5_prob, top5_idx = torch.topk(final_output, 5)
+
+    print(f"Top-1 Predicted Class: {top1_idx.item()} (prob: {top1_prob.item():.4f})")
+    
+    # Display top-5 predictions with their probabilities
+    # This provides insight into the model's confidence spread across multiple classes
+    print("Top-5 Predictions:")
+    for i in range(top5_idx.size(1)):
+        prob = top5_prob[0, i].item()
+        idx = top5_idx[0, i].item()
+
+    # Optional: sum of top-5 probabilities (should be ≤ 1)
+    print(f"Sum of Top-5 Probabilities: {top5_prob.sum().item():.4f}")
