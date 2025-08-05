@@ -1,0 +1,9 @@
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Ignore all model files
+*.pth
+*.pt
+*.onnx
