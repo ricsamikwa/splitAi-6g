@@ -85,10 +85,14 @@ for i, (node_id, start, end) in enumerate(split_config):
 
     # Communication to the next node (if exists)
     if i < len(split_config) - 1:
-        data_size = flops_per_segment[node_id] / 10
+        # Calculate actual data size based on current tensor output
+        data_size = current_output.numel() * current_output.element_size()  # bytes
+
+        # Communication time based on bandwidth
         comm_time = calculate_comm_time(data_size, bandwidth[i])
         total_time += comm_time
 
+        # UE communication energy calculation
         if node_id == 0 or split_config[i + 1][0] == 0:
             ue_energy_comm += calculate_comm_energy(data_size, energy_cost)
 
