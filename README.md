@@ -13,27 +13,41 @@ splitai-6g is a research framework for **layer-wise partitioning of deep neural 
 
 ## Repository Structure
 
-split_ai_eval/
+split_ai_eval
 │── models/
-│   └── vgg16_model.py        # Custom VGG16 model definition
+│   └── vgg16_model.py        
+│       # Custom VGG16 model definition
 │
 │── nodes/
-│   ├── ue_node.py            # User Equipment (UE) class handling compute & energy
-│   ├── network_node.py       # Network compute node class (edge/cloud)
+│   ├── ue_node.py            
+│   │   # User Equipment (UE) class handling compute & energy
+│   ├── network_node.py       
+│       # Network compute node class (edge/cloud)
 │
 │── utils/
-│   ├── flop_utils.py         # FLOPs estimation and computation time calculation
-│   ├── energy_utils.py       # UE-specific energy consumption functions
-│   ├── param_generator.py    # Generates random CPU frequencies, FLOPs, bandwidth
-│   ├── comm_utils.py         # Communication latency and energy modeling utilities
+│   ├── flop_utils.py         
+│   │   # FLOPs estimation and computation time calculation
+│   ├── energy_utils.py       
+│   │   # UE-specific energy consumption functions
+│   ├── param_generator.py    
+│   │   # Generates random CPU frequencies, FLOPs, bandwidth
+│   ├── comm_utils.py         
+│       # Communication latency and energy modeling utilities
 │
-│── scripts/                 
-│   ├── rl_train.py          # Reinforcement learning agent training for adaptive split decisions
-│   ├── train_model.py       # (Optional) Training script for saving model weights
-│   └── visualize_results.py # (Optional) Visualization of split performance and metrics
+│── scripts/
+│   ├── main.py               
+│   │   # End-to-end collaborative inference evaluation
+│   ├── rl_train.py           
+│   │   # Reinforcement learning agent training for adaptive split decisions
+│   ├── train_model.py        
+│   │   # (Optional) Train and save model weights
+│   └── visualize_results.py  
+│       # (Optional) Visualization of split and performance
 │
-│── main.py                   # Script for evaluating multi-node inference splits
-│── config.py                 # Configuration file for hyperparameters and setup
+│── config.py                 
+│   # Configuration file for hyperparameters and setup
+│
 │── README.md
-│── requirements.txt          # Python dependencies
+│── requirements.txt          
+│   # Python dependencies
 
