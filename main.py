@@ -1,7 +1,8 @@
 import torch
+import torch.nn as nn
 import torch.nn.functional as F
 from models.vgg16_model import VGG16
-from utils.flops_profile import compute_flops_per_layer
+from utils.flops_profile import compute_flops_per_layer, compute_flops_per_segment
 from nodes.ue_node import UENode
 from nodes.network_node import NetworkNode
 from utils.param_generator import generate_params
@@ -26,7 +27,6 @@ model = VGG16(n_classes=10)
 model.eval()  
 total_layers = len(list(model.conv_layers.children()))
 x = torch.randn(1, 3, 224, 224)  # Dummy input
-flops_dict = compute_flops_per_layer(model)
 
 # -----------------------
 # Define Safe Split Indices
@@ -40,25 +40,8 @@ split_config = generate_random_split(allowed_splits, num_nodes) # Replace with R
 last_active_idx = max(i for i, (_, s, e) in enumerate(split_config) if s != e)
 last_active_node_id = split_config[last_active_idx][0]
 
-print("DEBUG: FLOPs dict keys =", flops_dict.keys())
-print("DEBUG: Split config =", split_config)
-
-flops_per_segment = {}
-for node_id, start, end in split_config:
-    if start == end:
-        flops_per_segment[node_id] = 0
-        continue
-
-    segment_flops = sum(flops_dict.get(i, 0) for i in range(start, end))
-
-    # Add FC FLOPs to the real last active node
-    if node_id == last_active_node_id:
-        segment_flops += (
-            flops_dict['fc1'] + flops_dict['fc2'] + flops_dict['fc3']
-        )
-
-    flops_per_segment[node_id] = segment_flops
-print("DEBUG: FLOPs per segment =", flops_per_segment)
+flops_dict = compute_flops_per_layer(model)
+flops_per_segment = compute_flops_per_segment(model, flops_dict, split_config, last_active_node_id)
 
 # -----------------------
 # Inference Execution

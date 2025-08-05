@@ -14,10 +14,21 @@ def compute_flops_per_layer(model, input_size=(3, 224, 224)):
     """
     flops_per_layer = {}
     x = torch.randn(1, *input_size)
+    
+    # Fully flatten the conv layers
+    def flatten_layers(module):
+        flat = []
+        for layer in module.children():
+            if isinstance(layer, nn.Sequential):
+                flat.extend(flatten_layers(layer))
+            else:
+                flat.append(layer)
+        return flat
 
-    layers = list(model.conv_layers.children())  # flatten Sequential
-    layer_idx = 0
-    for layer in layers:
+    flat_layers = flatten_layers(model.conv_layers)
+    conv_idx = 0
+
+    for i, layer in enumerate(flat_layers):
         if isinstance(layer, nn.Conv2d):
             out = layer(x)
             H_out, W_out = out.shape[2], out.shape[3]
@@ -27,19 +38,56 @@ def compute_flops_per_layer(model, input_size=(3, 224, 224)):
                 layer.out_channels *
                 layer.kernel_size[0] * layer.kernel_size[1]
             )
-            flops_per_layer[layer_idx] = flops
+            flops_per_layer[conv_idx] = flops
+            conv_idx += 1
             x = out
         else:
-            # For non-conv layers (ReLU, Pool, BN), still forward x
-            x = layer(x)
-        layer_idx += 1
+            x = layer(x)  # Forward non-conv layers too
 
     # FC layers
-    fc_flops = {
-        'fc1': model.fc1[0].in_features * model.fc1[0].out_features,
-        'fc2': model.fc2[0].in_features * model.fc2[0].out_features,
-        'fc3': model.fc3.in_features * model.fc3.out_features
-    }
-    flops_per_layer.update(fc_flops)
+    flops_per_layer['fc1'] = model.fc1[0].in_features * model.fc1[0].out_features
+    flops_per_layer['fc2'] = model.fc2[0].in_features * model.fc2[0].out_features
+    flops_per_layer['fc3'] = model.fc3.in_features * model.fc3.out_features
 
     return flops_per_layer
+
+
+def compute_flops_per_segment(model, flops_dict, split_config, last_active_node_id):
+    """
+    Maps split configuration to FLOPs for each segment.
+    """
+    def flatten_layers(module):
+        flat = []
+        for layer in module.children():
+            if isinstance(layer, nn.Sequential):
+                flat.extend(flatten_layers(layer))
+            else:
+                flat.append(layer)
+        return flat
+
+    layers = flatten_layers(model.conv_layers)
+    conv_indices = [i for i, l in enumerate(layers) if isinstance(l, nn.Conv2d)]
+    seq_to_conv = {seq_idx: conv_idx for conv_idx, seq_idx in enumerate(conv_indices)}
+
+    flops_per_segment = {}
+    for node_id, start, end in split_config:
+        if start == end:
+            flops_per_segment[node_id] = 0
+            continue
+
+        conv_range = [
+            conv_idx for seq_idx, conv_idx in seq_to_conv.items()
+            if start <= seq_idx < end
+        ]
+        segment_flops = sum(flops_dict.get(conv_idx, 0) for conv_idx in conv_range)
+
+        if node_id == last_active_node_id:
+            segment_flops += (
+                flops_dict['fc1'] +
+                flops_dict['fc2'] +
+                flops_dict['fc3']
+            )
+
+        flops_per_segment[node_id] = segment_flops
+
+    return flops_per_segment
