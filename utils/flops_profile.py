@@ -15,8 +15,9 @@ def compute_flops_per_layer(model, input_size=(3, 224, 224)):
     flops_per_layer = {}
     x = torch.randn(1, *input_size)
 
+    layers = list(model.conv_layers.children())  # flatten Sequential
     layer_idx = 0
-    for layer in model.conv_layers:
+    for layer in layers:
         if isinstance(layer, nn.Conv2d):
             out = layer(x)
             H_out, W_out = out.shape[2], out.shape[3]
@@ -28,11 +29,12 @@ def compute_flops_per_layer(model, input_size=(3, 224, 224)):
             )
             flops_per_layer[layer_idx] = flops
             x = out
-            layer_idx += 1
         else:
-            x = layer(x)  # MaxPool, ReLU, BN (low FLOPs)
+            # For non-conv layers (ReLU, Pool, BN), still forward x
+            x = layer(x)
+        layer_idx += 1
 
-    # Fully connected layers FLOPs
+    # FC layers
     fc_flops = {
         'fc1': model.fc1[0].in_features * model.fc1[0].out_features,
         'fc2': model.fc2[0].in_features * model.fc2[0].out_features,

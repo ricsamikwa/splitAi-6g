@@ -1,6 +1,7 @@
 import torch
 import torch.nn.functional as F
 from models.vgg16_model import VGG16
+from utils.flops_profile import compute_flops_per_layer
 from nodes.ue_node import UENode
 from nodes.network_node import NetworkNode
 from utils.param_generator import generate_params
@@ -25,6 +26,7 @@ model = VGG16(n_classes=10)
 model.eval()  
 total_layers = len(list(model.conv_layers.children()))
 x = torch.randn(1, 3, 224, 224)  # Dummy input
+flops_dict = compute_flops_per_layer(model)
 
 # -----------------------
 # Define Safe Split Indices
@@ -32,10 +34,31 @@ x = torch.randn(1, 3, 224, 224)  # Dummy input
 allowed_splits = [0, 3, 6, 10, 14, 18]  # Safe boundaries (post-MaxPool layers)
 
 # Generate random split configuration
-split_config = generate_random_split(allowed_splits, num_nodes)
+split_config = generate_random_split(allowed_splits, num_nodes) # Replace with RL method
 
-# Placeholder FLOPs per segment (to be refined)
-flops_per_segment = {i: 1e9 for i in range(num_nodes)}
+# Identify last active node and adjust it to include final layers
+last_active_idx = max(i for i, (_, s, e) in enumerate(split_config) if s != e)
+last_active_node_id = split_config[last_active_idx][0]
+
+print("DEBUG: FLOPs dict keys =", flops_dict.keys())
+print("DEBUG: Split config =", split_config)
+
+flops_per_segment = {}
+for node_id, start, end in split_config:
+    if start == end:
+        flops_per_segment[node_id] = 0
+        continue
+
+    segment_flops = sum(flops_dict.get(i, 0) for i in range(start, end))
+
+    # Add FC FLOPs to the real last active node
+    if node_id == last_active_node_id:
+        segment_flops += (
+            flops_dict['fc1'] + flops_dict['fc2'] + flops_dict['fc3']
+        )
+
+    flops_per_segment[node_id] = segment_flops
+print("DEBUG: FLOPs per segment =", flops_per_segment)
 
 # -----------------------
 # Inference Execution
@@ -45,28 +68,35 @@ ue_energy_comp = 0.0
 ue_energy_comm = 0.0
 current_output = x
 
+# Last active node to end at the final conv layer (18)
+split_config[last_active_idx] = (
+    last_active_node_id,
+    split_config[last_active_idx][1],
+    18
+)
+
 for i, (node_id, start, end) in enumerate(split_config):
+
     if start == end:
         print(f"Skipping Node {node_id} (no layers assigned).")
         continue  # Skip nodes with no layers
 
-    is_last_active = (i == len(split_config) - 1)  # Last node to process data
+    is_last_active = (i == last_active_idx)
 
     if node_id == 0:
         current_output, comp_time, energy = ue.compute(
-            model, current_output, start, end,
-            flops_per_segment[node_id],
-            include_fc=is_last_active   # Add FC on UE if last node
+            model, current_output, start, end, flops_per_segment[node_id],
+            include_fc=is_last_active
         )
         ue_energy_comp += energy
         total_time += comp_time
     else:
         node = network_nodes[node_id - 1]
         current_output, comp_time = node.compute(
-            model, current_output, start, end,
-            flops_per_segment[node_id],
-            include_fc=is_last_active 
+            model, current_output, start, end, flops_per_segment[node_id],
+            include_fc=is_last_active
         )
+
         total_time += comp_time
 
 
