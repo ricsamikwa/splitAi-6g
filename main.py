@@ -25,8 +25,11 @@ network_nodes = [NetworkNode(i, freqs[i], flops_cycle[i]) for i in range(1, num_
 # -----------------------
 # Load Model
 # -----------------------
-model = VGG16(n_classes=10)
-model.eval()  
+model = VGG16()
+model_dict = model.state_dict()
+model_dict.update(torch.load("models/vgg16-modify.pth"))
+model.load_state_dict(model_dict)
+model.eval()
 total_layers = len(list(model.conv_layers.children()))
 
 # -----------------------

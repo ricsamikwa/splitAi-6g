@@ -21,7 +21,7 @@ def vgg_fc_layer(size_in, size_out):
     )
 
 class VGG16(nn.Module):
-    def __init__(self, n_classes=10):
+    def __init__(self, n_classes=1000):
         super(VGG16, self).__init__()
         block1 = vgg_conv_block([3, 64], [64, 64], [3, 3], [1, 1], 2, 2)
         block2 = vgg_conv_block([64, 128], [128, 128], [3, 3], [1, 1], 2, 2)
