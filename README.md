@@ -16,16 +16,22 @@ splitai-6g is a research framework for **layer-wise partitioning of deep neural 
 - **splitAi-6g/**
   - **models/**
     - `vgg16_model.py` → VGG16 model definition  
+    - `convert_pretrained_vgg16.py` → Script to convert and save pretrained VGG16 weights
   - **nodes/**
     - `ue_node.py` → UE class handling compute & energy  
     - `network_node.py` → Network compute node class (edge/cloud)  
   - **utils/**
     - `flop_utils.py` → FLOPs computation time calculation  
-    - `flops_profile.py` → FLOPs per-layer (segment) aprofiler using flattened VGG16 layers  
+    - `flops_profile.py` → FLOPs per-layer (segment) profiler using flattened VGG16 layers  
     - `energy_utils.py` → UE-specific energy consumption functions  
     - `param_generator.py` → Generates random CPU frequencies, FLOPs, bandwidth  
     - `comm_utils.py` → Communication latency and energy modeling utilities  
   - `main.py` → End-to-end collaborative inference evaluation  
   - `README.md` → Project documentation  
 
+## Pretrained Weights Setup
 
+Before running the main collaborative inference script, you must first convert and save pretrained VGG16 weights for the model:
+
+```bash
+python3 models/convert_pretrained_vgg16.py
