@@ -31,7 +31,17 @@ splitai-6g is a research framework for **layer-wise partitioning of deep neural 
 
 ## Pretrained Weights Setup
 
-Before running the main collaborative inference script, you must first convert and save pretrained VGG16 weights for the model:
+Before running the main collaborative inference script, you need to convert and save pretrained VGG16 weights for the custom model.  
+This step only needs to be run **once**:
 
 ```bash
 python3 models/convert_pretrained_vgg16.py
+```
+
+## Running SplitAI Inference
+
+After setting up the pretrained weights, you can run the SplitAI collaborative inference:
+
+```bash
+python3 main.py
+```
