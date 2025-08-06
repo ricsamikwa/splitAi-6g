@@ -19,7 +19,7 @@ splitai-6g is a research framework for **layer-wise partitioning of deep neural 
     - `convert_pretrained_vgg16.py` → Script to convert and save pretrained VGG16 weights
   - **nodes/**
     - `ue_node.py` → UE class handling compute & energy  
-    - `network_node.py` → Network compute node class (edge/cloud)  
+    - `network_node.py` → Network compute node class (gNB/Edge/Core)  
   - **utils/**
     - `flop_utils.py` → FLOPs computation time calculation  
     - `flops_profile.py` → FLOPs per-layer (segment) profiler using flattened VGG16 layers  
