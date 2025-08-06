@@ -26,6 +26,7 @@ splitai-6g is a research framework for **layer-wise partitioning of deep neural 
     - `energy_utils.py` → UE-specific energy consumption functions  
     - `param_generator.py` → Generates random CPU frequencies, FLOPs, bandwidth  
     - `comm_utils.py` → Communication latency and energy modeling utilities  
+    - `split_generator.py` → Generates random multi-node split configurations
   - `main.py` → End-to-end collaborative inference evaluation  
   - `README.md` → Project documentation  
 
