@@ -141,7 +141,7 @@ with torch.no_grad():
     top1_prob, top1_idx = torch.topk(final_output, 1)
     top5_prob, top5_idx = torch.topk(final_output, 5)
 
-    print(f"Top-1 Predicted Class: {top1_idx.item()} (prob: {top1_prob.item():.4f})")
+    print(f"Top-1 Accuracy Confidence: {top1_idx.item()} (prob: {top1_prob.item():.4f})")
     
     # Display top-5 predictions with their probabilities
     # This provides insight into the model's confidence spread across multiple classes
@@ -151,4 +151,4 @@ with torch.no_grad():
         idx = top5_idx[0, i].item()
 
     # Optional: sum of top-5 probabilities (should be ≤ 1)
-    print(f"Sum of Top-5 Probabilities: {top5_prob.sum().item():.4f}")
+    print(f"Top-5 Accuracy Confidence: {top5_prob.sum().item():.4f}")
