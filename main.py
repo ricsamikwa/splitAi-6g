@@ -65,7 +65,10 @@ allowed_splits = [0, 3, 6, 10, 14, 18]  # Safe boundaries (post-MaxPool layers)
 # Generate random split configuration
 split_config = generate_random_split(allowed_splits, num_nodes) # Replace with RL method
 
-# Identify last active node and adjust it to include final layers
+# Identify the index of the last node in the split configuration that was actually assigned layers.
+# This ensures we know where the active computation chain ends.
+# We then adjust the last active node so it always includes the model’s final layers,
+# guaranteeing that the output passes through all necessary layers before classification.
 last_active_idx = max(i for i, (_, s, e) in enumerate(split_config) if s != e)
 last_active_node_id = split_config[last_active_idx][0]
 
