@@ -35,7 +35,7 @@ total_layers = len(list(model.conv_layers.children()))
 # -----------------------
 # Load and preprocess image
 # -----------------------
-filename = "input/dog.jpg"  # Path to image input
+filename = "input/input5.JPEG"  # Path to image input
 input_image = Image.open(filename).convert("RGB") 
 
 # Transformation pipeline
