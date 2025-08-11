@@ -1,4 +1,5 @@
 import torch
+import random
 import torch.nn as nn
 import torch.nn.functional as F
 from models.vgg16_model import VGG16
@@ -35,8 +36,11 @@ total_layers = len(list(model.conv_layers.children()))
 # -----------------------
 # Load and preprocess image
 # -----------------------
-filename = "input/input5.JPEG"  # Path to image input
+rand_index = random.randint(1, 10)  # from 1 to 10
+# filename = "input/input5.JPEG"  # Path to image input
+filename = f"input/input{rand_index}.JPEG"
 input_image = Image.open(filename).convert("RGB") 
+
 
 # Transformation pipeline
 preprocess = transforms.Compose([
