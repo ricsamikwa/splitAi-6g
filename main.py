@@ -36,10 +36,12 @@ total_layers = len(list(model.conv_layers.children()))
 # -----------------------
 # Load and preprocess image
 # -----------------------
-rand_index = random.randint(1, 10)  # from 1 to 10
+rand_index = random.randint(1, 10) # Randomly select an input number
 # filename = "input/input5.JPEG"  # Path to image input
 filename = f"input/input{rand_index}.JPEG"
-input_image = Image.open(filename).convert("RGB") 
+input_image = Image.open(filename).convert("RGB")
+# Print the selected input class (1-to-1 mapping with input number)
+print(f"Input class: {rand_index}")
 
 
 # Transformation pipeline
