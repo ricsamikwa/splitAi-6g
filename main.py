@@ -16,12 +16,12 @@ import torchvision.transforms as transforms
 # Setup and Parameters
 # -----------------------
 num_nodes = 4  # UE + 3 network nodes
-freqs, flops_cycle, bandwidth = generate_params(num_nodes)
+ue_freq, ue_flops_cycle, ue_bandwidth, freqs, flops_cycle, bandwidth = generate_params(num_nodes)
 energy_cost = 1e-7  # J/byte for UE communication
 
 # Instantiate computation nodes
-ue = UENode(cpu_freq=freqs[0], flops_per_cycle=flops_cycle[0], power=5)
-network_nodes = [NetworkNode(i, freqs[i], flops_cycle[i]) for i in range(1, num_nodes)]
+ue = UENode(cpu_freq=ue_freq, flops_per_cycle=ue_flops_cycle, power=5)
+network_nodes = [NetworkNode(i, freqs[i-1], flops_cycle[i-1]) for i in range(1, num_nodes)]
 
 # -----------------------
 # Load Model

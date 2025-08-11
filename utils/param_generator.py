@@ -19,7 +19,14 @@ def generate_params(num_nodes):
             flops_per_cycle (ndarray): FLOPs that can be executed per CPU cycle for each node
             bandwidth (ndarray): Available bandwidth between consecutive nodes (in MB/s)
     """
-    freqs = np.random.uniform(2.5, 3.5, num_nodes)  # GHz
-    flops_per_cycle = np.random.uniform(4, 8, num_nodes)
-    bandwidth = np.random.uniform(100, 500, num_nodes)  # MB/s
-    return freqs, flops_per_cycle, bandwidth
+    # UE-specific specs
+    ue_freq = np.random.uniform(1.8, 2.8)        # GHz
+    ue_flops_per_cycle = np.random.uniform(1.5, 3.0)
+    ue_bandwidth = np.random.uniform(100, 400)    # MB/s (UE link speed)
+
+    # Network nodes specs
+    freqs = np.random.uniform(3.0, 4.5, num_nodes - 1)      # GHz
+    flops_per_cycle = np.random.uniform(5.0, 9.0, num_nodes - 1)
+    bandwidth = np.random.uniform(500, 2000, num_nodes - 1) # MB/s (net-to-net)
+
+    return ue_freq, ue_flops_per_cycle, ue_bandwidth, freqs, flops_per_cycle, bandwidth
