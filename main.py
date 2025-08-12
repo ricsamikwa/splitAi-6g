@@ -18,15 +18,10 @@ import torchvision.transforms as transforms
 # Setup and Parameters
 # -----------------------
 num_nodes = 4  # UE + 3 network nodes
-ue_freq, ue_flops_cycle, ue_bandwidth, freqs, flops_cycle, bandwidth = generate_params(num_nodes)
 energy_cost = 1e-7  # J/byte for UE communication
 
 # Import the scenario params
 scenario_params = generate_scenario()
-
-# Instantiate computation nodes
-ue = UENode(cpu_freq=ue_freq, flops_per_cycle=ue_flops_cycle, power=5)
-network_nodes = [NetworkNode(i, freqs[i-1], flops_cycle[i-1]) for i in range(1, num_nodes)]
 
 # -----------------------
 # Load Model
@@ -64,6 +59,11 @@ if scenario_params['split_algorithm'] == 2: # indicates RL
     for ep in range(1, scenario_params['n_episodes'] + 1):
         for k in range(1, scenario_params['episode_duration'], scenario_params['time_interval']):
             print('Time interval {} in episode {}'.format(k, ep))
+            ue_freq, ue_flops_cycle, ue_bandwidth, freqs, flops_cycle, bandwidth = generate_params(num_nodes)
+            # Instantiate computation nodes
+            ue = UENode(cpu_freq=ue_freq, flops_per_cycle=ue_flops_cycle, power=5)
+            network_nodes = [NetworkNode(i, freqs[i - 1], flops_cycle[i - 1]) for i in range(1, num_nodes)]
+
             # -----------------------
             # Load and preprocess image
             # -----------------------
