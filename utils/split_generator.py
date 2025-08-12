@@ -30,16 +30,21 @@ def generate_random_split(allowed_splits, num_nodes, allow_empty_nodes=True):
     allowed_splits = sorted(allowed_splits)
     K = len(allowed_splits)
     assert K >= 2, "Need at least start/end boundaries"
-    cut_idx_space = np.arange(1, K - 1)  # internal boundary indices
+
+    # >>> FIX: allow choosing K-1 (final boundary) when empty nodes are allowed
+    if allow_empty_nodes:
+        cut_idx_space = np.arange(1, K)      # 1..K-1  (enables 'all on UE')
+    else:
+        cut_idx_space = np.arange(1, K - 1)  # 1..K-2  (classic internal cuts only)
 
     # Choose cut indices
-    if len(cut_idx_space) == 0:
+    if cut_idx_space.size == 0:
         points_idx = np.array([0, K - 1])
     else:
         if allow_empty_nodes:
             cuts_idx = np.random.choice(cut_idx_space, size=num_nodes - 1, replace=True)
         else:
-            if num_nodes - 1 > len(cut_idx_space):
+            if num_nodes - 1 > cut_idx_space.size:
                 raise ValueError("Not enough unique split points for all nodes.")
             cuts_idx = np.random.choice(cut_idx_space, size=num_nodes - 1, replace=False)
         cuts_idx = np.sort(cuts_idx)
