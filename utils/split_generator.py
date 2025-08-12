@@ -27,34 +27,40 @@ def generate_random_split(allowed_splits, num_nodes, allow_empty_nodes=True):
         list: A list of tuples (node_id, start_layer, end_layer) for each node.
     """
     # Randomly pick internal split points
-    split_points = sorted(
-        np.random.choice(allowed_splits[1:-1], num_nodes - 1, replace=False)
-    )
-    split_points = [allowed_splits[0]] + split_points + [allowed_splits[-1]]
+    allowed_splits = sorted(allowed_splits)
+    K = len(allowed_splits)
+    assert K >= 2, "Need at least start/end boundaries"
+    cut_idx_space = np.arange(1, K - 1)  # internal boundary indices
 
-    # If empty nodes allowed, duplicate some split points
-    if allow_empty_nodes:
-        raw_points = np.random.choice(split_points, num_nodes + 1, replace=True)
-        split_points = np.sort(raw_points)
+    # Choose cut indices
+    if len(cut_idx_space) == 0:
+        points_idx = np.array([0, K - 1])
+    else:
+        if allow_empty_nodes:
+            cuts_idx = np.random.choice(cut_idx_space, size=num_nodes - 1, replace=True)
+        else:
+            if num_nodes - 1 > len(cut_idx_space):
+                raise ValueError("Not enough unique split points for all nodes.")
+            cuts_idx = np.random.choice(cut_idx_space, size=num_nodes - 1, replace=False)
+        cuts_idx = np.sort(cuts_idx)
+        points_idx = np.concatenate(([0], cuts_idx, [K - 1]))
 
+    # Ensure UE (first segment) has at least one layer
+    if points_idx[1] == points_idx[0]:
+        points_idx[1] = min(points_idx[0] + 1, K - 1)
+
+    # Ensure non-decreasing sequence
+    for i in range(2, len(points_idx)):
+        if points_idx[i] < points_idx[i - 1]:
+            points_idx[i] = points_idx[i - 1]
+
+    # Build splits
     splits = []
-    last_end = allowed_splits[0]
-
-    for i in range(num_nodes):
-        start = int(last_end)
-        end = int(split_points[i + 1])
-
-        # Node 0 must have at least one layer
-        if i == 0 and start == end and end < allowed_splits[-1]:
-            end += 1
-
-        splits.append((i, start, end))
-        last_end = end  # Move forward (no backtracking)
-
-    # Force last active node to cover remaining layers
-    for idx in reversed(range(num_nodes)):
-        if splits[idx][1] != splits[idx][2]:
-            splits[idx] = (splits[idx][0], splits[idx][1], allowed_splits[-1])
-            break
+    for node_id in range(num_nodes):
+        s_idx = points_idx[node_id]
+        e_idx = points_idx[node_id + 1]
+        start = int(allowed_splits[s_idx])
+        end = int(allowed_splits[e_idx])
+        splits.append((node_id, start, end))
 
     return splits

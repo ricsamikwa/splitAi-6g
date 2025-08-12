@@ -70,7 +70,7 @@ allowed_splits = [0, 3, 6, 10, 14, 18]  # Safe boundaries (post-MaxPool layers)
 
 # Generate random split configuration
 split_config = generate_random_split(allowed_splits, num_nodes) # Replace with RL method
-
+print(f"Split Config: {split_config}")
 # Identify the index of the last node in the split configuration that was actually assigned layers.
 # This ensures we know where the active computation chain ends.
 # We then adjust the last active node so it always includes the model’s final layers,
@@ -94,7 +94,7 @@ split_config[last_active_idx] = (
     split_config[last_active_idx][1],
     18
 )
-
+print(f"Modified Split Config: {split_config}")
 for i, (node_id, start, end) in enumerate(split_config):
 
     if start == end:
@@ -137,7 +137,6 @@ for i, (node_id, start, end) in enumerate(split_config):
 # Print Results
 # -----------------------
 print("=== Multi-Node Split AI Inference ===")
-print(f"Split Config: {split_config}")
 print(f"Node Frequencies (GHz): {freqs}")
 print(f"Bandwidth (MB/s): {bandwidth}")
 print(f"Total Inference Time: {total_time:.6f}s")
