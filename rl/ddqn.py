@@ -9,11 +9,14 @@ import torch.nn as nn
 import torch.nn.functional as F
 from utils.rl_utils import load_model_params
 from utils.split_generator import generate_random_split
+from utils.inference_utils import compute_inference
 
 class DDQNAgent(nn.Module):
-    def __init__(self, scenario_params):
+    def __init__(self, scenario_params, allowed_splits, num_nodes):
         nn.Module.__init__(self)
         self.scenario_params = scenario_params
+        self.allowed_splits = allowed_splits
+        self.num_nodes = num_nodes
 
 
     def load_model(self, episode_count):
@@ -24,7 +27,7 @@ class DDQNAgent(nn.Module):
             self.load_state_dict(torch.load('rl/initial_models/main_params_ddqn.pt'))
 
     def get_agent_state(self):
-        pass
+        return 1
 
     def choose_action(self, state, epsilon, allowed_splits, num_nodes):
         playable_actions = self.define_action_space()  # TODO
@@ -37,16 +40,24 @@ class DDQNAgent(nn.Module):
                 playable_action_indx = torch.LongTensor(playable_action_indx)
                 action_idx = self(state.clone().detach().float())[playable_action_indx].argmax().item()
                 chosen_action = playable_actions[action_idx]
+        return 1
 
 
     def perform_action(self):
         pass
 
     def get_instant_reward(self):
-        pass
+        return 1
 
     def define_action_space(self):
         return 1
+
+    def train_agent(self, epsilon):
+        state = self.get_agent_state()
+        action = self.choose_action(state, epsilon, self.allowed_splits, self.num_nodes)
+        reward = self.get_instant_reward()
+        self.perform_action()
+        next_state = self.get_agent_state()
 
 class QValues:
     device = torch.device('cuda0' if torch.cuda.is_available() else 'cpu')
