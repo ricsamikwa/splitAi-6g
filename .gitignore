@@ -8,3 +8,6 @@ __pycache__/
 *.pth
 *.pt
 *.onnx
+
+# Ignore all csv files
+*.csv
