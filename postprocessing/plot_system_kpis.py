@@ -72,8 +72,8 @@ def plot_kpis(df, n_episodes, folder, kpi_type):
     ax.set_ylabel('{}'.format(kpi_type))
     plt.grid()
     plt.legend()
-    plt.savefig('results/{}/{}.png'.format(folder, kpi_type))
-    plt.savefig('results/{}/{}.svg'.format(folder, kpi_type))
+    plt.savefig('results/{}.png'.format(kpi_type))
+    plt.savefig('results/{}.svg'.format(kpi_type))
     plt.show()
 
 def parse_kpis(folder, n_episodes):

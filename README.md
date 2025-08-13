@@ -27,6 +27,21 @@ splitai-6g is a research framework for **layer-wise partitioning of deep neural 
     - `param_generator.py` → Generates random CPU frequencies, FLOPs, bandwidth  
     - `comm_utils.py` → Communication latency and energy modeling utilities  
     - `split_generator.py` → Generates random multi-node split configurations
+    - `rl_utils.py` → RL-specific utility functions
+  - **rl/**
+    - **initial_models/** → stores initial model params for a given number of states and actions
+    - `generate_model_params.py` → script to instantiate RL model architecture and save initial model params 
+    - `ddqn.py` → defines the ddqn algorithm and associated functions and parameters
+    - `agent.py` → defines the RL agent and associated functions to execute training or inference
+  - **logs/**
+    - **random/** → stores kpis and logs of a random split generator
+    - **rl/** → stores kpis and logs of rl-based algorithm
+      - **ddqn/**
+        - **models/** → stores the model params at the end of each training episode
+    - **optimum/** → stores kpis and logs of the optimal solution
+  - **postprocessing/**
+    - `plot_system_kpis.py` → script that reads, parses and plots system kpis
+  - **results/**
   - `main.py` → End-to-end collaborative inference evaluation  
   - `README.md` → Project documentation  
 
@@ -37,6 +52,14 @@ This step only needs to be run **once**:
 
 ```bash
 python3 models/convert_pretrained_vgg16.py
+```
+## RL model params setup
+
+Before running the main collaborative inference script, you need to instantiate the RL model architecture and save the weights and biases.
+This step only needs to be run **once**:
+
+```bash
+python3 rl/generate_model_params.py
 ```
 
 ## Running SplitAI Inference
