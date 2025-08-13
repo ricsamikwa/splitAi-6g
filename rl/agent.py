@@ -5,6 +5,7 @@ Defines the generic RL agent and its associated functions to train or infer the 
 """
 
 from rl.ddqn import DDQNAgent
+
 class Agent:
     def __init__(self, scenario_params, allowed_splits, num_nodes):
         self.scenario_params = scenario_params
@@ -15,10 +16,14 @@ class Agent:
         self.allowed_splits = allowed_splits
         self.num_nodes = num_nodes
 
-    def execute(self, episode_count):
+    def execute(self, episode_count, model, episode_params):
         # if training mode is on
         if self.scenario_params['inference'] == 0:
+            epsilon = self.get_epsilon()
             state = self.agent.get_agent_state()
             action = self.agent.choose_action()
             reward = self.agent.get_instant_reward()
             next_state = self.agent.get_agent_state()
+
+    def get_epsilon(self):
+        return 1

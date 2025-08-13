@@ -102,7 +102,7 @@ for ep in range(1, scenario_params['n_episodes'] + 1):
         if scenario_params['split_algorithm'] == 1:  # indicates random split
             split_config = generate_random_split(allowed_splits, num_nodes)  # Replace with RL method
         else:
-            split_config = agent.execute(ep)  # agent determines the split every time_interval seconds
+            split_config = agent.execute(ep, model, episode_params)  # agent determines the split every time_interval seconds
 
         # compute inference using the generated split configuration
         #compute_inference(split_config, model, episode_params)
