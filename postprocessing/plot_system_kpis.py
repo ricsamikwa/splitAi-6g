@@ -6,6 +6,17 @@ from utils.logging_utils import return_order, parse_episode_number
 
 
 def read_kpis_from_files(folder, kpi_type, episode_count):
+    """
+    Function to read system KPIs (inference time, ue computation and communication energy) for each episode.
+
+    Args:
+        folder (str): Indicates the algorithm e.g. random/rl/optimum.
+        kpi_type (str): The kpi to read e.g. inference_time
+        episode_count (int): The episode number
+
+    Returns:
+        Tuple: (time step when kpi was recorded as list, kpi as list )
+    """
     file = 'logs/{}/{}_{}.csv'.format(folder, kpi_type, episode_count)
     data_timestep = []
     data_kpi = []
@@ -18,9 +29,31 @@ def read_kpis_from_files(folder, kpi_type, episode_count):
     return data_timestep, data_kpi
 
 def get_confidence_interval(sd, size):
+    """
+    Compute 95% confidence interval
+
+    Args:
+        sd (float): standard deviation
+        size (int): sample size
+
+    Returns:
+        95% confidence interval of a group of samples
+    """
     return 1.960 * sd / size
 
 def plot_kpis(df, n_episodes, folder, kpi_type):
+    """
+    Generates an error plot of a given system kpi over episodes.
+
+    Args:
+        df (pandas DataFrame): 2D dataframe containing of kpi logs across and within episodes
+        n_episodes (int): number of episodes
+        folder (str): Indicates the algorithm e.g. random/rl/optimum.
+        kpi_type (str): the kpi to plot e.g. inference_time
+
+    Returns:
+
+    """
     fig, ax = plt.subplots()
     mean_per_episode = []
     sd_per_episode = []
@@ -44,6 +77,15 @@ def plot_kpis(df, n_episodes, folder, kpi_type):
     plt.show()
 
 def parse_kpis(folder, n_episodes):
+    """
+    Function to read and parse kpis into a 2D pandas DataFrame.
+    Args:
+        folder (str): Indicates the algorithm e.g. random/rl/optimum.
+        n_episodes (int): number of episodes
+
+    Returns:
+        Tuple: (dataframes containing inference time, ue computation and communication energy)
+    """
     order = return_order(n_episodes)
     inference_times_all_episodes = []
     ue_energy_comp_all_episodes = []
@@ -73,6 +115,12 @@ def parse_kpis(folder, n_episodes):
     return df_inference_time, df_ue_energy_comp, df_ue_energy_comm
 
 def main():
+    """
+    Main function that invokes other functions to read and parse kpis and plot them.
+
+    Returns:
+
+    """
     # change the parent path to run this script independently
     path_parent = os.path.dirname(os.getcwd())
     os.chdir(path_parent)
