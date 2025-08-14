@@ -125,7 +125,7 @@ def main():
     path_parent = os.path.dirname(os.getcwd())
     os.chdir(path_parent)
 
-    n_episodes = 10
+    n_episodes = 50
     folder = 'random'
     df_inference_time, df_ue_energy_comp, df_ue_energy_comm = parse_kpis(folder, n_episodes)
     # plot the required kpis

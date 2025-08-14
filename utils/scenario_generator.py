@@ -5,17 +5,34 @@ Utility function for generating all config parameters specific to the scenario
 
 """
 import configparser
+from dis import disco
+
 
 def generate_scenario():
+    """
+    Generates the scenario params.
+    Returns:
+        All read config parameters enclosed in a dict.
+    """
     scenario_params = pack_parameters('config.ini')
     return scenario_params
 
 
 def pack_parameters(filename):
+    """
+    Function to read config params from file using ConfigParser.
+    Args:
+        filename (str): the name of the config file to read from.
+
+    Returns:
+        All read config parameters enclosed in a dict.
+    """
     config = configparser.ConfigParser()
     config.read(filename)
 
     # read all scenario parameters from config file
+    max_energy_credit = int(config['ALGORITHM']['MAX_ENERGY_CREDIT'])
+    max_inference_latency = float(config['ALGORITHM']['MAX_INFERENCE_LATENCY'])
     split_algorithm = int(config['ALGORITHM']['SPLIT_ALGORITHM'])
     rl_algorithm = int(config['ALGORITHM']['RL_ALGORITHM'])
     inference = int(config['ALGORITHM']['INFERENCE'])
@@ -30,7 +47,7 @@ def pack_parameters(filename):
     target_update = int(config['DRL_HYPERPARAMETERS']['TARGET_UPDATE'])
     target_update_policy = int(config['DRL_HYPERPARAMETERS']['TARGET_UPDATE_POLICY'])
     lr = float(config['DRL_HYPERPARAMETERS']['LR'])
-    gamma = float(config['DRL_HYPERPARAMETERS']['GAMMA'])
+    discount_factor = float(config['DRL_HYPERPARAMETERS']['DISCOUNT_FACTOR'])
     tau = float(config['DRL_HYPERPARAMETERS']['TAU'])
     epsilon_ini = float(config['DRL_HYPERPARAMETERS']['EPSILON_INI'])
     epsilon_fin = float(config['DRL_HYPERPARAMETERS']['EPSILON_FIN'])
@@ -38,6 +55,8 @@ def pack_parameters(filename):
 
 
     params = {
+        'max_energy_credit': max_energy_credit,
+        'max_inference_latency': max_inference_latency,
         'split_algorithm': split_algorithm,
         'rl_algorithm': rl_algorithm,
         'inference': inference,
@@ -52,7 +71,7 @@ def pack_parameters(filename):
         'target_update': target_update,
         'target_update_policy': target_update_policy,
         'lr': lr,
-        'gamma': gamma,
+        'discount_factor': discount_factor,
         'tau': tau,
         'epsilon_ini': epsilon_ini,
         'epsilon_fin': epsilon_fin,

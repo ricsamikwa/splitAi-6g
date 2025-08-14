@@ -68,3 +68,5 @@ def compute_inference(split_config, model, episode_params):
     print(f"Total Inference Time: {total_time:.6f}s")
     print(f"UE Energy (Compute): {ue_energy_comp:.6f} J")
     print(f"UE Energy (Comm): {ue_energy_comm:.6f} J")
+
+    return total_time, ue_energy_comp, ue_energy_comm

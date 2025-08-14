@@ -3,7 +3,7 @@ import random
 import torch.nn as nn
 import torch.nn.functional as F
 from models.vgg16_model import VGG16
-from utils.flops_profile import compute_flops_per_layer, compute_flops_per_segment
+from utils.flops_profile import compute_flops_per_layer, compute_flops_per_segment, compute_flops_per_block
 from nodes.ue_node import UENode
 from nodes.network_node import NetworkNode
 from utils.param_generator import generate_params
@@ -21,7 +21,9 @@ import torchvision.transforms as transforms
 # -----------------------
 num_nodes = 4  # UE + 3 network nodes
 energy_cost = 1e-7  # J/byte for UE communication
+power = 5
 agent = None
+
 
 # Import the scenario params
 scenario_params = generate_scenario()
@@ -47,6 +49,9 @@ preprocess = transforms.Compose([
     ),
 ])
 
+# Calculate the flops per layer and per block
+flops_dict = compute_flops_per_layer(model)
+flops_per_block = compute_flops_per_block(flops_dict)
 # -----------------------
 # Possible Split Indices for VGG16
 # -----------------------
@@ -58,7 +63,7 @@ allowed_splits = [0, 3, 6, 10, 14, 18]  # Safe boundaries (post-MaxPool layers)
 # Generate split configuration according to desired algorithm
 # -----------------------
 if scenario_params['split_algorithm'] == 2:
-    agent = Agent(scenario_params, allowed_splits, num_nodes)
+    agent = Agent(scenario_params, allowed_splits, num_nodes, flops_per_block)
 for ep in range(1, scenario_params['n_episodes'] + 1):
     # ------------------------------
     # initialize logging variables
@@ -70,7 +75,7 @@ for ep in range(1, scenario_params['n_episodes'] + 1):
         print('Time step {} in episode {}'.format(k, ep))
         ue_freq, ue_flops_cycle, ue_bandwidth, freqs, flops_cycle, bandwidth = generate_params(num_nodes)
         # Instantiate computation nodes
-        ue = UENode(cpu_freq=ue_freq, flops_per_cycle=ue_flops_cycle, power=5)
+        ue = UENode(cpu_freq=ue_freq, flops_per_cycle=ue_flops_cycle, power=power)
         network_nodes = [NetworkNode(i, freqs[i - 1], flops_cycle[i - 1]) for i in range(1, num_nodes)]
 
         # -----------------------
@@ -96,14 +101,21 @@ for ep in range(1, scenario_params['n_episodes'] + 1):
                           'network_nodes': network_nodes,
                           'current_output': current_output,
                           'bandwidth': bandwidth,
+                          'ue_bandwidth': ue_bandwidth,
+                          'ue_freq': ue_freq,
+                          'ue_flops_cycle': ue_flops_cycle,
                           'freqs': freqs,
-                          'energy_cost': energy_cost}
+                          'flops_cycle': flops_cycle,
+                          'energy_cost': energy_cost,
+                          'power': power}
 
         if scenario_params['split_algorithm'] == 1:  # indicates random split
             split_config = generate_random_split(allowed_splits, num_nodes)  # Replace with RL method
         else:
             split_config = agent.execute(ep, model, episode_params)  # agent determines the split every time_interval seconds
 
+        # update the flops offloaded in the selected split config
+        #total_flops_offloaded += flops_offloaded
         # compute inference using the generated split configuration
         #compute_inference(split_config, model, episode_params)
 
@@ -114,7 +126,6 @@ for ep in range(1, scenario_params['n_episodes'] + 1):
         last_active_idx = max(i for i, (_, s, e) in enumerate(split_config) if s != e)
         last_active_node_id = split_config[last_active_idx][0]
 
-        flops_dict = compute_flops_per_layer(model)
         flops_per_segment = compute_flops_per_segment(model, flops_dict, split_config, last_active_node_id)
 
         # -----------------------

@@ -1,27 +1,129 @@
 """
 agent.py
 
-Defines the generic RL agent and its associated functions to train or infer the RL algorithm
+Defines the generic RL agent and its associated methods to train or infer the RL algorithm
 """
 
-from rl.ddqn import DDQNAgent
+from rl.ddqn import DDQNAgent, QValues
+from rl.replay_buffer import Experience, extract_tensors
+from utils.action_space import enumerate_action_space
+from utils.rl_utils import load_model_params
+from utils.inference_utils import compute_inference
+import csv
+import torch
+import torch.optim as optim
 
 class Agent:
-    def __init__(self, scenario_params, allowed_splits, num_nodes):
+    def __init__(self, scenario_params, allowed_splits, num_nodes, flops_per_block):
         self.scenario_params = scenario_params
         self.allowed_splits = allowed_splits
         self.num_nodes = num_nodes
+        self.flops_per_block = flops_per_block
         self.rl_algorithm = self.scenario_params['rl_algorithm']
+        # initializing class variables that are to be defined later
+        self.target_agent = None
+        self.epsilon = None
+        self.episode_count = None
+        self.n_states = 3 * self.num_nodes + 6 + 3
+        action_space = enumerate_action_space(self.allowed_splits, self.num_nodes, allow_empty_nodes=True)
+        self.n_actions = len(action_space)
+
+        self.optimizer = None
         self.agent_type = 'ddqn' if self.rl_algorithm == 1 else 'a2c'
         if self.agent_type == 'ddqn':
-            self.agent = DDQNAgent(self.scenario_params)
+            self.agent = DDQNAgent(self.scenario_params, self.n_states, self.n_actions, self.allowed_splits, self.num_nodes)
+            self.epsilon_ini = self.scenario_params['epsilon_ini']
+            self.epsilon_step_percent = self.scenario_params['epsilon_step_percent']
+            self.epsilon_fin = self.scenario_params['epsilon_fin']
 
-
-    def execute(self, episode_count, model, episode_params):
+    def execute(self, episode_count, dnn_model, episode_params):
+        self.episode_count = episode_count
+        # define the agent attributes
+        self.define_agent_attributes()
+        # update epsilon based on the episode number
+        self.get_epsilon()
         # if training mode is on
-        if self.scenario_params['inference'] == 0:
-            epsilon = self.get_epsilon(episode_count)
+        if not self.scenario_params['inference']:
+            # train the agent
+            self.train_agent(self.epsilon, dnn_model, episode_params)
+        # return the flops offloaded in this split configuration
+        return
 
+    def train_agent(self, epsilon, dnn_model, episode_params):
+        state = self.agent.get_agent_state(episode_params, self.flops_per_block)
+        action = self.agent.choose_action(state, epsilon)
+        inference_time, ue_en_comp, ue_en_comm = compute_inference(action, dnn_model, episode_params)
+        reward = self.agent.get_instant_reward(inference_time, ue_en_comp, ue_en_comm)
+        next_state = self.agent.get_agent_state(episode_params)
+        # collect the experience in the replay buffer
+        self.agent.replay_buffer.push(Experience(
+            state.clone().detach(), torch.tensor([action]),next_state.clone().detach(), torch.tensor([reward])
+        ))
+        # if there are sufficient experiences in the replay buffer
+        if self.agent.replay_buffer.check_provide_samples(self.agent.batch_size):
+            experiences = self.agent.replay_buffer.sample(self.agent.batch_size)
+            s, a, s_prime, r = extract_tensors(experiences)
+            # training mode
+            current_q_values = QValues.get_current(self.agent, s, a)
+            next_q_values = QValues.get_next_ddqn(self.agent, self.target_agent, s_prime)
+            target_q_values = (next_q_values * self.agent.discount_factor) + r
+            criterion = torch.nn.SmoothL1Loss()
+            loss = criterion(current_q_values.float(), target_q_values.unsqueeze(1).float())
+            self.optimizer.zero_grad()
+            loss.backward()
+            # gradient clipping
+            for param in self.agent.parameters():
+                param.grad.data.clamp_(-1, 1)
+            # end of gradient clipping
+            self.optimizer.step()
+            # implement ONLY soft updates for now
+            for target_param, local_param in zip(self.target_agent.parameters(),
+                                                 self.agent.parameters()):
+                target_param.data.copy_(
+                    self.scenario_params['tau'] * local_param.data + (1 - self.scenario_params['tau']) * target_param.data)
+            self.agent.loss_counter += 1
+            if not self.agent.loss_counter % 10000:
+                print('Loss')
+            self.agent.loss.append({'loss': loss.item()})
 
-    def get_epsilon(self, episode_count):
-        return 1
+    def define_agent_attributes(self):
+        if self.agent_type == 'ddqn':
+            # define optimizer for the ddqn agent
+            self.optimizer = optim.Adam(params=self.agent.parameters(), lr=self.scenario_params['lr'])
+            # load model
+            self.agent.load_model(self.episode_count, 'main')
+             # only for training mode
+            if not self.scenario_params['inference']:
+                if self.episode_count == 1:
+                    # only for the first episode, the params of target nn are identical to policy (main) agent
+                    self.target_agent = self.agent
+                    self.target_agent.load_state_dict(self.agent.state_dict())
+                else:
+                    # for episodes > 1, load params of target agent from previous episode
+                    self.target_agent = self.agent
+                    self.target_agent.load_state_dict(load_model_params(self.agent_type, 'target',
+                                                                        self.scenario_params,
+                                                                        self.episode_count))
+                # set target agent to evaluation mode (no training)
+                self.target_agent.eval()
+
+    def get_epsilon(self):
+        if self.scenario_params['inference']:
+            self.epsilon = self.epsilon_fin
+        else:
+            # training mode
+            if self.episode_count == 1:
+                self.epsilon = self.epsilon_ini
+            else:
+                # read epsilon values from file
+                file = 'logs/rl/{}/epsilon/epsilon.csv'
+                data = []
+                with open(file, 'r', newline='') as csv_file:
+                    reader = csv.reader(csv_file)
+                    for item in reader:
+                        data.append(float(item[0]))
+                len_data = len(data)
+                prev_eps = data[len_data - 1]
+                self.epsilon = prev_eps * (1 - (self.epsilon_step_percent / 100))
+                if self.epsilon < self.epsilon_fin or self.epsilon <= 0.0:
+                    self.epsilon = self.epsilon_fin
