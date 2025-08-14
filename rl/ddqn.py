@@ -11,7 +11,7 @@ import torch.nn.functional as F
 from utils.rl_utils import load_model_params
 from utils.split_generator import generate_random_split
 from utils.action_space import enumerate_action_space
-from replay_buffer import ReplayBuffer
+from rl.replay_buffer import ReplayBuffer
 
 
 class DDQNAgent(nn.Module):
