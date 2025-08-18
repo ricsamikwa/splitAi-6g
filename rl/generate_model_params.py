@@ -2,8 +2,14 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-n_states = 30
-n_actions = 64
+from utils.action_space import enumerate_action_space
+
+allowed_splits = [0, 3, 6, 10, 14, 18]  # Safe boundaries (post-MaxPool layers)
+n_nodes = 4
+n_states = 21
+actions = enumerate_action_space(allowed_splits, n_nodes, allow_empty_nodes=True)
+n_actions = len(actions)
+print(n_actions)
 
 class Model(nn.Module):
     def __init__(self, n_states, n_actions):

@@ -1,5 +1,4 @@
 import torch
-from utils.logging_utils import return_order, parse_episode_number
 
 def load_model_params(agent_type, nn_type, scenario_params, episode_count):
     """
@@ -34,3 +33,30 @@ def save_model_params(model, agent_type, nn_type, scenario_params, episode_count
     file = 'logs/rl/{}/models/model_{}_ep{}.pt'.format(agent_type, nn_type, episode_count)
     torch.save(model.state_dict(), file)
 
+def return_order(n_episodes):
+    f = 1
+    order = None
+    while f >= 1:
+        if 10 ** f > n_episodes:
+            order = f
+            f = 0
+        else:
+            f = f + 1
+            continue
+    return order
+
+
+def parse_episode_number(order, ep):
+    possible_orders = [o for o in range(order, -1, -1)]
+    n_zeros = None
+    for o in possible_orders:
+        if 10 ** o > ep >= 10 ** (o - 1):
+            n_zeros = order - o
+            break
+    if n_zeros == 0:
+        return str(ep)
+    else:
+        s = ''
+        for i in range(n_zeros):
+            s = s + '0'
+        return s + str(ep)

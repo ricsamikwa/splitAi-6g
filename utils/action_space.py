@@ -14,6 +14,7 @@ def enumerate_action_space(allowed_splits, num_nodes, allow_empty_nodes=True):
         list of list of tuples: Each element is a split configuration 
                                 [(node_id, start, end), ...]
     """
+    action_indices = {}
     allowed_splits = sorted(allowed_splits)
     K = len(allowed_splits)
     assert K >= 2, "Need at least start/end boundaries"
@@ -50,16 +51,31 @@ def enumerate_action_space(allowed_splits, num_nodes, allow_empty_nodes=True):
             end = int(allowed_splits[e_idx])
             splits.append((node_id, start, end))
 
-        actions.append(splits)
+        # ensure no duplicates
+        if splits not in actions:
+            actions.append(splits)
 
-    return actions
+    for i, a in enumerate(actions):
+        #print(a)
+        action_indices[i] = a
+
+    return actions, action_indices
 
 
 # Sample usage:
 # if __name__ == "__main__":
 #     allowed_splits = [0, 3, 6, 10, 14, 18]
 #     num_nodes = 4
+#     action_indices = {}
 #     all_actions = enumerate_action_space(allowed_splits, num_nodes, allow_empty_nodes=True)
 #     print(f"Total actions: {len(all_actions)}")
-#     for a in all_actions:
-#         print(a)
+#     for i, a in enumerate(all_actions):
+#         #print(a)
+#         action_indices[i] = a
+#     print(all_actions)
+#     #print(action_indices)
+#     act = [(0, 0, 3), (1, 3, 3), (2, 3, 6), (3, 6, 18)]
+#     for k, v in action_indices.items():
+#         if v == act:
+#             print(k)
+
