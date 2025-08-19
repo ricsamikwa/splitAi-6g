@@ -41,33 +41,37 @@ def get_confidence_interval(sd, size):
     """
     return 1.960 * sd / size
 
-def plot_kpis(df, n_episodes, folder, kpi_type):
+def plot_kpis(df_list, n_episodes, algorithms, kpi_type):
     """
     Generates an error plot of a given system kpi over episodes.
 
     Args:
-        df (pandas DataFrame): 2D dataframe containing of kpi logs across and within episodes
+        df_list (list of pandas DataFrame): list of 2D dataframes containing of kpi logs across and within episodes
+        for algorithms
         n_episodes (int): number of episodes
-        folder (str): Indicates the algorithm e.g. random/rl/optimum.
+        algorithms (list): Indicates the algorithms to plot e.g. random/rl/optimum.
         kpi_type (str): the kpi to plot e.g. inference_time
 
     Returns:
 
     """
     fig, ax = plt.subplots()
-    mean_per_episode = []
-    sd_per_episode = []
-    yerr_per_episode = []
-
-    for ep in range(1, n_episodes + 1):
-        mean_per_episode.append(df.loc[ep].mean())
-        sd = df.loc[ep].std()
-        sd_per_episode.append(sd)
-        yerr_per_episode.append(get_confidence_interval(sd, n_episodes))
-
+    colors = ['r--o', 'b--o']
     episodes = [ep for ep in range(1, n_episodes + 1)]
-    plt.errorbar(episodes, mean_per_episode, yerr=yerr_per_episode, capsize=3, fmt="r--o", ecolor='black',
-                 label='{}'.format(folder))
+    for i, alg in enumerate(algorithms):
+        df = df_list[i]
+        mean_per_episode = []
+        sd_per_episode = []
+        yerr_per_episode = []
+
+        for ep in range(1, n_episodes + 1):
+            mean_per_episode.append(df.loc[ep].mean())
+            sd = df.loc[ep].std()
+            sd_per_episode.append(sd)
+            yerr_per_episode.append(get_confidence_interval(sd, n_episodes))
+
+        plt.errorbar(episodes, mean_per_episode, yerr=yerr_per_episode, capsize=3, fmt=colors[i], ecolor='black',
+                     label='{}'.format(alg))
     ax.set_xlabel('episodes')
     ax.set_ylabel('{}'.format(kpi_type))
     plt.grid()
@@ -126,12 +130,20 @@ def main():
     os.chdir(path_parent)
 
     n_episodes = 50
-    folder = 'random'
-    df_inference_time, df_ue_energy_comp, df_ue_energy_comm = parse_kpis(folder, n_episodes)
+    algorithms = ['random', 'rl']
+    df_inference_time_list = []
+    df_ue_energy_comp_list = []
+    df_ue_energy_comm_list = []
+
+    for alg in algorithms:
+        df_inference_time, df_ue_energy_comp, df_ue_energy_comm = parse_kpis(alg, n_episodes)
+        df_inference_time_list.append(df_inference_time)
+        df_ue_energy_comp_list.append(df_ue_energy_comp)
+        df_ue_energy_comm_list.append(df_ue_energy_comm)
     # plot the required kpis
-    plot_kpis(df_inference_time, n_episodes, folder, 'inference_time')
-    plot_kpis(df_ue_energy_comp, n_episodes, folder, 'ue_energy_comp')
-    plot_kpis(df_ue_energy_comm, n_episodes, folder, 'ue_energy_comm')
+    plot_kpis(df_inference_time_list, n_episodes, algorithms, 'inference_time')
+    plot_kpis(df_ue_energy_comp_list, n_episodes, algorithms, 'ue_energy_comp')
+    plot_kpis(df_ue_energy_comm_list, n_episodes, algorithms, 'ue_energy_comm')
 
 if __name__ == '__main__':
     main()

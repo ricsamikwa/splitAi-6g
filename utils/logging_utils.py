@@ -28,14 +28,14 @@ def write_logs(scenario_params, episode, data, model):
     writeToCsv(data['ue_energy_comm'], filename, folder)
     if folder == 'rl':
         if scenario_params['rl_algorithm'] == 1:    # ddqn
-            save_model_params(model.agent, 'ddqn', 'main', scenario_params, episode)
-            save_model_params(model.target_agent, 'ddqn', 'target', scenario_params, episode)
-            filename = 'ddqn/loss/loss_ep{}'.format(episode)
+            save_model_params(model.agent, 'ddqn', 'main', scenario_params, episode_count)
+            save_model_params(model.target_agent, 'ddqn', 'target', scenario_params, episode_count)
+            filename = 'ddqn/loss/loss_ep{}'.format(episode_count)
             writeToCsv(model.agent.loss, filename, folder)
-            filename = 'ddqn/reward/reward_ep{}'.format(episode)
+            filename = 'ddqn/reward/reward_ep{}'.format(episode_count)
             writeToCsv(model.agent.reward, filename, folder)
             fol = 'rl/ddqn/epsilon'
-            logKPIs([model.epsilon], 'epsilon', episode, fol)
+            logKPIs([model.agent.epsilon], 'epsilon', episode_count, fol)
 
 def logKPIs(data, kpi_type, episode_count, folder):
     file = 'logs/{}/{}.csv'.format(folder, kpi_type)
@@ -45,3 +45,13 @@ def logKPIs(data, kpi_type, episode_count, folder):
         writer_object = writer(f_object)
         writer_object.writerow(data)
         f_object.close()
+
+def read_single_col_data(filename, x, y, x_type, y_type):
+    x_data = []
+    y_data = []
+    with open('{}.csv'.format(filename), 'r', encoding='utf8', newline='') as csvfile:
+        reader = csv.DictReader(csvfile)
+        for row in reader:
+            x_data.append(x_type(row[x]))
+            y_data.append(y_type(row[y]))
+    return x_data, y_data

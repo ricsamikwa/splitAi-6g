@@ -23,7 +23,6 @@ class Agent:
         self.rl_algorithm = self.scenario_params['rl_algorithm']
         # initializing class variables that are to be defined later
         self.target_agent = None
-        self.epsilon = None
         self.episode_count = None
         self.n_states = 3 * self.num_nodes + 6 + 3
         self.action_space, self.action_indices = enumerate_action_space(self.allowed_splits, self.num_nodes, allow_empty_nodes=True)
@@ -34,27 +33,23 @@ class Agent:
         if self.agent_type == 'ddqn':
             self.agent = DDQNAgent(self.scenario_params, self.n_states, self.n_actions, self.allowed_splits,
                                    self.num_nodes, self.flops_per_block)
-            self.epsilon_ini = self.scenario_params['epsilon_ini']
-            self.epsilon_step_percent = self.scenario_params['epsilon_step_percent']
-            self.epsilon_fin = self.scenario_params['epsilon_fin']
+
 
     def execute(self, time, episode_count, dnn_model, episode_params, output):
         final_action = None
         self.episode_count = episode_count
         # define the agent attributes
         self.define_agent_attributes()
-        # update epsilon based on the episode number
-        self.get_epsilon()
         # if training mode is on
         if not self.scenario_params['inference']:
             # train the agent
-            final_action = self.train_agent(time, self.epsilon, dnn_model, episode_params, output)
+            final_action = self.train_agent(time, dnn_model, episode_params, output)
         return final_action
 
-    def train_agent(self, time, epsilon, dnn_model, episode_params, output):
+    def train_agent(self, time, dnn_model, episode_params, output):
         action_idx = None
         state = self.agent.get_agent_state(episode_params, self.flops_per_block)
-        action = self.agent.choose_action(self.action_space, state, epsilon)
+        action = self.agent.choose_action(self.action_space, state)
         inference_time, ue_en_comp, ue_en_comm = self.agent.perform_action(action, self.allowed_splits_blocks,
                                                                            dnn_model, episode_params, output)
         if not self.agent.success:
@@ -120,25 +115,5 @@ class Agent:
                 # set target agent to evaluation mode (no training)
                 self.target_agent.eval()
 
-    def get_epsilon(self):
-        if self.scenario_params['inference']:
-            self.epsilon = self.epsilon_fin
-        else:
-            # training mode
-            if self.episode_count == 1:
-                self.epsilon = self.epsilon_ini
-            else:
-                # read epsilon values from file
-                file = 'logs/rl/ddqn/epsilon/epsilon.csv'
-                data = []
-                with open(file, 'r', newline='') as csv_file:
-                    reader = csv.reader(csv_file)
-                    for item in reader:
-                        data.append(float(item[0]))
-                len_data = len(data)
-                prev_eps = data[len_data - 1]
-                self.epsilon = prev_eps * (1 - (self.epsilon_step_percent / 100))
-                if self.epsilon < self.epsilon_fin or self.epsilon <= 0.0:
-                    self.epsilon = self.epsilon_fin
 
 

@@ -4,6 +4,7 @@ agent.py
 Defines the RL agent and its associated parameters to train or infer the RL algorithm
 """
 import numpy as np
+import csv
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -40,6 +41,11 @@ class DDQNAgent(nn.Module):
         self.loss = []
         self.loss_counter = 0
         self.reward = []
+        self.epsilon = None
+        self.epsilon_ini = self.scenario_params['epsilon_ini']
+        self.epsilon_step_percent = self.scenario_params['epsilon_step_percent']
+        self.epsilon_fin = self.scenario_params['epsilon_fin']
+
 
     def forward(self, x):
         x = F.relu(self.layer1(x))
@@ -84,15 +90,14 @@ class DDQNAgent(nn.Module):
         state = torch.Tensor(state)
         return state
 
-    def choose_action(self, playable_actions, state, epsilon):
-
+    def choose_action(self, playable_actions, state):
         n_actions = len(playable_actions)
         random_value = np.random.random()
         # agent explores by selecting a random split config
-        if epsilon > random_value and not self.scenario_params['inference']:
+        if self.epsilon > random_value and not self.scenario_params['inference']:
             selected_split_config = generate_random_split(self.allowed_splits, self.num_nodes)
         # agent exploits the current learned knowledge by selecting the action with the highest Q-value
-        elif epsilon <= random_value or self.params_config['inference']:
+        elif self.epsilon <= random_value or self.params_config['inference']:
             with torch.no_grad():
                 playable_action_indx = [k for k in range(n_actions)]
                 playable_action_indx = torch.LongTensor(playable_action_indx)
@@ -158,6 +163,34 @@ class DDQNAgent(nn.Module):
             return True
         else:
             return False
+
+    def get_epsilon(self, episode_count):
+        if self.scenario_params['inference']:
+            self.epsilon = self.epsilon_fin
+        else:
+            # training mode
+            if episode_count == 1:
+                self.epsilon = self.epsilon_ini
+                # clear contents of existing file
+                file = 'logs/rl/ddqn/epsilon/epsilon.csv'
+                f = open(file, "w")
+                f.truncate()
+                f.close()
+            else:
+                # read epsilon values from file
+                file = 'logs/rl/ddqn/epsilon/epsilon.csv'
+                data = []
+                with open(file, 'r', newline='') as csv_file:
+                    reader = csv.reader(csv_file)
+                    for item in reader:
+                        data.append(float(item[0]))
+                len_data = len(data)
+                prev_eps = data[len_data - 1]
+                self.epsilon = prev_eps * (1 - (self.epsilon_step_percent / 100))
+                if self.epsilon < self.epsilon_fin or self.epsilon <= 0.0:
+                    self.epsilon = self.epsilon_fin
+        print('Epsilon {}'.format(self.epsilon))
+
 
 class QValues:
     device = torch.device('cuda0' if torch.cuda.is_available() else 'cpu')

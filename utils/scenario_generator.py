@@ -5,7 +5,6 @@ Utility function for generating all config parameters specific to the scenario
 
 """
 import configparser
-from dis import disco
 
 
 def generate_scenario():

@@ -26,7 +26,7 @@ agent = None
 
 # Import the scenario params
 scenario_params = generate_scenario()
-
+start_episode = scenario_params['start_episode']
 # -----------------------
 # Load Model
 # -----------------------
@@ -65,15 +65,18 @@ allowed_splits_blocks = [(1, 0, 3), (2, 3, 6), (3, 6, 10), (4, 10, 14), (5, 14, 
 # -----------------------
 if scenario_params['split_algorithm'] == 2:
     agent = Agent(scenario_params, allowed_splits, num_nodes, flops_per_block, allowed_splits_blocks)
-for ep in range(1, scenario_params['n_episodes'] + 1):
+for ep in range(start_episode, scenario_params['n_episodes'] + 1):
+    print('Episode {}'.format(ep))
     # ------------------------------
     # initialize logging variables
     inference_time_per_episode = []
     ue_energy_comp_per_episode = []
     ue_energy_comm_per_episode = []
     # ------------------------------
+    if scenario_params['split_algorithm'] == 2: # update epsilon for ddqn based on episode number
+        agent.agent.get_epsilon(ep)
     for k in range(1, scenario_params['episode_duration'], scenario_params['time_interval']):
-        print('Time step {} in episode {}'.format(k, ep))
+        #print('Time step {} in episode {}'.format(k, ep))
         ue_freq, ue_flops_cycle, ue_bandwidth, freqs, flops_cycle, bandwidth = generate_params(num_nodes)
         # Instantiate computation nodes
         ue = UENode(cpu_freq=ue_freq, flops_per_cycle=ue_flops_cycle, power=power)
