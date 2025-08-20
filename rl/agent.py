@@ -9,7 +9,6 @@ from rl.replay_buffer import Experience, extract_tensors
 from utils.action_space import enumerate_action_space
 from utils.rl_utils import load_model_params
 
-import csv
 import torch
 import torch.optim as optim
 
@@ -33,9 +32,21 @@ class Agent:
         if self.agent_type == 'ddqn':
             self.agent = DDQNAgent(self.scenario_params, self.n_states, self.n_actions, self.allowed_splits,
                                    self.num_nodes, self.flops_per_block)
-
+        print(self.flops_per_block)
 
     def execute(self, time, episode_count, dnn_model, episode_params, output):
+        """
+        Function that simulates the behavior of the agent.
+        Args:
+            time (int): The time step within the episode.
+            episode_count (int): The episode number.
+            dnn_model (pytorch model): The DNN model.
+            episode_params (dict): The params specific to the episode packed in a dict.
+            output (tensor): The pytorch tensor capturing the input image after transformation.
+
+        Returns:
+            The final split config to be used for inference.
+        """
         final_action = None
         self.episode_count = episode_count
         # define the agent attributes
@@ -47,6 +58,17 @@ class Agent:
         return final_action
 
     def train_agent(self, time, dnn_model, episode_params, output):
+        """
+        Function that trains the agent.
+        Args:
+            time (int): The time step within the episode.
+            dnn_model (pytorch model): The DNN model.
+            episode_params (dict): The params specific to the episode packed in a dict.
+            output (tensor): The pytorch tensor capturing the input image after transformation.
+
+        Returns:
+            The final split config to be used for inference.
+        """
         action_idx = None
         state = self.agent.get_agent_state(episode_params, self.flops_per_block)
         action = self.agent.choose_action(self.action_space, state)
@@ -58,6 +80,7 @@ class Agent:
             if v == action:
                 action_idx = k
         reward = self.agent.get_instant_reward(inference_time, ue_en_comp, ue_en_comm)
+        # log the reward
         self.agent.reward.append({'time': time, 'reward': reward})
         next_state = self.agent.get_agent_state(episode_params, self.flops_per_block)
         # collect the experience in the replay buffer
@@ -74,6 +97,8 @@ class Agent:
             # normalize reward
             r = torch.log(1 + torch.abs(r))
             target_q_values = (next_q_values * self.agent.discount_factor) + r
+            #print(current_q_values)
+            #print(target_q_values.unsqueeze(1))
             criterion = torch.nn.SmoothL1Loss()
             loss = criterion(current_q_values.float(), target_q_values.unsqueeze(1).float())
             self.optimizer.zero_grad()
@@ -95,6 +120,11 @@ class Agent:
         return action
 
     def define_agent_attributes(self):
+        """
+        Function that defines attributes specific to the agent.
+        Returns:
+
+        """
         if self.agent_type == 'ddqn':
             # define optimizer for the ddqn agent
             self.optimizer = optim.Adam(params=self.agent.parameters(), lr=self.scenario_params['lr'])

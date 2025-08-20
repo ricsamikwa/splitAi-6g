@@ -4,6 +4,7 @@ agent.py
 Defines the RL agent and its associated parameters to train or infer the RL algorithm
 """
 import numpy as np
+import math
 import csv
 import torch
 import torch.nn as nn
@@ -84,10 +85,11 @@ class DDQNAgent(nn.Module):
         for block in range(1, 7):
             state[idx] = flops_per_block[block]
             idx += 1
-        # finally, the energy credit
+        # finally, the total flops offloaded until now
         state[idx] = self.total_flops_offloaded
 
         state = torch.Tensor(state)
+        print(state)
         return state
 
     def choose_action(self, playable_actions, state):
@@ -121,13 +123,14 @@ class DDQNAgent(nn.Module):
         # if no, then ue cannot offload any layers to the network, computes everything on its own, mark it as "unsuccessful"
         if energy_credit_criteria and latency_criteria:
             self.success = 1
+            self.total_flops_offloaded += flops_to_be_offloaded
         else:
             self.success = 0
         return inference_time, ue_en_comp, ue_en_comm
 
 
     def get_instant_reward(self, inference_time, ue_energy_comp, ue_energy_comm):
-        optimization = inference_time + ue_energy_comp + ue_energy_comm
+        optimization = math.pow(10, inference_time + ue_energy_comp + ue_energy_comm)
         # if the selected split is unsuccessful, immediate reward is 0
         return self.success * optimization
 

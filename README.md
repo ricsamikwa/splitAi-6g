@@ -28,11 +28,14 @@ splitai-6g is a research framework for **layer-wise partitioning of deep neural 
     - `comm_utils.py` → Communication latency and energy modeling utilities  
     - `split_generator.py` → Generates random multi-node split configurations
     - `rl_utils.py` → RL-specific utility functions
+    - `scenario_generator.py` → Reads and packs scenario params from config file
+    - `logging_utils.py` → Functions related to reading and writing experiment logs
   - **rl/**
     - **initial_models/** → stores initial model params for a given number of states and actions
     - `generate_model_params.py` → script to instantiate RL model architecture and save initial model params 
     - `ddqn.py` → defines the ddqn algorithm and associated functions and parameters
     - `agent.py` → defines the RL agent and associated functions to execute training or inference
+    - `replay_buffer.py` → defines the replay buffer to store experiences for ddqn algorithm
   - **logs/**
     - **random/** → stores kpis and logs of a random split generator
     - **rl/** → stores kpis and logs of rl-based algorithm
