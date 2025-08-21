@@ -94,7 +94,7 @@ def compute_flops_per_segment(model, flops_dict, split_config, last_active_node_
 
 def compute_flops_per_block(flops_per_layer):
     """
-    Computes flops per block of the VGG16 model.
+    Computes flops per block of the VGG16 model and normalizes the values.
     Args:
         flops_per_layer (dict): the flops per layer of VGG16
 
@@ -103,16 +103,16 @@ def compute_flops_per_block(flops_per_layer):
     """
     flops_per_block = {}
     block = 1
-    flops_per_block[block] = flops_per_layer[0] + flops_per_layer[1]
+    flops_per_block[block] = (flops_per_layer[0] + flops_per_layer[1]) * 1e-9
     block = 2
-    flops_per_block[block] = flops_per_layer[2] + flops_per_layer[3]
+    flops_per_block[block] = (flops_per_layer[2] + flops_per_layer[3]) * 1e-9
     block = 3
-    flops_per_block[block] = flops_per_layer[4] + flops_per_layer[5] + flops_per_layer[6]
+    flops_per_block[block] = (flops_per_layer[4] + flops_per_layer[5] + flops_per_layer[6]) * 1e-9
     block = 4
-    flops_per_block[block] = flops_per_layer[7] + flops_per_layer[8] + flops_per_layer[9]
+    flops_per_block[block] = (flops_per_layer[7] + flops_per_layer[8] + flops_per_layer[9]) * 1e-9
     block = 5
-    flops_per_block[block] = flops_per_layer[10] + flops_per_layer[11] + flops_per_layer[12]
+    flops_per_block[block] = (flops_per_layer[10] + flops_per_layer[11] + flops_per_layer[12]) * 1e-9
     block = 6
-    flops_per_block[block] = flops_per_layer['fc1'] + flops_per_layer['fc2'] + flops_per_layer['fc3']
+    flops_per_block[block] = (flops_per_layer['fc1'] + flops_per_layer['fc2'] + flops_per_layer['fc3']) * 1e-9
     return flops_per_block
 

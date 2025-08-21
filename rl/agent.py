@@ -23,7 +23,7 @@ class Agent:
         # initializing class variables that are to be defined later
         self.target_agent = None
         self.episode_count = None
-        self.n_states = 3 * self.num_nodes + 6 + 3
+        self.n_states = 3 * self.num_nodes + 6 + 4
         self.action_space, self.action_indices = enumerate_action_space(self.allowed_splits, self.num_nodes, allow_empty_nodes=True)
         self.n_actions = len(self.action_space)
 
@@ -32,7 +32,7 @@ class Agent:
         if self.agent_type == 'ddqn':
             self.agent = DDQNAgent(self.scenario_params, self.n_states, self.n_actions, self.allowed_splits,
                                    self.num_nodes, self.flops_per_block)
-        print(self.flops_per_block)
+        #print(flops_per_block)
 
     def execute(self, time, episode_count, dnn_model, episode_params, output):
         """

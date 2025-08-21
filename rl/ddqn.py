@@ -32,9 +32,11 @@ class DDQNAgent(nn.Module):
         self.layer3 = nn.Linear(128, self.n_actions)
         self.total_flops_offloaded = 0  # captures the cumulative flops offloaded by the ue until now
         self.total_flops = 0    # captures total flops of all layers (static value)
+        self.total_flops_on_ue = 0  # captures the cumulative flops computed on the ue until now
         self.success = None # records the success of a selected split
         # compute the total flops of all blocks
-        for key, value in enumerate(self.flops_per_block):
+        print('flops per block {}'.format(self.flops_per_block))
+        for key, value in self.flops_per_block.items():
             self.total_flops += value
         self.replay_buffer = ReplayBuffer(capacity=self.scenario_params['buffer_size'])
         self.discount_factor = self.scenario_params['discount_factor']
@@ -80,16 +82,19 @@ class DDQNAgent(nn.Module):
             state[idx] = episode_params['freqs'][node_id - 1]
             idx += 1
             state[idx] = episode_params['flops_cycle'][node_id - 1]
-        idx += 1
+            idx += 1
         # capture flops per block
         for block in range(1, 7):
             state[idx] = flops_per_block[block]
             idx += 1
         # finally, the total flops offloaded until now
         state[idx] = self.total_flops_offloaded
-
+        idx += 1
+        # and the total flops on the ue until now
+        state[idx] = self.total_flops_on_ue
+        #print(self.total_flops_offloaded)
         state = torch.Tensor(state)
-        print(state)
+        #print(state)
         return state
 
     def choose_action(self, playable_actions, state):
@@ -105,13 +110,14 @@ class DDQNAgent(nn.Module):
                 playable_action_indx = torch.LongTensor(playable_action_indx)
                 action_idx = self(state.clone().detach().float())[playable_action_indx].argmax().item()
                 selected_split_config = playable_actions[action_idx]
+        #print(selected_split_config)
         return selected_split_config
 
 
     def perform_action(self, selected_split_config, allowed_splits_blocks, dnn_model, episode_params, output):
         # for the selected split config (or action)
         # compute the flops to be offloaded due to this selected split
-        flops_to_be_offloaded = self.get_flops_offloaded(selected_split_config, allowed_splits_blocks)
+        flops_to_be_offloaded, flops_on_ue = self.get_flops_offloaded(selected_split_config, allowed_splits_blocks)
         # compute the inference due to this selected split
         inference_time, ue_en_comp, ue_en_comm, _ = compute_inference(selected_split_config, dnn_model, episode_params,
                                                                       output)
@@ -126,20 +132,25 @@ class DDQNAgent(nn.Module):
             self.total_flops_offloaded += flops_to_be_offloaded
         else:
             self.success = 0
+        self.total_flops_on_ue += flops_on_ue
         return inference_time, ue_en_comp, ue_en_comm
 
 
     def get_instant_reward(self, inference_time, ue_energy_comp, ue_energy_comm):
-        optimization = math.pow(10, inference_time + ue_energy_comp + ue_energy_comm)
+        optimization = inference_time + ue_energy_comp + ue_energy_comm
+        reward = self.success * optimization
+        #print('reward {}'.format(reward))
         # if the selected split is unsuccessful, immediate reward is 0
-        return self.success * optimization
+        return reward
 
     def get_flops_offloaded(self, selected_split_config, allowed_splits_blocks):
         flops_on_ue = 0
+        #print(self.total_flops)
         (node_id, start, end) = selected_split_config[0] # extract start and end layers of ue
-        # case 1: all layers on ue, ue offloads nothing, nothing to update
+        # case 1: all layers on ue, ue offloads nothing
         if start == 0 and end == 18:
-            return 0
+            flops_on_ue = self.total_flops
+            return 0, flops_on_ue
         else:
             # case 2: at least one block on ue, ue offloads the rest
             for i, (block_id, block_start, block_end) in enumerate(allowed_splits_blocks):
@@ -152,11 +163,13 @@ class DDQNAgent(nn.Module):
                     raise ValueError('Wrong mapping of blocks.')
             flops_offloaded = self.total_flops - flops_on_ue    # flops offloaded for this specific split config
             # self.total_flops_offloaded += flops_offloaded
-            return flops_offloaded
+            #print(selected_split_config)
+            #print('flops offloaded {}'.format(flops_offloaded))
+            return flops_offloaded, flops_on_ue
 
 
     def check_energy_credit_budget(self, flops_offloaded):
-        if (flops_offloaded + self.total_flops_offloaded) / self.total_flops <= self.max_energy_credit / 100:
+        if (flops_offloaded + self.total_flops_offloaded) / (self.total_flops + self.total_flops_on_ue) <= self.max_energy_credit / 100:
             return True
         else:
             return False

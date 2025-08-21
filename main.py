@@ -19,7 +19,7 @@ import torchvision.transforms as transforms
 # Setup and Parameters
 # -----------------------
 num_nodes = 4  # UE + 3 network nodes
-energy_cost = 1e-7  # J/byte for UE communication
+energy_cost = 1  # in 1e-7 scale (J/byte) for UE communication
 power = 5
 agent = None
 
