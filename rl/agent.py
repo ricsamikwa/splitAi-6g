@@ -23,7 +23,7 @@ class Agent:
         # initializing class variables that are to be defined later
         self.target_agent = None
         self.episode_count = None
-        self.n_states = 3 * self.num_nodes + 6 + 4
+        self.n_states = 3 * self.num_nodes + 6 + 3
         self.action_space, self.action_indices = enumerate_action_space(self.allowed_splits, self.num_nodes, allow_empty_nodes=True)
         self.n_actions = len(self.action_space)
 
@@ -72,10 +72,9 @@ class Agent:
         action_idx = None
         state = self.agent.get_agent_state(episode_params, self.flops_per_block)
         action = self.agent.choose_action(self.action_space, state)
-        inference_time, ue_en_comp, ue_en_comm = self.agent.perform_action(action, self.allowed_splits_blocks,
+        # this function also checks and returns the feasible action
+        inference_time, ue_en_comp, ue_en_comm, action = self.agent.perform_action(action, self.allowed_splits_blocks,
                                                                            dnn_model, episode_params, output)
-        if not self.agent.success:
-            action = [(0, 0, 18), (1, 18, 18), (2, 18, 18), (3, 18, 18)]
         for k, v in self.action_indices.items():
             if v == action:
                 action_idx = k
@@ -95,7 +94,8 @@ class Agent:
             current_q_values = QValues.get_current(self.agent, s, a)
             next_q_values = QValues.get_next_ddqn(self.agent, self.target_agent, s_prime)
             # normalize reward
-            r = torch.log(1 + torch.abs(r))
+            signed = torch.sign(r)
+            r = signed * torch.log(1 + torch.abs(r))
             target_q_values = (next_q_values * self.agent.discount_factor) + r
             #print(current_q_values)
             #print(target_q_values.unsqueeze(1))

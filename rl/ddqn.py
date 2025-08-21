@@ -4,6 +4,7 @@ agent.py
 Defines the RL agent and its associated parameters to train or infer the RL algorithm
 """
 import numpy as np
+import random
 import math
 import csv
 import torch
@@ -30,6 +31,7 @@ class DDQNAgent(nn.Module):
         self.layer1 = nn.Linear(self.n_states, 128)
         self.layer2 = nn.Linear(128, 128)
         self.layer3 = nn.Linear(128, self.n_actions)
+        self.energy_credit_consumed = 0.0    # energy credit consumed initially is 0%
         self.total_flops_offloaded = 0  # captures the cumulative flops offloaded by the ue until now
         self.total_flops = 0    # captures total flops of all layers (static value)
         self.total_flops_on_ue = 0  # captures the cumulative flops computed on the ue until now
@@ -88,10 +90,10 @@ class DDQNAgent(nn.Module):
             state[idx] = flops_per_block[block]
             idx += 1
         # finally, the total flops offloaded until now
-        state[idx] = self.total_flops_offloaded
+        state[idx] = self.energy_credit_consumed
         idx += 1
         # and the total flops on the ue until now
-        state[idx] = self.total_flops_on_ue
+        #state[idx] = self.total_flops_on_ue
         #print(self.total_flops_offloaded)
         state = torch.Tensor(state)
         #print(state)
@@ -102,7 +104,10 @@ class DDQNAgent(nn.Module):
         random_value = np.random.random()
         # agent explores by selecting a random split config
         if self.epsilon > random_value and not self.scenario_params['inference']:
-            selected_split_config = generate_random_split(self.allowed_splits, self.num_nodes)
+            playable_action_indx = [k for k in range(len(playable_actions))]
+            action_idx = random.sample(playable_action_indx, k=1)[0]
+            selected_split_config = playable_actions[action_idx]
+            #selected_split_config = generate_random_split(self.allowed_splits, self.num_nodes)
         # agent exploits the current learned knowledge by selecting the action with the highest Q-value
         elif self.epsilon <= random_value or self.params_config['inference']:
             with torch.no_grad():
@@ -123,24 +128,35 @@ class DDQNAgent(nn.Module):
                                                                       output)
         # check 1) if the energy credit budget is satisfied based on the flops to be offloaded,
         # then check 2) if inference latency is below the allowed limit
-        energy_credit_criteria = self.check_energy_credit_budget(flops_to_be_offloaded)
+        energy_credit_criteria, energy_credit_consumed = self.check_energy_credit_budget(flops_to_be_offloaded)
         latency_criteria = self.check_latency_criteria(inference_time)
         # if yes, then "perform" the split, mark it as a "successful" split, update the flops offloaded
-        # if no, then ue cannot offload any layers to the network, computes everything on its own, mark it as "unsuccessful"
+        # if no, then ue cannot offload any layers to the network, computes everything on its own,
+        # mark it as "unsuccessful", recompute inference time and ue energy for the fallback option
         if energy_credit_criteria and latency_criteria:
             self.success = 1
             self.total_flops_offloaded += flops_to_be_offloaded
+            self.energy_credit_consumed = energy_credit_consumed
         else:
-            self.success = 0
+            self.success = -1
+            # goto fallback option for agent
+            selected_split_config = [(0, 0, 18), (1, 18, 18), (2, 18, 18), (3, 18, 18)]
+            # recompute the inference due to this selected split
+            inference_time, ue_en_comp, ue_en_comm, _ = compute_inference(selected_split_config, dnn_model,
+                                                                          episode_params,
+                                                                          output)
+            # the flops on ue due to this selected split is the total flops
+            flops_on_ue = self.total_flops
         self.total_flops_on_ue += flops_on_ue
-        return inference_time, ue_en_comp, ue_en_comm
+        #print('total flops offloaded {} energy credit consumed {}'.format(self.total_flops_offloaded, self.energy_credit_consumed))
+        return inference_time, ue_en_comp, ue_en_comm, selected_split_config
 
 
     def get_instant_reward(self, inference_time, ue_energy_comp, ue_energy_comm):
         optimization = inference_time + ue_energy_comp + ue_energy_comm
+        #optimization = inference_time + ue_energy_comm
         reward = self.success * optimization
         #print('reward {}'.format(reward))
-        # if the selected split is unsuccessful, immediate reward is 0
         return reward
 
     def get_flops_offloaded(self, selected_split_config, allowed_splits_blocks):
@@ -169,10 +185,12 @@ class DDQNAgent(nn.Module):
 
 
     def check_energy_credit_budget(self, flops_offloaded):
-        if (flops_offloaded + self.total_flops_offloaded) / (self.total_flops + self.total_flops_on_ue) <= self.max_energy_credit / 100:
-            return True
+        energy_credit_consumed = (flops_offloaded + self.total_flops_offloaded) / (self.total_flops + self.total_flops_on_ue)
+        #print('total flops offloaded {} energy credit consumed {}'.format(self.total_flops_offloaded, self.energy_credit_consumed))
+        if energy_credit_consumed <= self.max_energy_credit / 100:
+            return True, energy_credit_consumed
         else:
-            return False
+            return False, 0
 
     def check_latency_criteria(self, inference_time):
         if inference_time <= self.max_inference_latency:

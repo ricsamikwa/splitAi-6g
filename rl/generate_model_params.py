@@ -6,7 +6,7 @@ from utils.action_space import enumerate_action_space
 
 allowed_splits = [0, 3, 6, 10, 14, 18]  # Safe boundaries (post-MaxPool layers)
 n_nodes = 4
-n_states = 22
+n_states = 21
 actions, action_indices = enumerate_action_space(allowed_splits, n_nodes, allow_empty_nodes=True)
 n_actions = len(actions)
 print(actions)
