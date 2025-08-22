@@ -36,8 +36,10 @@ class DDQNAgent(nn.Module):
         self.total_flops = 0    # captures total flops of all layers (static value)
         self.total_flops_on_ue = 0  # captures the cumulative flops computed on the ue until now
         self.success = None # records the success of a selected split
+        self.n_success = 0  # counts the number of successful selected splits
+        self.n_attempts_to_split = 0    # counts the number of attempted splits
         # compute the total flops of all blocks
-        print('flops per block {}'.format(self.flops_per_block))
+        #print('flops per block {}'.format(self.flops_per_block))
         for key, value in self.flops_per_block.items():
             self.total_flops += value
         self.replay_buffer = ReplayBuffer(capacity=self.scenario_params['buffer_size'])
@@ -46,6 +48,8 @@ class DDQNAgent(nn.Module):
         self.loss = []
         self.loss_counter = 0
         self.reward = []
+        self.reward_counter = 0 # to compute running average of the rewards
+        self.mean_reward = 0
         self.epsilon = None
         self.epsilon_ini = self.scenario_params['epsilon_ini']
         self.epsilon_step_percent = self.scenario_params['epsilon_step_percent']
@@ -89,29 +93,25 @@ class DDQNAgent(nn.Module):
         for block in range(1, 7):
             state[idx] = flops_per_block[block]
             idx += 1
-        # finally, the total flops offloaded until now
+        # finally, the energy credit consumed
         state[idx] = self.energy_credit_consumed
         idx += 1
-        # and the total flops on the ue until now
-        #state[idx] = self.total_flops_on_ue
-        #print(self.total_flops_offloaded)
         state = torch.Tensor(state)
         #print(state)
         return state
 
     def choose_action(self, playable_actions, state):
-        n_actions = len(playable_actions)
         random_value = np.random.random()
         # agent explores by selecting a random split config
         if self.epsilon > random_value and not self.scenario_params['inference']:
-            playable_action_indx = [k for k in range(len(playable_actions))]
+            playable_action_indx = [k for k in range(self.n_actions)]
             action_idx = random.sample(playable_action_indx, k=1)[0]
             selected_split_config = playable_actions[action_idx]
             #selected_split_config = generate_random_split(self.allowed_splits, self.num_nodes)
         # agent exploits the current learned knowledge by selecting the action with the highest Q-value
         elif self.epsilon <= random_value or self.params_config['inference']:
             with torch.no_grad():
-                playable_action_indx = [k for k in range(n_actions)]
+                playable_action_indx = [k for k in range(self.n_actions)]
                 playable_action_indx = torch.LongTensor(playable_action_indx)
                 action_idx = self(state.clone().detach().float())[playable_action_indx].argmax().item()
                 selected_split_config = playable_actions[action_idx]
@@ -120,7 +120,10 @@ class DDQNAgent(nn.Module):
 
 
     def perform_action(self, selected_split_config, allowed_splits_blocks, dnn_model, episode_params, output):
+        # update the logging variable
+        self.n_attempts_to_split += 1
         # for the selected split config (or action)
+        #print('Selected split config {}'.format(selected_split_config))
         # compute the flops to be offloaded due to this selected split
         flops_to_be_offloaded, flops_on_ue = self.get_flops_offloaded(selected_split_config, allowed_splits_blocks)
         # compute the inference due to this selected split
@@ -135,38 +138,45 @@ class DDQNAgent(nn.Module):
         # mark it as "unsuccessful", recompute inference time and ue energy for the fallback option
         if energy_credit_criteria and latency_criteria:
             self.success = 1
+            self.n_success += 1
             self.total_flops_offloaded += flops_to_be_offloaded
+            # energy credit consumed needs to be updated only when the ue offloads some layers to the network
             self.energy_credit_consumed = energy_credit_consumed
         else:
             self.success = -1
-            # goto fallback option for agent
+            # goto fallback option for agent, ue computes everything, no layers offloaded to network
             selected_split_config = [(0, 0, 18), (1, 18, 18), (2, 18, 18), (3, 18, 18)]
-            # recompute the inference due to this selected split
+            # recompute the inference due to this fallback split
             inference_time, ue_en_comp, ue_en_comm, _ = compute_inference(selected_split_config, dnn_model,
                                                                           episode_params,
                                                                           output)
             # the flops on ue due to this selected split is the total flops
             flops_on_ue = self.total_flops
+        # update the total flops on ue
         self.total_flops_on_ue += flops_on_ue
-        #print('total flops offloaded {} energy credit consumed {}'.format(self.total_flops_offloaded, self.energy_credit_consumed))
+        #print('flops on ue {}, total flops on ue {}'.format(flops_on_ue, self.total_flops_on_ue))
+        #print('flops offloaded {} total flops offloaded {}'.format(flops_to_be_offloaded, self.total_flops_offloaded))
         return inference_time, ue_en_comp, ue_en_comm, selected_split_config
 
 
     def get_instant_reward(self, inference_time, ue_energy_comp, ue_energy_comm):
-        optimization = inference_time + ue_energy_comp + ue_energy_comm
+        #optimization = inference_time + ue_energy_comp + ue_energy_comm
         #optimization = inference_time + ue_energy_comm
-        reward = self.success * optimization
+        optimization = (self.scenario_params['weight_inference_time'] * inference_time +
+                        self.scenario_params['weight_ue_energy'] * (ue_energy_comp + ue_energy_comm))
+        reward = self.success * -optimization
         #print('reward {}'.format(reward))
         return reward
 
     def get_flops_offloaded(self, selected_split_config, allowed_splits_blocks):
         flops_on_ue = 0
-        #print(self.total_flops)
         (node_id, start, end) = selected_split_config[0] # extract start and end layers of ue
         # case 1: all layers on ue, ue offloads nothing
         if start == 0 and end == 18:
             flops_on_ue = self.total_flops
-            return 0, flops_on_ue
+            flops_offloaded = 0
+            #print('here')
+            return flops_offloaded, flops_on_ue
         else:
             # case 2: at least one block on ue, ue offloads the rest
             for i, (block_id, block_start, block_end) in enumerate(allowed_splits_blocks):

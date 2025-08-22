@@ -30,6 +30,8 @@ def pack_parameters(filename):
     config.read(filename)
 
     # read all scenario parameters from config file
+    weight_inference_time = float(config['ALGORITHM']['WEIGHT_INFERENCE_TIME'])
+    weight_ue_energy = float(config['ALGORITHM']['WEIGHT_UE_ENERGY'])
     max_energy_credit = int(config['ALGORITHM']['MAX_ENERGY_CREDIT'])
     max_inference_latency = float(config['ALGORITHM']['MAX_INFERENCE_LATENCY'])
     split_algorithm = int(config['ALGORITHM']['SPLIT_ALGORITHM'])
@@ -54,6 +56,8 @@ def pack_parameters(filename):
 
 
     params = {
+        'weight_inference_time': weight_inference_time,
+        'weight_ue_energy': weight_ue_energy,
         'max_energy_credit': max_energy_credit,
         'max_inference_latency': max_inference_latency,
         'split_algorithm': split_algorithm,

@@ -27,6 +27,9 @@ def write_logs(scenario_params, episode, data, model):
     filename = '{}_{}'.format('ue_energy_comm', episode_count)
     writeToCsv(data['ue_energy_comm'], filename, folder)
     if folder == 'rl':
+        # success rate
+        filename = '{}_{}'.format('success_rate', episode_count)
+        writeToCsv(data['success_rate'], filename, folder)
         if scenario_params['rl_algorithm'] == 1:    # ddqn
             save_model_params(model.agent, 'ddqn', 'main', scenario_params, episode_count)
             save_model_params(model.target_agent, 'ddqn', 'target', scenario_params, episode_count)

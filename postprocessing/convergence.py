@@ -47,8 +47,8 @@ def main():
 
     params = generate_scenario()
     # specify the number of episodes to be plotted
-    n_episodes = 10
-    order_to_convert = 10
+    n_episodes = 12
+    order_to_convert = 100
     generate_metric(params, n_episodes, order_to_convert, 'mean_loss')
     generate_metric(params, n_episodes, order_to_convert, 'mean_reward')
 

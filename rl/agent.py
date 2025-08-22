@@ -5,7 +5,7 @@ Defines the generic RL agent and its associated methods to train or infer the RL
 """
 
 from rl.ddqn import DDQNAgent, QValues
-from rl.replay_buffer import Experience, extract_tensors
+from rl.replay_buffer import Experience, extract_tensors, ReplayBuffer
 from utils.action_space import enumerate_action_space
 from utils.rl_utils import load_model_params
 
@@ -33,6 +33,7 @@ class Agent:
             self.agent = DDQNAgent(self.scenario_params, self.n_states, self.n_actions, self.allowed_splits,
                                    self.num_nodes, self.flops_per_block)
         #print(flops_per_block)
+
 
     def execute(self, time, episode_count, dnn_model, episode_params, output):
         """
@@ -78,9 +79,15 @@ class Agent:
         for k, v in self.action_indices.items():
             if v == action:
                 action_idx = k
+                break
+        #print('Split config {}, success {}, n_success {}'.format(action, self.agent.success, self.agent.n_success))
+        #print()
         reward = self.agent.get_instant_reward(inference_time, ue_en_comp, ue_en_comm)
         # log the reward
         self.agent.reward.append({'time': time, 'reward': reward})
+        # update reward counter and compute cumulative average
+        self.agent.reward_counter += 1
+        self.agent.mean_reward = reward / self.agent.reward_counter
         next_state = self.agent.get_agent_state(episode_params, self.flops_per_block)
         # collect the experience in the replay buffer
         self.agent.replay_buffer.push(Experience(
@@ -100,6 +107,7 @@ class Agent:
             #print(current_q_values)
             #print(target_q_values.unsqueeze(1))
             criterion = torch.nn.SmoothL1Loss()
+            #criterion = torch.nn.MSELoss()
             loss = criterion(current_q_values.float(), target_q_values.unsqueeze(1).float())
             self.optimizer.zero_grad()
             loss.backward()
@@ -114,7 +122,7 @@ class Agent:
                 target_param.data.copy_(
                     self.scenario_params['tau'] * local_param.data + (1 - self.scenario_params['tau']) * target_param.data)
             self.agent.loss_counter += 1
-            if not self.agent.loss_counter % 10:
+            if not self.agent.loss_counter % 50:
                 print('Loss {}'.format(loss.item()))
             self.agent.loss.append({'time': time, 'loss': loss.item()})
         return action
@@ -122,6 +130,7 @@ class Agent:
     def define_agent_attributes(self):
         """
         Function that defines attributes specific to the agent.
+        For ddqn, it defines the optimizer and initializes/loads the params of the target agent.
         Returns:
 
         """
@@ -144,6 +153,4 @@ class Agent:
                                                                         self.episode_count - 1))
                 # set target agent to evaluation mode (no training)
                 self.target_agent.eval()
-
-
 

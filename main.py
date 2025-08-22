@@ -58,13 +58,9 @@ flops_per_block = compute_flops_per_block(flops_dict)
 allowed_splits = [0, 3, 6, 10, 14, 18]  # Safe boundaries (post-MaxPool layers)
 # mapping block numbers to the start-end boundaries
 allowed_splits_blocks = [(1, 0, 3), (2, 3, 6), (3, 6, 10), (4, 10, 14), (5, 14, 18)]
-# Generate random split configuration
-# split_config = generate_random_split(allowed_splits, num_nodes) # Replace with RL method
 # -----------------------
 # Generate split configuration according to desired algorithm
 # -----------------------
-if scenario_params['split_algorithm'] == 2:
-    agent = Agent(scenario_params, allowed_splits, num_nodes, flops_per_block, allowed_splits_blocks)
 for ep in range(start_episode, scenario_params['n_episodes'] + 1):
     print('Episode {}'.format(ep))
     # ------------------------------
@@ -72,8 +68,11 @@ for ep in range(start_episode, scenario_params['n_episodes'] + 1):
     inference_time_per_episode = []
     ue_energy_comp_per_episode = []
     ue_energy_comm_per_episode = []
+    success_rate_per_episode = []
     # ------------------------------
     if scenario_params['split_algorithm'] == 2: # update epsilon for ddqn based on episode number
+        # initialize agent
+        agent = Agent(scenario_params, allowed_splits, num_nodes, flops_per_block, allowed_splits_blocks)
         agent.agent.get_epsilon(ep)
     for k in range(1, scenario_params['episode_duration'], scenario_params['time_interval']):
         #print('Time step {} in episode {}'.format(k, ep))
@@ -134,6 +133,8 @@ for ep in range(start_episode, scenario_params['n_episodes'] + 1):
         inference_time_per_episode.append({'time_step': k, 'inference_time': total_time})
         ue_energy_comp_per_episode.append({'time_step': k, 'ue_energy_comp': ue_energy_comp})
         ue_energy_comm_per_episode.append({'time_step': k, 'ue_energy_comm': ue_energy_comm})
+        success_rate_per_episode.append({'time_step': k,
+                                         'success_rate': (agent.agent.n_success / agent.agent.n_attempts_to_split) * 100})
         # -----------------------
         # Final Classification Output
         # -----------------------
@@ -159,6 +160,12 @@ for ep in range(start_episode, scenario_params['n_episodes'] + 1):
     # Save logging variables in this episode
     # --------------------------------------
     data = {'inference_time': inference_time_per_episode, 'ue_energy_comp': ue_energy_comp_per_episode,
-            'ue_energy_comm': ue_energy_comm_per_episode}
+            'ue_energy_comm': ue_energy_comm_per_episode, 'success_rate': success_rate_per_episode}
     write_logs(scenario_params, ep, data, agent)
+    # --------------------------------------
+    # Display variables in this episode
+    # --------------------------------------
+    if scenario_params['split_algorithm'] == 2:
+        print('Mean episode reward {}, success rate {}'.format(agent.agent.mean_reward,
+                                                               (agent.agent.n_success / agent.agent.n_attempts_to_split) * 100))
 
