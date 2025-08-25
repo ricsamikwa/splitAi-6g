@@ -10,6 +10,7 @@ from utils.param_generator import generate_params
 from utils.split_generator import generate_random_split
 from utils.scenario_generator import generate_scenario
 from utils.inference_utils import compute_inference
+from utils.optimum import Opt
 from utils.logging_utils import write_logs
 from rl.agent import Agent
 from PIL import Image
@@ -22,7 +23,7 @@ num_nodes = 4  # UE + 3 network nodes
 energy_cost = 1  # in 1e-7 scale (J/byte) for UE communication
 power = 5
 agent = None
-
+opt = None
 
 # Import the scenario params
 scenario_params = generate_scenario()
@@ -74,6 +75,9 @@ for ep in range(start_episode, scenario_params['n_episodes'] + 1):
         # initialize agent
         agent = Agent(scenario_params, allowed_splits, num_nodes, flops_per_block, allowed_splits_blocks)
         agent.agent.get_epsilon(ep)
+    elif scenario_params['split_algorithm'] == 3:   # if optimal solution is selected
+        # initialize solver
+        opt = Opt(scenario_params, allowed_splits, num_nodes, flops_per_block, allowed_splits_blocks)
     for k in range(1, scenario_params['episode_duration'], scenario_params['time_interval']):
         #print('Time step {} in episode {}'.format(k, ep))
         ue_freq, ue_flops_cycle, ue_bandwidth, freqs, flops_cycle, bandwidth = generate_params(num_nodes)
@@ -113,11 +117,14 @@ for ep in range(start_episode, scenario_params['n_episodes'] + 1):
 
         if scenario_params['split_algorithm'] == 1:  # indicates random split
             split_config = generate_random_split(allowed_splits, num_nodes)  # Replace with RL method
-        else:
+        elif scenario_params['split_algorithm'] == 2:   # rl agent
             split_config = agent.execute(k, ep, model, episode_params, current_output)  # agent determines the split every time_interval seconds
-
+        else:
+            split_config = opt.generate_optimal_split(k, ep, model, episode_params, current_output)
+            print('Optimal split {}'.format(split_config))
         # compute inference using the generated split configuration
-        total_time, ue_energy_comp, ue_energy_comm, current_output = compute_inference(split_config, model, episode_params, current_output)
+        total_time, ue_energy_comp, ue_energy_comm, current_output = compute_inference(split_config, model,
+                                                                                       episode_params, current_output)
 
         #
         # -----------------------
@@ -133,7 +140,8 @@ for ep in range(start_episode, scenario_params['n_episodes'] + 1):
         inference_time_per_episode.append({'time_step': k, 'inference_time': total_time})
         ue_energy_comp_per_episode.append({'time_step': k, 'ue_energy_comp': ue_energy_comp})
         ue_energy_comm_per_episode.append({'time_step': k, 'ue_energy_comm': ue_energy_comm})
-        success_rate_per_episode.append({'time_step': k,
+        if scenario_params['split_algorithm'] == 2:
+            success_rate_per_episode.append({'time_step': k,
                                          'success_rate': (agent.agent.n_success / agent.agent.n_attempts_to_split) * 100})
         # -----------------------
         # Final Classification Output
@@ -166,6 +174,6 @@ for ep in range(start_episode, scenario_params['n_episodes'] + 1):
     # Display variables in this episode
     # --------------------------------------
     if scenario_params['split_algorithm'] == 2:
-        print('Mean episode reward {}, success rate {}'.format(agent.agent.mean_reward,
+        print('Cumulative episode reward {}, success rate {}'.format(agent.agent.cumulative_reward,
                                                                (agent.agent.n_success / agent.agent.n_attempts_to_split) * 100))
 

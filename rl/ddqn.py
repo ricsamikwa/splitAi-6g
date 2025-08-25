@@ -12,7 +12,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from utils.rl_utils import load_model_params
-from utils.split_generator import generate_random_split
 from utils.inference_utils import compute_inference
 from rl.replay_buffer import ReplayBuffer
 
@@ -49,7 +48,7 @@ class DDQNAgent(nn.Module):
         self.loss_counter = 0
         self.reward = []
         self.reward_counter = 0 # to compute running average of the rewards
-        self.mean_reward = 0
+        self.cumulative_reward = 0
         self.epsilon = None
         self.epsilon_ini = self.scenario_params['epsilon_ini']
         self.epsilon_step_percent = self.scenario_params['epsilon_step_percent']

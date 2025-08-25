@@ -21,15 +21,18 @@ splitai-6g is a research framework for **layer-wise partitioning of deep neural 
     - `ue_node.py` → UE class handling compute & energy  
     - `network_node.py` → Network compute node class (gNB/Edge/Core)  
   - **utils/**
+    - `action_space.py` → Generates the feasible split configurations 
+    - `comm_utils.py` → Communication latency and energy modeling utilities
+    - `energy_utils.py` → UE-specific energy consumption functions
     - `flop_utils.py` → FLOPs computation time calculation  
     - `flops_profile.py` → FLOPs per-layer (segment) profiler using flattened VGG16 layers  
-    - `energy_utils.py` → UE-specific energy consumption functions  
-    - `param_generator.py` → Generates random CPU frequencies, FLOPs, bandwidth  
-    - `comm_utils.py` → Communication latency and energy modeling utilities  
-    - `split_generator.py` → Generates random multi-node split configurations
+    - `inference_utils.py` → Computes the inference time and ue energy for the selected split config   
+    - `logging_utils.py` → Functions related to reading and writing experiment logs
+    - `optimum.py` → Solves the optimization problem and returns the optimal split for the given inputs
+    - `param_generator.py` → Generates random CPU frequencies, FLOPs, bandwidth
     - `rl_utils.py` → RL-specific utility functions
     - `scenario_generator.py` → Reads and packs scenario params from config file
-    - `logging_utils.py` → Functions related to reading and writing experiment logs
+    - `split_generator.py` → Generates random multi-node split configurations
   - **rl/**
     - **initial_models/** → stores initial model params for a given number of states and actions
     - `generate_model_params.py` → script to instantiate RL model architecture and save initial model params 

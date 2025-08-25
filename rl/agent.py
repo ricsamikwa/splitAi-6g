@@ -5,7 +5,7 @@ Defines the generic RL agent and its associated methods to train or infer the RL
 """
 
 from rl.ddqn import DDQNAgent, QValues
-from rl.replay_buffer import Experience, extract_tensors, ReplayBuffer
+from rl.replay_buffer import Experience, extract_tensors
 from utils.action_space import enumerate_action_space
 from utils.rl_utils import load_model_params
 
@@ -55,10 +55,10 @@ class Agent:
         # if training mode is on
         if not self.scenario_params['inference']:
             # train the agent
-            final_action = self.train_agent(time, dnn_model, episode_params, output)
+            final_action = self.train_ddqn_agent(time, dnn_model, episode_params, output)
         return final_action
 
-    def train_agent(self, time, dnn_model, episode_params, output):
+    def train_ddqn_agent(self, time, dnn_model, episode_params, output):
         """
         Function that trains the agent.
         Args:
@@ -87,7 +87,7 @@ class Agent:
         self.agent.reward.append({'time': time, 'reward': reward})
         # update reward counter and compute cumulative average
         self.agent.reward_counter += 1
-        self.agent.mean_reward = reward / self.agent.reward_counter
+        self.agent.cumulative_reward = reward / self.agent.reward_counter
         next_state = self.agent.get_agent_state(episode_params, self.flops_per_block)
         # collect the experience in the replay buffer
         self.agent.replay_buffer.push(Experience(
