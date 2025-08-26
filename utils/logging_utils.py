@@ -15,8 +15,10 @@ def write_logs(scenario_params, episode, data, model):
     episode_count = parse_episode_number(order, episode)
     if scenario_params['split_algorithm'] == 1:
         folder = 'random'
+    elif scenario_params['split_algorithm'] == 2:
+        folder = 'rl/ddqn'
     else:
-        folder = 'rl'
+        folder = 'optimum'
     # inference time
     filename = '{}_{}'.format('inference_time', episode_count)
     writeToCsv(data['inference_time'], filename, folder)
@@ -26,18 +28,27 @@ def write_logs(scenario_params, episode, data, model):
     # ue energy communication
     filename = '{}_{}'.format('ue_energy_comm', episode_count)
     writeToCsv(data['ue_energy_comm'], filename, folder)
-    if folder == 'rl':
+    # total flops offloaded
+    filename = '{}_{}'.format('y_net', episode_count)
+    writeToCsv(data['y_net'], filename, folder)
+    # total flops on ue
+    filename = '{}_{}'.format('y_ue', episode_count)
+    writeToCsv(data['y_ue'], filename, folder)
+    # energy credit
+    filename = '{}_{}'.format('energy_credit', episode_count)
+    writeToCsv(data['energy_credit'], filename, folder)
+    if folder == 'rl/ddqn':
         # success rate
         filename = '{}_{}'.format('success_rate', episode_count)
         writeToCsv(data['success_rate'], filename, folder)
         if scenario_params['rl_algorithm'] == 1:    # ddqn
             save_model_params(model.agent, 'ddqn', 'main', scenario_params, episode_count)
             save_model_params(model.target_agent, 'ddqn', 'target', scenario_params, episode_count)
-            filename = 'ddqn/loss/loss_ep{}'.format(episode_count)
+            filename = 'loss/loss_ep{}'.format(episode_count)
             writeToCsv(model.agent.loss, filename, folder)
-            filename = 'ddqn/reward/reward_ep{}'.format(episode_count)
+            filename = 'reward/reward_ep{}'.format(episode_count)
             writeToCsv(model.agent.reward, filename, folder)
-            fol = 'rl/ddqn/epsilon'
+            fol = '{}/epsilon'.format(folder)
             logKPIs([model.agent.epsilon], 'epsilon', episode_count, fol)
 
 def logKPIs(data, kpi_type, episode_count, folder):

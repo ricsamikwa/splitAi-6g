@@ -70,6 +70,9 @@ for ep in range(start_episode, scenario_params['n_episodes'] + 1):
     ue_energy_comp_per_episode = []
     ue_energy_comm_per_episode = []
     success_rate_per_episode = []
+    total_flops_offloaded_per_episode = []
+    total_flops_on_ue_per_episode = []
+    energy_credit_consumed_per_episode = []
     # ------------------------------
     if scenario_params['split_algorithm'] == 2: # update epsilon for ddqn based on episode number
         # initialize agent
@@ -119,9 +122,10 @@ for ep in range(start_episode, scenario_params['n_episodes'] + 1):
             split_config = generate_random_split(allowed_splits, num_nodes)  # Replace with RL method
         elif scenario_params['split_algorithm'] == 2:   # rl agent
             split_config = agent.execute(k, ep, model, episode_params, current_output)  # agent determines the split every time_interval seconds
+            #print('Energy credit consumed {} Split config {}'.format(agent.agent.energy_credit_consumed, split_config))
         else:
             split_config = opt.generate_optimal_split(k, ep, model, episode_params, current_output)
-            print('Optimal split {}'.format(split_config))
+            print('Energy credit consumed {} Optimal split {}'.format(opt.energy_credit_consumed, split_config))
         # compute inference using the generated split configuration
         total_time, ue_energy_comp, ue_energy_comm, current_output = compute_inference(split_config, model,
                                                                                        episode_params, current_output)
@@ -136,6 +140,7 @@ for ep in range(start_episode, scenario_params['n_episodes'] + 1):
         # print(f"Total Inference Time: {total_time:.6f}s")
         # print(f"UE Energy (Compute): {ue_energy_comp:.6f} J")
         # print(f"UE Energy (Comm): {ue_energy_comm:.6f} J")
+        # print()
         #
         inference_time_per_episode.append({'time_step': k, 'inference_time': total_time})
         ue_energy_comp_per_episode.append({'time_step': k, 'ue_energy_comp': ue_energy_comp})
@@ -143,6 +148,9 @@ for ep in range(start_episode, scenario_params['n_episodes'] + 1):
         if scenario_params['split_algorithm'] == 2:
             success_rate_per_episode.append({'time_step': k,
                                          'success_rate': (agent.agent.n_success / agent.agent.n_attempts_to_split) * 100})
+        total_flops_offloaded_per_episode.append({'time_step': k, 'y_net': agent.agent.total_flops_offloaded})
+        total_flops_on_ue_per_episode.append({'time_step': k, 'y_ue': agent.agent.total_flops_on_ue})
+        energy_credit_consumed_per_episode.append({'time_step': k, 'energy_credit': agent.agent.energy_credit_consumed})
         # -----------------------
         # Final Classification Output
         # -----------------------
@@ -168,7 +176,9 @@ for ep in range(start_episode, scenario_params['n_episodes'] + 1):
     # Save logging variables in this episode
     # --------------------------------------
     data = {'inference_time': inference_time_per_episode, 'ue_energy_comp': ue_energy_comp_per_episode,
-            'ue_energy_comm': ue_energy_comm_per_episode, 'success_rate': success_rate_per_episode}
+            'ue_energy_comm': ue_energy_comm_per_episode, 'success_rate': success_rate_per_episode,
+            'y_net': total_flops_offloaded_per_episode, 'y_ue': total_flops_on_ue_per_episode,
+            'energy_credit': energy_credit_consumed_per_episode}
     write_logs(scenario_params, ep, data, agent)
     # --------------------------------------
     # Display variables in this episode

@@ -55,8 +55,8 @@ class Agent:
         # if training mode is on
         if not self.scenario_params['inference']:
             # train the agent
-            final_action = self.train_ddqn_agent(time, dnn_model, episode_params, output)
-        return final_action
+            self.train_ddqn_agent(time, dnn_model, episode_params, output)
+        return self.agent.split_config
 
     def train_ddqn_agent(self, time, dnn_model, episode_params, output):
         """
@@ -74,10 +74,10 @@ class Agent:
         state = self.agent.get_agent_state(episode_params, self.flops_per_block)
         action = self.agent.choose_action(self.action_space, state)
         # this function also checks and returns the feasible action
-        inference_time, ue_en_comp, ue_en_comm, action = self.agent.perform_action(action, self.allowed_splits_blocks,
+        inference_time, ue_en_comp, ue_en_comm = self.agent.perform_action(action, self.allowed_splits_blocks,
                                                                            dnn_model, episode_params, output)
         for k, v in self.action_indices.items():
-            if v == action:
+            if v == self.agent.split_config:
                 action_idx = k
                 break
         #print('Split config {}, success {}, n_success {}'.format(action, self.agent.success, self.agent.n_success))
@@ -125,7 +125,6 @@ class Agent:
             if not self.agent.loss_counter % 50:
                 print('Loss {}'.format(loss.item()))
             self.agent.loss.append({'time': time, 'loss': loss.item()})
-        return action
 
     def define_agent_attributes(self):
         """

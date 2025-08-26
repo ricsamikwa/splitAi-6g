@@ -30,6 +30,7 @@ class DDQNAgent(nn.Module):
         self.layer1 = nn.Linear(self.n_states, 128)
         self.layer2 = nn.Linear(128, 128)
         self.layer3 = nn.Linear(128, self.n_actions)
+        self.split_config = None
         self.energy_credit_consumed = 0.0    # energy credit consumed initially is 0%
         self.total_flops_offloaded = 0  # captures the cumulative flops offloaded by the ue until now
         self.total_flops = 0    # captures total flops of all layers (static value)
@@ -136,26 +137,30 @@ class DDQNAgent(nn.Module):
         # if no, then ue cannot offload any layers to the network, computes everything on its own,
         # mark it as "unsuccessful", recompute inference time and ue energy for the fallback option
         if energy_credit_criteria and latency_criteria:
+            # selected split config satisfies constraints
+            self.split_config = selected_split_config
             self.success = 1
             self.n_success += 1
             self.total_flops_offloaded += flops_to_be_offloaded
+            # update the total flops on ue
+            self.total_flops_on_ue += flops_on_ue
             # energy credit consumed needs to be updated only when the ue offloads some layers to the network
             self.energy_credit_consumed = energy_credit_consumed
         else:
-            self.success = -1
+            self.success = -1   # do nothing, retain previous split
             # goto fallback option for agent, ue computes everything, no layers offloaded to network
-            selected_split_config = [(0, 0, 18), (1, 18, 18), (2, 18, 18), (3, 18, 18)]
-            # recompute the inference due to this fallback split
-            inference_time, ue_en_comp, ue_en_comm, _ = compute_inference(selected_split_config, dnn_model,
+            # selected_split_config = [(0, 0, 18), (1, 18, 18), (2, 18, 18), (3, 18, 18)]
+            # recompute the inference due to the split config from the previous iteration, no need to update anything else
+            inference_time, ue_en_comp, ue_en_comm, _ = compute_inference(self.split_config, dnn_model,
                                                                           episode_params,
                                                                           output)
             # the flops on ue due to this selected split is the total flops
-            flops_on_ue = self.total_flops
-        # update the total flops on ue
-        self.total_flops_on_ue += flops_on_ue
+            #flops_on_ue = self.total_flops
+        # # update the total flops on ue
+        # self.total_flops_on_ue += flops_on_ue
         #print('flops on ue {}, total flops on ue {}'.format(flops_on_ue, self.total_flops_on_ue))
         #print('flops offloaded {} total flops offloaded {}'.format(flops_to_be_offloaded, self.total_flops_offloaded))
-        return inference_time, ue_en_comp, ue_en_comm, selected_split_config
+        return inference_time, ue_en_comp, ue_en_comm
 
 
     def get_instant_reward(self, inference_time, ue_energy_comp, ue_energy_comm):

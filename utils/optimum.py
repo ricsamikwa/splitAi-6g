@@ -16,6 +16,7 @@ class Opt:
         self.allowed_splits_blocks = allowed_splits_blocks
         self.max_energy_credit = self.scenario_params['max_energy_credit']
         self.max_inference_latency = self.scenario_params['max_inference_latency']
+        self.opt_split = None
         self.energy_credit_consumed = 0.0  # energy credit consumed initially is 0%
         self.total_flops_offloaded = 0  # captures the cumulative flops offloaded by the ue until now
         self.total_flops = 0  # captures total flops of all layers (static value)
@@ -31,7 +32,6 @@ class Opt:
         constraints_satisfied = [False for _ in range(num_feasible_splits)] # stores if constraints are satisfied
         # for each feasible split, compute the optimization and store it in a list
         # and check if constraints are satisfied, store the result in a list
-        #print(feasible_splits)
         for i, split in enumerate(feasible_splits):
             #print(split)
             # compute the flops to be offloaded due to this selected split
@@ -48,26 +48,39 @@ class Opt:
                 constraints_satisfied[i] = True
             else:
                 constraints_satisfied[i] = False
+        print(constraints_satisfied)
+        print(evaluations)
         # start with the first split as the default
         best_split_evaluation = evaluations[min_idx]
         best_split = feasible_splits[min_idx]
         # for each split that satisfies constraints, check if it's the minimum
         for i, opt in enumerate(evaluations):
-            if constraints_satisfied[i]:
-                if evaluations[i] < best_split_evaluation:
+            if not constraints_satisfied[i]:
+                continue
+            else:
+                if opt < best_split_evaluation:
                     min_idx = i
-                    best_split_evaluation = evaluations[min_idx]
+                    best_split_evaluation = opt
                     best_split = feasible_splits[min_idx]
+        print('best split {}, min idx {}'.format(best_split, min_idx))
+        # update the variables using the best split
+        flops_offloaded, flops_on_ue = self.get_flops_offloaded(best_split, self.allowed_splits_blocks)
+        # also update the energy credit consumed
+        energy_credit_criteria, energy_credit_consumed = self.check_energy_credit_budget(flops_offloaded)
+        self.total_flops_on_ue += flops_on_ue
+        if energy_credit_criteria:  # update only when the criteria is satisfied, else previous value remains
+            self.energy_credit_consumed = energy_credit_consumed
+            self.total_flops_offloaded += flops_offloaded
         # however, if none of the feasible splits satisfies the constraints, go to fallback option
         if True not in constraints_satisfied:
             best_split = [(0, 0, 18), (1, 18, 18), (2, 18, 18), (3, 18, 18)]
             print('No feasible solution found - ue computes everything')
-        # update the variables using the best split
-        flops_to_be_offloaded, flops_on_ue = self.get_flops_offloaded(best_split, self.allowed_splits_blocks)
-        self.total_flops_offloaded += flops_to_be_offloaded
-        self.total_flops_on_ue += flops_on_ue
+            # the flops on ue due to this selected split is the total flops
+            flops_on_ue = self.total_flops
+            self.total_flops_on_ue += flops_on_ue
         print(self.total_flops_offloaded)
-        # TODO: update the energy credit consumed here
+        print(self.total_flops_on_ue)
+        #self.opt_split = best_split
         return best_split
 
     def get_flops_offloaded(self, selected_split_config, allowed_splits_blocks):
