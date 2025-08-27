@@ -148,9 +148,9 @@ for ep in range(start_episode, scenario_params['n_episodes'] + 1):
         if scenario_params['split_algorithm'] == 2:
             success_rate_per_episode.append({'time_step': k,
                                          'success_rate': (agent.agent.n_success / agent.agent.n_attempts_to_split) * 100})
-        total_flops_offloaded_per_episode.append({'time_step': k, 'y_net': agent.agent.total_flops_offloaded})
-        total_flops_on_ue_per_episode.append({'time_step': k, 'y_ue': agent.agent.total_flops_on_ue})
-        energy_credit_consumed_per_episode.append({'time_step': k, 'energy_credit': agent.agent.energy_credit_consumed})
+            total_flops_offloaded_per_episode.append({'time_step': k, 'y_net': agent.agent.total_flops_offloaded})
+            total_flops_on_ue_per_episode.append({'time_step': k, 'y_ue': agent.agent.total_flops_on_ue})
+            energy_credit_consumed_per_episode.append({'time_step': k, 'energy_credit': agent.agent.energy_credit_consumed})
         # -----------------------
         # Final Classification Output
         # -----------------------
