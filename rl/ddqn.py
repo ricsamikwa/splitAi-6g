@@ -168,7 +168,8 @@ class DDQNAgent(nn.Module):
         #optimization = inference_time + ue_energy_comm
         optimization = (self.scenario_params['weight_inference_time'] * inference_time +
                         self.scenario_params['weight_ue_energy'] * (ue_energy_comp + ue_energy_comm))
-        reward = self.success * -optimization
+        #reward = self.success * (1 / optimization)
+        reward = math.pow(10, (1 / optimization))
         #print('reward {}'.format(reward))
         return reward
 

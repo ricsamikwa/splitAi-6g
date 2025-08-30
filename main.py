@@ -73,6 +73,7 @@ for ep in range(start_episode, scenario_params['n_episodes'] + 1):
     total_flops_offloaded_per_episode = []
     total_flops_on_ue_per_episode = []
     energy_credit_consumed_per_episode = []
+    split_config_per_episode = []
     # ------------------------------
     if scenario_params['split_algorithm'] == 2: # update epsilon for ddqn based on episode number
         # initialize agent
@@ -145,6 +146,7 @@ for ep in range(start_episode, scenario_params['n_episodes'] + 1):
         inference_time_per_episode.append({'time_step': k, 'inference_time': total_time})
         ue_energy_comp_per_episode.append({'time_step': k, 'ue_energy_comp': ue_energy_comp})
         ue_energy_comm_per_episode.append({'time_step': k, 'ue_energy_comm': ue_energy_comm})
+        split_config_per_episode.append({'time_step': k, 'split': split_config})
         if scenario_params['split_algorithm'] == 2:
             success_rate_per_episode.append({'time_step': k,
                                          'success_rate': (agent.agent.n_success / agent.agent.n_attempts_to_split) * 100})
@@ -178,7 +180,7 @@ for ep in range(start_episode, scenario_params['n_episodes'] + 1):
     data = {'inference_time': inference_time_per_episode, 'ue_energy_comp': ue_energy_comp_per_episode,
             'ue_energy_comm': ue_energy_comm_per_episode, 'success_rate': success_rate_per_episode,
             'y_net': total_flops_offloaded_per_episode, 'y_ue': total_flops_on_ue_per_episode,
-            'energy_credit': energy_credit_consumed_per_episode}
+            'energy_credit': energy_credit_consumed_per_episode, 'split': split_config_per_episode}
     write_logs(scenario_params, ep, data, agent)
     # --------------------------------------
     # Display variables in this episode

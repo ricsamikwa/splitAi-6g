@@ -20,23 +20,26 @@ def write_logs(scenario_params, episode, data, model):
     else:
         folder = 'optimum'
     # inference time
-    filename = '{}_{}'.format('inference_time', episode_count)
+    filename = 'system/{}_{}'.format('inference_time', episode_count)
     writeToCsv(data['inference_time'], filename, folder)
     # ue energy computation
-    filename = '{}_{}'.format('ue_energy_comp', episode_count)
+    filename = 'system/{}_{}'.format('ue_energy_comp', episode_count)
     writeToCsv(data['ue_energy_comp'], filename, folder)
     # ue energy communication
-    filename = '{}_{}'.format('ue_energy_comm', episode_count)
+    filename = 'system/{}_{}'.format('ue_energy_comm', episode_count)
     writeToCsv(data['ue_energy_comm'], filename, folder)
     # total flops offloaded
-    filename = '{}_{}'.format('y_net', episode_count)
+    filename = 'system/{}_{}'.format('y_net', episode_count)
     writeToCsv(data['y_net'], filename, folder)
     # total flops on ue
-    filename = '{}_{}'.format('y_ue', episode_count)
+    filename = 'system/{}_{}'.format('y_ue', episode_count)
     writeToCsv(data['y_ue'], filename, folder)
     # energy credit
-    filename = '{}_{}'.format('energy_credit', episode_count)
+    filename = 'system/{}_{}'.format('energy_credit', episode_count)
     writeToCsv(data['energy_credit'], filename, folder)
+    # split config
+    filename = 'splits/{}_{}'.format('split', episode_count)
+    writeToCsv(data['split'], filename, folder)
     if folder == 'rl/ddqn':
         # success rate
         filename = '{}_{}'.format('success_rate', episode_count)
