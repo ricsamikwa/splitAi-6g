@@ -85,7 +85,7 @@ def write_params_to_file():
         # convert to dataframe
         df = pd.DataFrame(params_per_episode, columns=headers)
         # save to file
-        df.to_csv('input/episode_parameters/ep_{}'.format(ep_str))
+        df.to_csv('input/episode_parameters/ep_{}.csv'.format(ep_str))
 
 
 def read_params_from_file(episode, num_nodes):
@@ -96,7 +96,7 @@ def read_params_from_file(episode, num_nodes):
         headers.append('flops_per_cycle{}'.format(k))
         headers.append('bandwidth{}'.format(k))
     ep_str = parse_episode_number(order, episode)
-    path = 'input/episode_parameters/ep_{}'.format(ep_str)
+    path = 'input/episode_parameters/ep_{}.csv'.format(ep_str)
     df = pd.read_csv(path)
     #print(df['ue_freq'][0])
     return df
