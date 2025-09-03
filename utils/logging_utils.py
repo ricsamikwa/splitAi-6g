@@ -28,22 +28,22 @@ def write_logs(scenario_params, episode, data, model):
     # ue energy communication
     filename = 'system/{}_{}'.format('ue_energy_comm', episode_count)
     writeToCsv(data['ue_energy_comm'], filename, folder)
-    # total flops offloaded
-    filename = 'system/{}_{}'.format('y_net', episode_count)
-    writeToCsv(data['y_net'], filename, folder)
-    # total flops on ue
-    filename = 'system/{}_{}'.format('y_ue', episode_count)
-    writeToCsv(data['y_ue'], filename, folder)
-    # energy credit
-    filename = 'system/{}_{}'.format('energy_credit', episode_count)
-    writeToCsv(data['energy_credit'], filename, folder)
     # split config
     filename = 'splits/{}_{}'.format('split', episode_count)
     writeToCsv(data['split'], filename, folder)
     if folder == 'rl/ddqn':
         # success rate
-        filename = '{}_{}'.format('success_rate', episode_count)
+        filename = 'system/{}_{}'.format('success_rate', episode_count)
         writeToCsv(data['success_rate'], filename, folder)
+        # total flops offloaded
+        filename = 'system/{}_{}'.format('y_net', episode_count)
+        writeToCsv(data['y_net'], filename, folder)
+        # total flops on ue
+        filename = 'system/{}_{}'.format('y_ue', episode_count)
+        writeToCsv(data['y_ue'], filename, folder)
+        # energy credit
+        filename = 'system/{}_{}'.format('energy_credit', episode_count)
+        writeToCsv(data['energy_credit'], filename, folder)
         if scenario_params['rl_algorithm'] == 1:    # ddqn
             save_model_params(model.agent, 'ddqn', 'main', scenario_params, episode_count)
             save_model_params(model.target_agent, 'ddqn', 'target', scenario_params, episode_count)

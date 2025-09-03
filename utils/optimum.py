@@ -48,8 +48,8 @@ class Opt:
                 constraints_satisfied[i] = True
             else:
                 constraints_satisfied[i] = False
-        print(constraints_satisfied)
-        print(evaluations)
+        #print(constraints_satisfied)
+        #print(evaluations)
         # none of the feasible splits satisfies the constraints, continue with the previous split
         if True not in constraints_satisfied:
             return self.opt_split
@@ -66,7 +66,7 @@ class Opt:
                         min_idx = i
                         best_split_evaluation = opt
                         best_split = feasible_splits[min_idx]
-            print('best split {}, min idx {}'.format(best_split, min_idx))
+            #print('best split {}, min idx {}'.format(best_split, min_idx))
             # update the variables using the best split
             flops_offloaded, flops_on_ue = self.get_flops_offloaded(best_split, self.allowed_splits_blocks)
             # also update the energy credit consumed

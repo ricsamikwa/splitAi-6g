@@ -17,7 +17,7 @@ def read_kpis_from_files(folder, kpi_type, episode_count):
     Returns:
         Tuple: (time step when kpi was recorded as list, kpi as list )
     """
-    file = 'logs/{}/{}_{}.csv'.format(folder, kpi_type, episode_count)
+    file = 'logs/{}/system/{}_{}.csv'.format(folder, kpi_type, episode_count)
     data_timestep = []
     data_kpi = []
     with open(file, 'r', newline='') as csvfile:
@@ -41,14 +41,15 @@ def get_confidence_interval(sd, size):
     """
     return 1.960 * sd / size
 
-def plot_kpis(df_list, n_episodes, algorithms, kpi_type):
+def plot_kpis(df_list, n_episodes, n_episodes_to_plot, algorithms, kpi_type):
     """
     Generates an error plot of a given system kpi over episodes.
 
     Args:
         df_list (list of pandas DataFrame): list of 2D dataframes containing of kpi logs across and within episodes
         for algorithms
-        n_episodes (int): number of episodes
+        n_episodes (dict): number of episodes
+        n_episodes_to_plot (int): the actual number of episodes to plot
         algorithms (list): Indicates the algorithms to plot e.g. random/rl/optimum.
         kpi_type (str): the kpi to plot e.g. inference_time
 
@@ -56,21 +57,24 @@ def plot_kpis(df_list, n_episodes, algorithms, kpi_type):
 
     """
     fig, ax = plt.subplots()
-    colors = ['r--o', 'b--o']
-    episodes = [ep for ep in range(1, n_episodes + 1)]
+    colors = {'random': 'r--o', 'rl/ddqn': 'b--o'}
+    episodes = [ep for ep in range(1, n_episodes_to_plot + 1)]
     for i, alg in enumerate(algorithms):
         df = df_list[i]
         mean_per_episode = []
         sd_per_episode = []
         yerr_per_episode = []
 
-        for ep in range(1, n_episodes + 1):
+        for ep in range(1, n_episodes[alg] + 1):
             mean_per_episode.append(df.loc[ep].mean())
             sd = df.loc[ep].std()
             sd_per_episode.append(sd)
-            yerr_per_episode.append(get_confidence_interval(sd, n_episodes))
+            yerr_per_episode.append(get_confidence_interval(sd, n_episodes[alg]))
 
-        plt.errorbar(episodes, mean_per_episode, yerr=yerr_per_episode, capsize=3, fmt=colors[i], ecolor='black',
+        if alg == 'optimum':
+            plt.axhline(y=mean_per_episode[0], color='g', linestyle='-')
+        else:
+            plt.errorbar(episodes, mean_per_episode, yerr=yerr_per_episode, capsize=3, fmt=colors[alg], ecolor='black',
                      label='{}'.format(alg))
     ax.set_xlabel('episodes')
     ax.set_ylabel('{}'.format(kpi_type))
@@ -85,7 +89,7 @@ def parse_kpis(folder, n_episodes):
     Function to read and parse kpis into a 2D pandas DataFrame.
     Args:
         folder (str): Indicates the algorithm e.g. random/rl/optimum.
-        n_episodes (int): number of episodes
+        n_episodes (int): number of episodes per algorithm to print
 
     Returns:
         Tuple: (dataframes containing inference time, ue computation and communication energy)
@@ -129,21 +133,22 @@ def main():
     path_parent = os.path.dirname(os.getcwd())
     os.chdir(path_parent)
 
-    n_episodes = 50
-    algorithms = ['random', 'rl']
+    n_episodes_to_plot = 999
+    n_episodes = {'optimum': 1, 'random': 999, 'rl/ddqn': 999}
+    algorithms = ['optimum', 'random', 'rl/ddqn']
     df_inference_time_list = []
     df_ue_energy_comp_list = []
     df_ue_energy_comm_list = []
 
     for alg in algorithms:
-        df_inference_time, df_ue_energy_comp, df_ue_energy_comm = parse_kpis(alg, n_episodes)
+        df_inference_time, df_ue_energy_comp, df_ue_energy_comm = parse_kpis(alg, n_episodes[alg])
         df_inference_time_list.append(df_inference_time)
         df_ue_energy_comp_list.append(df_ue_energy_comp)
         df_ue_energy_comm_list.append(df_ue_energy_comm)
     # plot the required kpis
-    plot_kpis(df_inference_time_list, n_episodes, algorithms, 'inference_time')
-    plot_kpis(df_ue_energy_comp_list, n_episodes, algorithms, 'ue_energy_comp')
-    plot_kpis(df_ue_energy_comm_list, n_episodes, algorithms, 'ue_energy_comm')
+    plot_kpis(df_inference_time_list, n_episodes, n_episodes_to_plot, algorithms, 'inference_time')
+    plot_kpis(df_ue_energy_comp_list, n_episodes, n_episodes_to_plot, algorithms, 'ue_energy_comp')
+    plot_kpis(df_ue_energy_comm_list, n_episodes, n_episodes_to_plot, algorithms, 'ue_energy_comm')
 
 if __name__ == '__main__':
     main()

@@ -6,7 +6,7 @@ from models.vgg16_model import VGG16
 from utils.flops_profile import compute_flops_per_layer, compute_flops_per_block
 from nodes.ue_node import UENode
 from nodes.network_node import NetworkNode
-from utils.param_generator import generate_params
+from utils.param_generator import read_params_from_file
 from utils.split_generator import generate_random_split
 from utils.scenario_generator import generate_scenario
 from utils.inference_utils import compute_inference
@@ -82,9 +82,23 @@ for ep in range(start_episode, scenario_params['n_episodes'] + 1):
     elif scenario_params['split_algorithm'] == 3:   # if optimal solution is selected
         # initialize solver
         opt = Opt(scenario_params, allowed_splits, num_nodes, flops_per_block, allowed_splits_blocks)
-    for k in range(1, scenario_params['episode_duration'], scenario_params['time_interval']):
+    for k in range(1, scenario_params['episode_duration'] + 1, scenario_params['time_interval']):
         #print('Time step {} in episode {}'.format(k, ep))
-        ue_freq, ue_flops_cycle, ue_bandwidth, freqs, flops_cycle, bandwidth = generate_params(num_nodes)
+        # ------------------------ Read params from file ---------------------------
+        # for now, the same randomly generated set of parameters are used for all episodes
+        df = read_params_from_file(episode=1, num_nodes=num_nodes)
+        ue_freq = df['ue_freq'][k-1]
+        ue_flops_cycle = df['ue_flops_per_cycle'][k-1]
+        ue_bandwidth = df['ue_bandwidth'][k-1]
+        freqs = []
+        flops_cycle = []
+        bandwidth = []
+        for i in range(1, num_nodes):
+            freqs.append(df['freqs{}'.format(i)][k-1])
+            flops_cycle.append(df['flops_per_cycle{}'.format(i)][k-1])
+            bandwidth.append(df['bandwidth{}'.format(i)][k-1])
+        #ue_freq, ue_flops_cycle, ue_bandwidth, freqs, flops_cycle, bandwidth = generate_params(num_nodes)
+        # --------------------------------------------------------------------------
         # Instantiate computation nodes
         ue = UENode(cpu_freq=ue_freq, flops_per_cycle=ue_flops_cycle, power=power)
         network_nodes = [NetworkNode(i, freqs[i - 1], flops_cycle[i - 1]) for i in range(1, num_nodes)]

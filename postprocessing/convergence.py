@@ -19,6 +19,7 @@ def plot_metric(metric, df, outfile, folder):
     ax.legend()
     ax.grid()
     plt.savefig('results/{}/{}.png'.format(folder, outfile))
+    plt.savefig('results/{}/{}.svg'.format(folder, outfile))
     plt.show()
 
 def generate_metric(params, n_episodes, order_to_convert, metric):
@@ -47,7 +48,7 @@ def main():
 
     params = generate_scenario()
     # specify the number of episodes to be plotted
-    n_episodes = 675
+    n_episodes = 999
     order_to_convert = 100
     generate_metric(params, n_episodes, order_to_convert, 'mean_loss')
     generate_metric(params, n_episodes, order_to_convert, 'mean_reward')
