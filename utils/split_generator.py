@@ -1,9 +1,9 @@
 """
 split_generator.py
 
-Utility function for generating random split points for model partitioning.
-Ensures that each node gets a contiguous set of layers without splitting inside
-VGG blocks (avoiding channel mismatches).
+Utility for sampling a random split configuration for model partitioning.
+This module wraps around the full action space enumerator (action_space.py) 
+to ensure consistency between random baselines and the RL environment.
 
 Note:
     Some nodes may not be allocated any layers (start_layer == end_layer),
@@ -80,12 +80,12 @@ def generate_random_split(allowed_splits, num_nodes, allow_empty_nodes=True):
     # return splits
     
 
-if __name__ == "__main__":
-    allowed_splits = [0, 3, 6, 10, 14, 18]
-    num_nodes = 4
+# if __name__ == "__main__":
+#     allowed_splits = [0, 3, 6, 10, 14, 18]
+#     num_nodes = 4
 
-    print("Testing random split sampling...")
-    for _ in range(5):
-        split = generate_random_split(allowed_splits, num_nodes, allow_empty_nodes=True)
-        print(split)
+#     print("Testing random split sampling...")
+#     for _ in range(5):
+#         split = generate_random_split(allowed_splits, num_nodes, allow_empty_nodes=True)
+#         print(split)
     
