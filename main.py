@@ -74,6 +74,8 @@ for ep in range(start_episode, scenario_params['n_episodes'] + 1):
     total_flops_on_ue_per_episode = []
     energy_credit_consumed_per_episode = []
     split_config_per_episode = []
+    top1_accuracy_per_episode = []
+    top5_accuracy_per_episode = []
     # ------------------------------
     if scenario_params['split_algorithm'] == 2: # update epsilon for ddqn based on episode number
         # initialize agent
@@ -84,7 +86,7 @@ for ep in range(start_episode, scenario_params['n_episodes'] + 1):
         opt = Opt(scenario_params, allowed_splits, num_nodes, flops_per_block, allowed_splits_blocks)
     for k in range(1, scenario_params['episode_duration'] + 1, scenario_params['time_interval']):
         #print('Time step {} in episode {}'.format(k, ep))
-        # ------------------------ Read params from file ---------------------------
+        # ------------------------ Read params from file ---------------------------------------------------
         # for now, the same randomly generated set of parameters are used for all episodes
         df = read_params_from_file(episode=1, num_nodes=num_nodes)
         ue_freq = df['ue_freq'][k-1]
@@ -98,7 +100,7 @@ for ep in range(start_episode, scenario_params['n_episodes'] + 1):
             flops_cycle.append(df['flops_per_cycle{}'.format(i)][k-1])
             bandwidth.append(df['bandwidth{}'.format(i)][k-1])
         #ue_freq, ue_flops_cycle, ue_bandwidth, freqs, flops_cycle, bandwidth = generate_params(num_nodes)
-        # --------------------------------------------------------------------------
+        # --------------------------------------------------------------------------------------------------
         # Instantiate computation nodes
         ue = UENode(cpu_freq=ue_freq, flops_per_cycle=ue_flops_cycle, power=power)
         network_nodes = [NetworkNode(i, freqs[i - 1], flops_cycle[i - 1]) for i in range(1, num_nodes)]
@@ -187,6 +189,9 @@ for ep in range(start_episode, scenario_params['n_episodes'] + 1):
 
             # Optional: sum of top-5 probabilities (should be ≤ 1)
             #print(f"Top-5 Accuracy Confidence: {top5_prob.sum().item():.4f}")
+        top1_accuracy_per_episode.append({'time_step': k, 'top1': top1_prob.item()})
+        #top5_accuracy_per_episode.append({'time_step': k, 'top5': top5_prob.item()})
+
 
     # --------------------------------------
     # Save logging variables in this episode
@@ -194,7 +199,8 @@ for ep in range(start_episode, scenario_params['n_episodes'] + 1):
     data = {'inference_time': inference_time_per_episode, 'ue_energy_comp': ue_energy_comp_per_episode,
             'ue_energy_comm': ue_energy_comm_per_episode, 'success_rate': success_rate_per_episode,
             'y_net': total_flops_offloaded_per_episode, 'y_ue': total_flops_on_ue_per_episode,
-            'energy_credit': energy_credit_consumed_per_episode, 'split': split_config_per_episode}
+            'energy_credit': energy_credit_consumed_per_episode, 'split': split_config_per_episode,
+            'top1': top1_accuracy_per_episode, 'top5': top5_accuracy_per_episode}
     write_logs(scenario_params, ep, data, agent)
     # --------------------------------------
     # Display variables in this episode

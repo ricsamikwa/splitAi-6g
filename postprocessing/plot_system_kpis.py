@@ -1,6 +1,7 @@
 import os
 import csv
 import pandas as pd
+import numpy as np
 import matplotlib.pyplot as plt
 from utils.logging_utils import return_order, parse_episode_number
 
@@ -41,6 +42,93 @@ def get_confidence_interval(sd, size):
     """
     return 1.960 * sd / size
 
+def plot_kpis_tradeoff_algorithms(df_inference_time_list, df_ue_energy_comp_list, df_ue_energy_comm_list, n_episodes,
+                       n_episodes_to_plot, omega_list, algorithms):
+    pass
+
+def plot_kpis_tradeoff_optimum(df_inference_time_list, df_ue_energy_comp_list, df_ue_energy_comm_list, n_episodes,
+                       n_episodes_to_plot, omega_list):
+    """
+    Script to plot the tradeoff curve between inference time and ue energy for the optimum case for different values of
+    the weight, omega. This tradeoff should be analysed using static values of the system parameters.
+    Args:
+        df_inference_time_list (list of pandas DataFrame): list of 2D dataframes containing of inference time logs across and
+        within episodes. N_rows = n_episodes while N_columns = n_timesteps.
+        df_ue_energy_comp_list (list of pandas DataFrame): list of 2D dataframes containing of ue_energy_comp logs across and
+        within episodes. N_rows = n_episodes while N_columns = n_timesteps.
+        df_ue_energy_comm_list (list of pandas DataFrame): list of 2D dataframes containing of ue_energy_comm logs across and
+        within episodes. N_rows = n_episodes while N_columns = n_timesteps.
+        n_episodes (dict): number of episodes
+        n_episodes_to_plot (int): the actual number of episodes to plot
+        omega_list (list): list of values of omega to plot.
+
+    Returns:
+
+    """
+    fig, ax = plt.subplots()
+    cmap = plt.get_cmap('viridis')
+    colors = cmap(np.linspace(0, 0.7, n_episodes_to_plot))
+    for i, omega in enumerate(omega_list):
+        df_inference_time = df_inference_time_list[i]
+        df_ue_energy_comp = df_ue_energy_comp_list[i]
+        df_ue_energy_comm = df_ue_energy_comm_list[i]
+        print(df_inference_time)
+        print(df_ue_energy_comp)
+        print(df_ue_energy_comm)
+        for ep in range(n_episodes_to_plot):
+            sum_ue_energies = df_ue_energy_comp.iloc[ep] + df_ue_energy_comm.iloc[ep]
+            plt.bar(omega * df_inference_time.iloc[ep], (1 - omega) * sum_ue_energies, width=0.001, color=colors)
+    ax.grid()
+    ax.set_xlabel('weighted inference time in s')
+    ax.set_ylabel('weighted sum of ue energy in J')
+    plt.show()
+
+def plot_kpis_all_episodes(df_list, n_episodes, n_episodes_to_plot, algorithms, kpi_type, omega_list, n_episodes_to_train,
+                           total_episodes_train):
+    fig, ax = plt.subplots()
+    cmap = plt.get_cmap('viridis')
+    colors = cmap(np.linspace(0, 0.7, len(algorithms)))
+    position = 0
+    # save episode means in a separate df
+    for i, omega in enumerate(omega_list):
+        position = position + 5
+        # first the optimum
+        alg_idx = 0
+        algorithm = 'optimum'
+        df_optimum = df_list[alg_idx]
+        mean_per_episode = []
+        for ep in range(1, n_episodes[algorithm] + 1):
+            mean_per_episode.append(df_optimum.loc[ep].mean())
+        df_optimum_means = pd.DataFrame(mean_per_episode)
+        mean = df_optimum_means.mean()
+        sd = df_optimum_means.std()
+        h = get_confidence_interval(sd, n_episodes[algorithm])
+        ax.errorbar(position, mean, yerr=h, label='optimum')
+        # then rl
+        position = position + 5
+        alg_idx = 1
+        df_ddqn = df_list[alg_idx]
+        #print(df_ddqn)
+        mean_per_episode = []
+        n_episodes_bef_train = n_episodes_to_train[omega]
+        n_episodes_aft_train = total_episodes_train[omega] - n_episodes_bef_train
+        #print(n_episodes_aft_train)
+        for ep in range(n_episodes_bef_train, total_episodes_train[omega] + 1):
+            mean_per_episode.append(df_ddqn.loc[ep].mean())
+        df_ddqn_means = pd.DataFrame(mean_per_episode)
+        #print(df_ddqn_means)
+        mean = df_ddqn_means.mean()
+        #print(mean)
+        sd = df_ddqn_means.std()
+        #print(sd)
+        h = get_confidence_interval(sd, n_episodes_aft_train)
+        ax.errorbar(position, mean, yerr=h, label='ddqn')
+
+    ax.grid()
+    plt.legend()
+    plt.show()
+
+
 def plot_kpis(df_list, n_episodes, n_episodes_to_plot, algorithms, kpi_type):
     """
     Generates an error plot of a given system kpi over episodes.
@@ -61,6 +149,7 @@ def plot_kpis(df_list, n_episodes, n_episodes_to_plot, algorithms, kpi_type):
     episodes = [ep for ep in range(1, n_episodes_to_plot + 1)]
     for i, alg in enumerate(algorithms):
         df = df_list[i]
+        print(df)
         mean_per_episode = []
         sd_per_episode = []
         yerr_per_episode = []
@@ -74,7 +163,7 @@ def plot_kpis(df_list, n_episodes, n_episodes_to_plot, algorithms, kpi_type):
         if alg == 'optimum':
             plt.axhline(y=mean_per_episode[0], color='g', linestyle='-')
         else:
-            plt.errorbar(episodes, mean_per_episode, yerr=yerr_per_episode, capsize=3, fmt=colors[alg], ecolor='black',
+            ax.errorbar(episodes, mean_per_episode, yerr=yerr_per_episode, fmt=colors[alg], ecolor='black',
                      label='{}'.format(alg))
     ax.set_xlabel('episodes')
     ax.set_ylabel('{}'.format(kpi_type))
@@ -133,22 +222,35 @@ def main():
     path_parent = os.path.dirname(os.getcwd())
     os.chdir(path_parent)
 
-    n_episodes_to_plot = 999
+    n_episodes_to_plot = 2
     n_episodes = {'optimum': 1, 'random': 999, 'rl/ddqn': 999}
+    n_episodes = {'optimum': 2, 'rl/ddqn': 2380}
     algorithms = ['optimum', 'random', 'rl/ddqn']
-    df_inference_time_list = []
-    df_ue_energy_comp_list = []
-    df_ue_energy_comm_list = []
+    algorithms = ['optimum', 'rl/ddqn']
+    #algorithms = ['optimum']
+    df_inference_time_list = [] # for each specified algorithm in 'algorithms'
+    df_ue_energy_comp_list = [] # for each specified algorithm in 'algorithms'
+    df_ue_energy_comm_list = [] # for each specified algorithm in 'algorithms'
 
+    omega_list = [0.1]
+    # specifies the episodes of convergence of ddqn for the corresponding value of omega
+    n_episodes_to_train = {0.1: 2000, 0.3: 1000, 0.5: 1000, 0.7: 1000, 0.9: 1000}
+    total_episodes_train = {0.1: 2380, 0.3: 1000, 0.5: 1000, 0.7: 1000, 0.9: 1000}
     for alg in algorithms:
         df_inference_time, df_ue_energy_comp, df_ue_energy_comm = parse_kpis(alg, n_episodes[alg])
         df_inference_time_list.append(df_inference_time)
         df_ue_energy_comp_list.append(df_ue_energy_comp)
         df_ue_energy_comm_list.append(df_ue_energy_comm)
     # plot the required kpis
-    plot_kpis(df_inference_time_list, n_episodes, n_episodes_to_plot, algorithms, 'inference_time')
-    plot_kpis(df_ue_energy_comp_list, n_episodes, n_episodes_to_plot, algorithms, 'ue_energy_comp')
-    plot_kpis(df_ue_energy_comm_list, n_episodes, n_episodes_to_plot, algorithms, 'ue_energy_comm')
+    #plot_kpis(df_inference_time_list, n_episodes, n_episodes_to_plot, algorithms, 'inference_time')
+    #plot_kpis(df_ue_energy_comp_list, n_episodes, n_episodes_to_plot, algorithms, 'ue_energy_comp')
+    #plot_kpis(df_ue_energy_comm_list, n_episodes, n_episodes_to_plot, algorithms, 'ue_energy_comm')
+
+    #plot_kpis_tradeoff_optimum(df_inference_time_list, df_ue_energy_comp_list, df_ue_energy_comm_list, n_episodes,
+    #                           n_episodes_to_plot, omega_list)
+
+    plot_kpis_all_episodes(df_inference_time_list, n_episodes, n_episodes_to_plot, algorithms, 'inference_time',
+                           omega_list, n_episodes_to_train, total_episodes_train)
 
 if __name__ == '__main__':
     main()
