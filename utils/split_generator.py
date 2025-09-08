@@ -79,3 +79,13 @@ def generate_random_split(allowed_splits, num_nodes, allow_empty_nodes=True):
 
     # return splits
     
+
+if __name__ == "__main__":
+    allowed_splits = [0, 3, 6, 10, 14, 18]
+    num_nodes = 4
+
+    print("Testing random split sampling...")
+    for _ in range(5):
+        split = generate_random_split(allowed_splits, num_nodes, allow_empty_nodes=True)
+        print(split)
+    
