@@ -31,6 +31,12 @@ def write_logs(scenario_params, episode, data, model):
     # split config
     filename = 'splits/{}_{}'.format('split', episode_count)
     writeToCsv(data['split'], filename, folder)
+    # top 1 accuracy
+    filename = 'system/{}_{}'.format('top1', episode_count)
+    writeToCsv(data['top1'], filename, folder)
+    # top 5 accuracy
+    #filename = 'system/{}_{}'.format('top5', episode_count)
+    #writeToCsv(data['top5'], filename, folder)
     if folder == 'rl/ddqn':
         # success rate
         filename = 'system/{}_{}'.format('success_rate', episode_count)
