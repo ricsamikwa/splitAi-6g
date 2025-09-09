@@ -17,8 +17,12 @@ def write_logs(scenario_params, episode, data, model):
         folder = 'random'
     elif scenario_params['split_algorithm'] == 2:
         folder = 'rl/ddqn'
-    else:
+    elif scenario_params['split_algorithm'] == 3:
         folder = 'optimum'
+    elif scenario_params['split_algorithm'] == 4:
+        folder = 'fixed'
+    else:
+        folder = 'ue'
     # inference time
     filename = 'system/{}_{}'.format('inference_time', episode_count)
     writeToCsv(data['inference_time'], filename, folder)

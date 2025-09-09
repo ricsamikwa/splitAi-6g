@@ -55,7 +55,6 @@ class DDQNAgent(nn.Module):
         self.epsilon_step_percent = self.scenario_params['epsilon_step_percent']
         self.epsilon_fin = self.scenario_params['epsilon_fin']
 
-
     def forward(self, x):
         x = F.relu(self.layer1(x))
         x = F.relu(self.layer2(x))
@@ -166,8 +165,8 @@ class DDQNAgent(nn.Module):
     def get_instant_reward(self, inference_time, ue_energy_comp, ue_energy_comm):
         #optimization = inference_time + ue_energy_comp + ue_energy_comm
         #optimization = inference_time + ue_energy_comm
-        optimization = (self.scenario_params['weight_inference_time'] * inference_time +
-                        self.scenario_params['weight_ue_energy'] * (ue_energy_comp + ue_energy_comm))
+        optimization = (self.scenario_params['weight_inference_time'] * inference_time) + (
+                    (1 - self.scenario_params['weight_inference_time']) * (ue_energy_comp + ue_energy_comm))
         #reward = self.success * (1 / optimization)
         reward = math.pow(10, (1 / optimization))
         #print('reward {}'.format(reward))

@@ -140,9 +140,13 @@ for ep in range(start_episode, scenario_params['n_episodes'] + 1):
         elif scenario_params['split_algorithm'] == 2:   # rl agent
             split_config = agent.execute(k, ep, model, episode_params, current_output)  # agent determines the split every time_interval seconds
             #print('Energy credit consumed {} Split config {}'.format(agent.agent.energy_credit_consumed, split_config))
-        else:
+        elif scenario_params['split_algorithm'] == 3:   # optimal solution
             split_config = opt.generate_optimal_split(k, ep, model, episode_params, current_output)
             print('Energy credit consumed {} Optimal split {}'.format(opt.energy_credit_consumed, split_config))
+        elif scenario_params['split_algorithm'] == 4:   # fixed split
+            split_config = [(0, 0, 6), (1, 6, 10), (2, 10, 14), (3, 14, 18)]
+        else:   # ue only i.e. no split
+            split_config = [(0, 0, 18), (1, 18, 18), (2, 18, 18), (3, 18, 18)]
         # compute inference using the generated split configuration
         total_time, ue_energy_comp, ue_energy_comm, current_output = compute_inference(split_config, model,
                                                                                        episode_params, current_output)

@@ -38,8 +38,7 @@ class Opt:
             flops_to_be_offloaded, flops_on_ue = self.get_flops_offloaded(split, self.allowed_splits_blocks)
             # compute the inference due to this selected split
             inference_time, ue_en_comp, ue_en_comm, _ = compute_inference(split, dnn_model, episode_params, output)
-            optimization = (self.scenario_params['weight_inference_time'] * inference_time +
-                        self.scenario_params['weight_ue_energy'] * (ue_en_comp + ue_en_comm))
+            optimization = (self.scenario_params['weight_inference_time'] * inference_time) + ((1 - self.scenario_params['weight_inference_time']) * (ue_en_comp + ue_en_comm))
             evaluations[i] = optimization
             # for each evaluated optimization, check if constraints are satisfied
             energy_credit_criteria, energy_credit_consumed = self.check_energy_credit_budget(flops_to_be_offloaded)

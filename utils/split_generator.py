@@ -15,7 +15,7 @@ Note:
 """
 
 import numpy as np
-from action_space import enumerate_action_space
+from utils.action_space import enumerate_action_space
 
 def generate_random_split(allowed_splits, num_nodes, allow_empty_nodes=True):
     """
