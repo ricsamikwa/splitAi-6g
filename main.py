@@ -7,7 +7,7 @@ from utils.flops_profile import compute_flops_per_layer, compute_flops_per_block
 from nodes.ue_node import UENode
 from nodes.network_node import NetworkNode
 from utils.param_generator import read_params_from_file
-from utils.split_generator import generate_random_split
+from utils.split_generator import Baseline
 from utils.scenario_generator import generate_scenario
 from utils.inference_utils import compute_inference
 from utils.optimum import Opt
@@ -24,6 +24,7 @@ energy_cost = 1  # in 1e-7 scale (J/byte) for UE communication
 power = 5
 agent = None
 opt = None
+baseline = None
 
 # Import the scenario params
 scenario_params = generate_scenario()
@@ -84,6 +85,9 @@ for ep in range(start_episode, scenario_params['n_episodes'] + 1):
     elif scenario_params['split_algorithm'] == 3:   # if optimal solution is selected
         # initialize solver
         opt = Opt(scenario_params, allowed_splits, num_nodes, flops_per_block, allowed_splits_blocks)
+    else:
+        # initialize the baseline algorithm i.e. random/fixed split/ue only
+        baseline = Baseline(scenario_params, allowed_splits, num_nodes, flops_per_block, allowed_splits_blocks)
     for k in range(1, scenario_params['episode_duration'] + 1, scenario_params['time_interval']):
         #print('Time step {} in episode {}'.format(k, ep))
         # ------------------------ Read params from file ---------------------------------------------------
@@ -136,17 +140,18 @@ for ep in range(start_episode, scenario_params['n_episodes'] + 1):
                           'power': power}
 
         if scenario_params['split_algorithm'] == 1:  # indicates random split
-            split_config = generate_random_split(allowed_splits, num_nodes)  # Replace with RL method
+            split_config = baseline.generate_random_split(allowed_splits, num_nodes, True, model,
+                                                          episode_params, current_output)
         elif scenario_params['split_algorithm'] == 2:   # rl agent
             split_config = agent.execute(k, ep, model, episode_params, current_output)  # agent determines the split every time_interval seconds
             #print('Energy credit consumed {} Split config {}'.format(agent.agent.energy_credit_consumed, split_config))
         elif scenario_params['split_algorithm'] == 3:   # optimal solution
             split_config = opt.generate_optimal_split(k, ep, model, episode_params, current_output)
-            print('Energy credit consumed {} Optimal split {}'.format(opt.energy_credit_consumed, split_config))
+            #print('Energy credit consumed {} Optimal split {}'.format(opt.energy_credit_consumed, split_config))
         elif scenario_params['split_algorithm'] == 4:   # fixed split
-            split_config = [(0, 0, 6), (1, 6, 10), (2, 10, 14), (3, 14, 18)]
+            split_config = baseline.fixed_split()
         else:   # ue only i.e. no split
-            split_config = [(0, 0, 18), (1, 18, 18), (2, 18, 18), (3, 18, 18)]
+            split_config = baseline.ue_computation_only()
         # compute inference using the generated split configuration
         total_time, ue_energy_comp, ue_energy_comm, current_output = compute_inference(split_config, model,
                                                                                        episode_params, current_output)
@@ -167,12 +172,16 @@ for ep in range(start_episode, scenario_params['n_episodes'] + 1):
         ue_energy_comp_per_episode.append({'time_step': k, 'ue_energy_comp': ue_energy_comp})
         ue_energy_comm_per_episode.append({'time_step': k, 'ue_energy_comm': ue_energy_comm})
         split_config_per_episode.append({'time_step': k, 'split': split_config})
-        if scenario_params['split_algorithm'] == 2:
+        if scenario_params['split_algorithm'] == 3: # optimum case
+            energy_credit_consumed_per_episode.append({'time_step': k, 'energy_credit': opt.energy_credit_consumed})
+        elif scenario_params['split_algorithm'] == 2: # rl case
             success_rate_per_episode.append({'time_step': k,
                                          'success_rate': (agent.agent.n_success / agent.agent.n_attempts_to_split) * 100})
             total_flops_offloaded_per_episode.append({'time_step': k, 'y_net': agent.agent.total_flops_offloaded})
             total_flops_on_ue_per_episode.append({'time_step': k, 'y_ue': agent.agent.total_flops_on_ue})
             energy_credit_consumed_per_episode.append({'time_step': k, 'energy_credit': agent.agent.energy_credit_consumed})
+        else:   # for all other baseline algorithms i.e. random/fixed split/ue only
+            energy_credit_consumed_per_episode.append({'time_step': k, 'energy_credit': baseline.energy_credit_consumed})
         # -----------------------
         # Final Classification Output
         # -----------------------
@@ -210,6 +219,5 @@ for ep in range(start_episode, scenario_params['n_episodes'] + 1):
     # Display variables in this episode
     # --------------------------------------
     if scenario_params['split_algorithm'] == 2:
-        print('Cumulative episode reward {}, success rate {}'.format(agent.agent.cumulative_reward,
-                                                               (agent.agent.n_success / agent.agent.n_attempts_to_split) * 100))
+        print('Cumulative episode reward {}'.format(agent.agent.cumulative_reward))
 

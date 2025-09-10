@@ -41,6 +41,9 @@ def write_logs(scenario_params, episode, data, model):
     # top 5 accuracy
     #filename = 'system/{}_{}'.format('top5', episode_count)
     #writeToCsv(data['top5'], filename, folder)
+    # energy credit
+    filename = 'system/{}_{}'.format('energy_credit', episode_count)
+    writeToCsv(data['energy_credit'], filename, folder)
     if folder == 'rl/ddqn':
         # success rate
         filename = 'system/{}_{}'.format('success_rate', episode_count)
@@ -51,9 +54,7 @@ def write_logs(scenario_params, episode, data, model):
         # total flops on ue
         filename = 'system/{}_{}'.format('y_ue', episode_count)
         writeToCsv(data['y_ue'], filename, folder)
-        # energy credit
-        filename = 'system/{}_{}'.format('energy_credit', episode_count)
-        writeToCsv(data['energy_credit'], filename, folder)
+
         if scenario_params['rl_algorithm'] == 1:    # ddqn
             save_model_params(model.agent, 'ddqn', 'main', scenario_params, episode_count)
             save_model_params(model.target_agent, 'ddqn', 'target', scenario_params, episode_count)

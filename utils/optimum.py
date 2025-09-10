@@ -71,7 +71,7 @@ class Opt:
             # also update the energy credit consumed
             energy_credit_criteria, energy_credit_consumed = self.check_energy_credit_budget(flops_offloaded)
             self.total_flops_on_ue += flops_on_ue
-            if energy_credit_criteria:  # update only when the criteria is satisfied, else previous value remains
+            if energy_credit_criteria:  # update only when the offloading criteria is satisfied, else previous value remains
                 self.energy_credit_consumed = energy_credit_consumed
                 self.total_flops_offloaded += flops_offloaded
             # however, if none of the feasible splits satisfies the constraints, go to fallback option
@@ -81,9 +81,6 @@ class Opt:
             #    # the flops on ue due to this selected split is the total flops
             #    flops_on_ue = self.total_flops
             #    self.total_flops_on_ue += flops_on_ue
-            #print(self.total_flops_offloaded)
-            #print(self.total_flops_on_ue)
-            #self.opt_split = best_split
             self.opt_split = best_split
             return best_split
 

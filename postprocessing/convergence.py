@@ -10,7 +10,7 @@ from utils.logging_utils import read_single_col_data, return_order, parse_episod
 
 
 def plot_metric(metric, df, outfile, folder):
-    window = 100
+    window = 10
     fig, ax = plt.subplots()
     roll_mean_loss = df[metric].rolling(window=window).mean()
     plt.plot(df['episode'], roll_mean_loss, label='ddqn')
@@ -48,7 +48,7 @@ def main():
 
     params = generate_scenario()
     # specify the number of episodes to be plotted
-    n_episodes = 500
+    n_episodes = 1267
     order_to_convert = 1000
     generate_metric(params, n_episodes, order_to_convert, 'mean_loss')
     generate_metric(params, n_episodes, order_to_convert, 'mean_reward')

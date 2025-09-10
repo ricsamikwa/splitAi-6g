@@ -3,7 +3,7 @@ import csv
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-from networkx.algorithms.bipartite.basic import color
+
 
 from utils.logging_utils import return_order, parse_episode_number
 
@@ -104,7 +104,7 @@ def plot_kpis_tradeoff_optimum(df_inference_time_list, df_ue_energy_comp_list, d
 
 def plot_kpis_all_episodes(df_inference_time_list, df_ue_energy_comp_list, df_ue_energy_comm_list, algorithms, n_episodes_to_train, total_episodes_train):
     fig, ax = plt.subplots(layout='constrained')
-    x = np.arange(len(algorithms))  # the label locations
+    r = np.arange(len(algorithms))  # the label locations
     width = 0.25  # the width of the bars
     multiplier = 0
     bar_colors = ['#072140', '#114584', '#9ABCE4']
@@ -184,16 +184,22 @@ def plot_kpis_all_episodes(df_inference_time_list, df_ue_energy_comp_list, df_ue
                                mean_ue_energy_comp_fixed, mean_ue_energy_comp_local),
             'ue_energy_comm': (mean_ue_energy_comm_optimum, mean_ue_energy_comm_ddqn, mean_ue_energy_comm_random,
                                mean_ue_energy_comm_fixed, mean_ue_energy_comm_local)}
-    # now plot
-    for attribute, measurement in data.items():
-        offset = width * multiplier
-        rects = ax.bar(x + offset, measurement, width, label=attribute)
-        #ax.bar_label(rects, padding=3)
-        multiplier += 1
-
-    #ax.set_prop_cycle(color=bar_colors)
+    offset = width * multiplier
+    rects = ax.bar(r + offset, data['inference_latency'], width=width, color='#072140', label='inference_latency')
+    ax.bar_label(rects, padding=3, fontsize=8)
+    #print('Mean Inference latency {}'.format(rects))
+    multiplier += 1
+    offset = width * multiplier
+    rects = ax.bar(r + offset, data['ue_energy_comp'], width=width, color='#165DB1', label='ue_energy_comp')
+    ax.bar_label(rects, padding=3, fontsize=8)
+    #print('Mean UE energy comp {}'.format(rects))
+    multiplier += 1
+    offset = width * multiplier
+    rects = ax.bar(r + offset, data['ue_energy_comm'], width=width, color='#9ABCE4', label='ue_energy_comm')
+    ax.bar_label(rects, padding=3, fontsize=8)
+    #print('Mean UE energy comm {}'.format(rects))
     ax.set_ylabel('Value')
-    ax.set_xticks(x + width, algorithms)
+    ax.set_xticks(r + width, algorithms)
     ax.legend(loc='upper left', ncols=3)
     ax.grid()
     plt.savefig('results/inference_energy_comparison.png')
@@ -335,27 +341,26 @@ def main():
     path_parent = os.path.dirname(os.getcwd())
     os.chdir(path_parent)
 
-    n_episodes_to_plot = 1
     #n_episodes = {'optimum': 1, 'random': 999, 'rl/ddqn': 999}
-    n_episodes = {'optimum': 1, 'rl/ddqn': 466, 'random': 1, 'fixed': 1, 'ue': 1}
+    n_episodes = {'optimum': 1, 'rl/ddqn': 1000, 'random': 1, 'fixed': 1, 'ue': 1}
+    #n_episodes = {'optimum': 1, 'rl/ddqn': 1000, 'random': 1, 'fixed': 1}
     algorithms = ['optimum', 'rl/ddqn', 'random', 'fixed', 'ue']
+    #algorithms = ['optimum', 'rl/ddqn', 'random', 'fixed']
     #algorithms = ['optimum', 'rl/ddqn']
     #algorithms = ['optimum']
     df_inference_time_list = [] # for each specified algorithm in 'algorithms'
     df_ue_energy_comp_list = [] # for each specified algorithm in 'algorithms'
     df_ue_energy_comm_list = [] # for each specified algorithm in 'algorithms'
 
-    # specifies the episodes of convergence of ddqn for the corresponding value of omega
-    n_episodes_to_train = {0.1: 200, 0.3: 1000, 0.5: 1000, 0.7: 1000, 0.9: 1000}
-    n_episodes_to_train = 400
-    total_episodes_train = {0.1: 215, 0.3: 1000, 0.5: 1000, 0.7: 1000, 0.9: 1000}
-    total_episodes_train = 466
+    # specifies the episodes of convergence of ddqn
+    n_episodes_to_train = 500
+    total_episodes_train = 100
     for alg in algorithms:
         df_inference_time, df_ue_energy_comp, df_ue_energy_comm = parse_kpis(alg, n_episodes[alg])
         df_inference_time_list.append(df_inference_time)
         df_ue_energy_comp_list.append(df_ue_energy_comp)
         df_ue_energy_comm_list.append(df_ue_energy_comm)
-    # plot the required kpis
+    # plot the required kpis across episodes
     #plot_kpis(df_inference_time_list, n_episodes, n_episodes_to_plot, algorithms, 'inference_time')
     #plot_kpis(df_ue_energy_comp_list, n_episodes, n_episodes_to_plot, algorithms, 'ue_energy_comp')
     #plot_kpis(df_ue_energy_comm_list, n_episodes, n_episodes_to_plot, algorithms, 'ue_energy_comm')
