@@ -35,7 +35,7 @@ class Opt:
         for i, split in enumerate(feasible_splits):
             #print(split)
             # compute the flops to be offloaded due to this selected split
-            flops_to_be_offloaded, flops_on_ue = self.get_flops_offloaded(split, self.allowed_splits_blocks)
+            flops_to_be_offloaded, _ = self.get_flops_offloaded(split, self.allowed_splits_blocks)
             # compute the inference due to this selected split
             inference_time, ue_en_comp, ue_en_comm, _ = compute_inference(split, dnn_model, episode_params, output)
             optimization = (self.scenario_params['weight_inference_time'] * inference_time) + ((1 - self.scenario_params['weight_inference_time']) * (ue_en_comp + ue_en_comm))
@@ -74,6 +74,7 @@ class Opt:
             if energy_credit_criteria:  # update only when the offloading criteria is satisfied, else previous value remains
                 self.energy_credit_consumed = energy_credit_consumed
                 self.total_flops_offloaded += flops_offloaded
+                #self.total_flops_on_ue += flops_on_ue
             # however, if none of the feasible splits satisfies the constraints, go to fallback option
             #if True not in constraints_satisfied:
             #    best_split = [(0, 0, 18), (1, 18, 18), (2, 18, 18), (3, 18, 18)]

@@ -200,11 +200,11 @@ def plot_kpis_all_episodes(df_inference_time_list, df_ue_energy_comp_list, df_ue
     #print('Mean UE energy comm {}'.format(rects))
     ax.set_ylabel('Value')
     ax.set_xticks(r + width, algorithms)
-    ax.legend(loc='upper left', ncols=3)
+    ax.legend(loc='upper left', ncols=1)
     ax.grid()
     plt.savefig('results/inference_energy_comparison.png')
     plt.savefig('results/inference_energy_comparison.svg')
-    plt.show()
+    #plt.show()
 
 
 def plot_kpis(df_list, n_episodes, n_episodes_to_plot, algorithms, kpi_type):
@@ -223,8 +223,11 @@ def plot_kpis(df_list, n_episodes, n_episodes_to_plot, algorithms, kpi_type):
 
     """
     fig, ax = plt.subplots()
-    colors = {'random': 'r--o', 'rl/ddqn': 'b--o'}
+    plt.axhline(y=0.9, color='red', linestyle='--', linewidth='2', label='energy credit limit')
+    #plt.axvline(x=0.9, color='red', linestyle='--', linewidth='2', label='energy credit limit')
+    colors = {'random': 'D', 'rl/ddqn': 'o'}
     episodes = [ep for ep in range(1, n_episodes_to_plot + 1)]
+    # start extracting data and plotting for each algorithm
     for i, alg in enumerate(algorithms):
         df = df_list[i]
         print(df)
@@ -239,16 +242,22 @@ def plot_kpis(df_list, n_episodes, n_episodes_to_plot, algorithms, kpi_type):
             yerr_per_episode.append(get_confidence_interval(sd, n_episodes[alg]))
 
         if alg == 'optimum':
-            plt.axhline(y=mean_per_episode[0], color='g', linestyle='-')
+            plt.axhline(y=mean_per_episode[0], color='black', linestyle='-', linewidth='5', label='optimum')
+            #plt.axvline(x=mean_per_episode[0], color='black', linestyle='-', linewidth='5', label='optimum')
         else:
             ax.errorbar(episodes, mean_per_episode, yerr=yerr_per_episode, fmt=colors[alg], ecolor='black',
                      label='{}'.format(alg))
-    ax.set_xlabel('episodes')
-    ax.set_ylabel('{}'.format(kpi_type))
+            #plt.hist(mean_per_episode, alpha=0.5, label='{}'.format(alg))
+    #ax.set_xlabel('Energy credit usage')
+    ax.set_xlabel('Episode')
+    #ax.set_ylabel('Number of episodes')
+    ax.set_ylabel('Energy credit usage')
+    ax.set_ylim(top=0.95)
+
     plt.grid()
     plt.legend()
-    plt.savefig('results/{}.png'.format(kpi_type))
-    plt.savefig('results/{}.svg'.format(kpi_type))
+    #plt.savefig('results/{}.png'.format(kpi_type))
+    #plt.savefig('results/{}.svg'.format(kpi_type))
     plt.show()
 
 def parse_kpis(folder, n_episodes):
@@ -259,7 +268,7 @@ def parse_kpis(folder, n_episodes):
         n_episodes (int): number of episodes per algorithm to print
 
     Returns:
-        Tuple: (dataframes containing inference time, ue computation and communication energy)
+        Tuple: (dataframes containing inference time, ue computation and communication energy and energy credit)
     """
     if folder != 'rl/ddqn':
         order = return_order(n_episodes)
@@ -268,6 +277,7 @@ def parse_kpis(folder, n_episodes):
     inference_times_all_episodes = []
     ue_energy_comp_all_episodes = []
     ue_energy_comm_all_episodes = []
+    energy_credit_all_episodes = []
     time_steps = []
 
     for episode in range(1, n_episodes + 1):
@@ -281,6 +291,9 @@ def parse_kpis(folder, n_episodes):
         kpi_type = 'ue_energy_comm'
         time_steps, ue_energy_comm_per_episode = read_kpis_from_files(folder, kpi_type, episode_count)
         ue_energy_comm_all_episodes.append(ue_energy_comm_per_episode)
+        kpi_type = 'energy_credit'
+        time_steps, energy_credit_per_episode = read_kpis_from_files(folder, kpi_type, episode_count)
+        energy_credit_all_episodes.append(energy_credit_per_episode)
 
     # concatenate data of all episodes into single data structure
     df_inference_time = pd.DataFrame(inference_times_all_episodes, columns=time_steps,
@@ -289,8 +302,10 @@ def parse_kpis(folder, n_episodes):
                                      index=[ep for ep in range(1, n_episodes + 1)])
     df_ue_energy_comm = pd.DataFrame(ue_energy_comm_all_episodes, columns=time_steps,
                                      index=[ep for ep in range(1, n_episodes + 1)])
+    df_energy_credit = pd.DataFrame(energy_credit_all_episodes, columns=time_steps,
+                                     index=[ep for ep in range(1, n_episodes + 1)])
 
-    return df_inference_time, df_ue_energy_comp, df_ue_energy_comm
+    return df_inference_time, df_ue_energy_comp, df_ue_energy_comm, df_energy_credit
 
 def parse_kpis_optimum(n_episodes, omega):
     """
@@ -341,32 +356,36 @@ def main():
     path_parent = os.path.dirname(os.getcwd())
     os.chdir(path_parent)
 
+    n_episodes_to_plot = 1500
     #n_episodes = {'optimum': 1, 'random': 999, 'rl/ddqn': 999}
-    n_episodes = {'optimum': 1, 'rl/ddqn': 1000, 'random': 1, 'fixed': 1, 'ue': 1}
+    n_episodes = {'optimum': 1, 'rl/ddqn': 1500, 'random': 1500, 'fixed': 1, 'ue': 1}
     #n_episodes = {'optimum': 1, 'rl/ddqn': 1000, 'random': 1, 'fixed': 1}
-    algorithms = ['optimum', 'rl/ddqn', 'random', 'fixed', 'ue']
+    #algorithms = ['optimum', 'rl/ddqn', 'random', 'fixed', 'ue']
     #algorithms = ['optimum', 'rl/ddqn', 'random', 'fixed']
-    #algorithms = ['optimum', 'rl/ddqn']
+    algorithms = ['optimum', 'rl/ddqn', 'random']
     #algorithms = ['optimum']
     df_inference_time_list = [] # for each specified algorithm in 'algorithms'
     df_ue_energy_comp_list = [] # for each specified algorithm in 'algorithms'
     df_ue_energy_comm_list = [] # for each specified algorithm in 'algorithms'
+    df_energy_credit_list = []  # for each specified algorithm in 'algorithms'
 
     # specifies the episodes of convergence of ddqn
-    n_episodes_to_train = 500
-    total_episodes_train = 100
+    n_episodes_to_train = 900
+    total_episodes_train = 1500
     for alg in algorithms:
-        df_inference_time, df_ue_energy_comp, df_ue_energy_comm = parse_kpis(alg, n_episodes[alg])
+        df_inference_time, df_ue_energy_comp, df_ue_energy_comm, df_energy_credit = parse_kpis(alg, n_episodes[alg])
         df_inference_time_list.append(df_inference_time)
         df_ue_energy_comp_list.append(df_ue_energy_comp)
         df_ue_energy_comm_list.append(df_ue_energy_comm)
+        df_energy_credit_list.append(df_energy_credit)
     # plot the required kpis across episodes
     #plot_kpis(df_inference_time_list, n_episodes, n_episodes_to_plot, algorithms, 'inference_time')
     #plot_kpis(df_ue_energy_comp_list, n_episodes, n_episodes_to_plot, algorithms, 'ue_energy_comp')
     #plot_kpis(df_ue_energy_comm_list, n_episodes, n_episodes_to_plot, algorithms, 'ue_energy_comm')
+    plot_kpis(df_energy_credit_list, n_episodes, n_episodes_to_plot, algorithms, 'energy_credit')
 
-    plot_kpis_all_episodes(df_inference_time_list, df_ue_energy_comp_list, df_ue_energy_comm_list, algorithms,
-                           n_episodes_to_train, total_episodes_train)
+    # plot_kpis_all_episodes(df_inference_time_list, df_ue_energy_comp_list, df_ue_energy_comm_list, algorithms,
+    #                        n_episodes_to_train, total_episodes_train)
 
     # -------------------------- Only for optimum ---------------------------
     omega_list = [0.1, 0.3, 0.5, 0.7, 0.9]

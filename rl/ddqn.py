@@ -30,7 +30,8 @@ class DDQNAgent(nn.Module):
         self.layer1 = nn.Linear(self.n_states, 128)
         self.layer2 = nn.Linear(128, 128)
         self.layer3 = nn.Linear(128, self.n_actions)
-        self.split_config = None
+        # default split cannot be none - set ue only computation to avoid exceptions
+        self.split_config = [(0, 0, 18), (1, 18, 18), (2, 18, 18), (3, 18, 18)]
         self.energy_credit_consumed = 0.0    # energy credit consumed initially is 0%
         self.total_flops_offloaded = 0  # captures the cumulative flops offloaded by the ue until now
         self.total_flops = 0    # captures total flops of all layers (static value)
