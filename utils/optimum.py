@@ -16,7 +16,7 @@ class Opt:
         self.allowed_splits_blocks = allowed_splits_blocks
         self.max_energy_credit = self.scenario_params['max_energy_credit']
         self.max_inference_latency = self.scenario_params['max_inference_latency']
-        self.opt_split = None
+        self.opt_split = [(0, 0, 18), (1, 18, 18), (2, 18, 18), (3, 18, 18)]
         self.energy_credit_consumed = 0.0  # energy credit consumed initially is 0%
         self.total_flops_offloaded = 0  # captures the cumulative flops offloaded by the ue until now
         self.total_flops = 0  # captures total flops of all layers (static value)
