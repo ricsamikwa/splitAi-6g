@@ -27,7 +27,11 @@ class Baseline():
         self.allowed_splits_blocks = allowed_splits_blocks
         self.max_energy_credit = self.scenario_params['max_energy_credit']
         self.max_inference_latency = self.scenario_params['max_inference_latency']
-        self.split = None
+        if self.scenario_params['split_algorithm'] == 4:    # in case of a fixed split
+            self.split = [(0, 0, 6), (1, 6, 10), (2, 10, 14), (3, 14, 18)]
+        else:
+            self.split = [(0, 0, 18), (1, 18, 18), (2, 18, 18), (3, 18, 18)]
+        self.flops_offloaded = 0.0  # the instantaneous flops offloaded to the network
         self.energy_credit_consumed = 0.0  # energy credit consumed initially is 0%
         self.total_flops_offloaded = 0  # captures the cumulative flops offloaded by the ue until now
         self.total_flops = 0  # captures total flops of all layers (static value)
@@ -63,6 +67,8 @@ class Baseline():
             self.split = selected_split
             # update the flops offloaded, flops on ue and energy credit usage
             self.update_energy_credit_usage(flops_offloaded, flops_on_ue)
+        else:
+            self.flops_offloaded = 0.0
 
         return self.split
 
@@ -86,6 +92,7 @@ class Baseline():
                 self.total_flops + self.total_flops_on_ue)
         self.total_flops_offloaded += flops_offloaded
         self.total_flops_on_ue += flops_on_ue
+        self.flops_offloaded = flops_offloaded
 
     def check_energy_credit_budget(self, flops_offloaded):
         """

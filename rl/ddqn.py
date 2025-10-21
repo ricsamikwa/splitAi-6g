@@ -33,6 +33,7 @@ class DDQNAgent(nn.Module):
         # default split cannot be none - set ue only computation to avoid exceptions
         self.split_config = [(0, 0, 18), (1, 18, 18), (2, 18, 18), (3, 18, 18)]
         self.energy_credit_consumed = 0.0    # energy credit consumed initially is 0%
+        self.flops_offloaded = 0.0    # the instantaneous flops offloaded to the network
         self.total_flops_offloaded = 0  # captures the cumulative flops offloaded by the ue until now
         self.total_flops = 0    # captures total flops of all layers (static value)
         self.total_flops_on_ue = 0  # captures the cumulative flops computed on the ue until now
@@ -141,6 +142,7 @@ class DDQNAgent(nn.Module):
             self.split_config = selected_split_config
             self.success = 1
             self.n_success += 1
+            self.flops_offloaded = flops_to_be_offloaded
             self.total_flops_offloaded += flops_to_be_offloaded
             # update the total flops on ue
             self.total_flops_on_ue += flops_on_ue
@@ -148,6 +150,7 @@ class DDQNAgent(nn.Module):
             self.energy_credit_consumed = energy_credit_consumed
         else:
             self.success = -1   # do nothing, retain previous split
+            self.flops_offloaded = 0.0    # as previous split is retained, flops offloaded is zero
             # goto fallback option for agent, ue computes everything, no layers offloaded to network
             # selected_split_config = [(0, 0, 18), (1, 18, 18), (2, 18, 18), (3, 18, 18)]
             # recompute the inference due to the split config from the previous iteration, no need to update anything else
@@ -174,12 +177,12 @@ class DDQNAgent(nn.Module):
         return reward
 
     def get_flops_offloaded(self, selected_split_config, allowed_splits_blocks):
-        flops_on_ue = 0
+        flops_on_ue = 0.0
         (node_id, start, end) = selected_split_config[0] # extract start and end layers of ue
         # case 1: all layers on ue, ue offloads nothing
         if start == 0 and end == 18:
             flops_on_ue = self.total_flops
-            flops_offloaded = 0
+            flops_offloaded = 0.0
             #print('here')
             return flops_offloaded, flops_on_ue
         else:

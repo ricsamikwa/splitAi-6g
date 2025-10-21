@@ -44,10 +44,12 @@ def write_logs(scenario_params, episode, data, model):
     # energy credit
     filename = 'system/{}_{}'.format('energy_credit', episode_count)
     writeToCsv(data['energy_credit'], filename, folder)
+    filename = 'system/{}_{}'.format('flops_off', episode_count)
+    writeToCsv(data['flops_off'], filename, folder)
     if folder == 'rl/ddqn':
         # success rate
-        filename = 'system/{}_{}'.format('success_rate', episode_count)
-        writeToCsv(data['success_rate'], filename, folder)
+        #filename = 'system/{}_{}'.format('success_rate', episode_count)
+        #writeToCsv(data['success_rate'], filename, folder)
         # total flops offloaded
         filename = 'system/{}_{}'.format('y_net', episode_count)
         writeToCsv(data['y_net'], filename, folder)

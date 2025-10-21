@@ -71,6 +71,7 @@ for ep in range(start_episode, scenario_params['n_episodes'] + 1):
     ue_energy_comp_per_episode = []
     ue_energy_comm_per_episode = []
     success_rate_per_episode = []
+    flops_offloaded_per_episode = []
     total_flops_offloaded_per_episode = []
     total_flops_on_ue_per_episode = []
     energy_credit_consumed_per_episode = []
@@ -174,14 +175,17 @@ for ep in range(start_episode, scenario_params['n_episodes'] + 1):
         split_config_per_episode.append({'time_step': k, 'split': split_config})
         if scenario_params['split_algorithm'] == 3: # optimum case
             energy_credit_consumed_per_episode.append({'time_step': k, 'energy_credit': opt.energy_credit_consumed})
+            flops_offloaded_per_episode.append({'time_step': k, 'flops_off': opt.flops_offloaded})
         elif scenario_params['split_algorithm'] == 2: # rl case
             success_rate_per_episode.append({'time_step': k,
                                          'success_rate': (agent.agent.n_success / agent.agent.n_attempts_to_split) * 100})
             total_flops_offloaded_per_episode.append({'time_step': k, 'y_net': agent.agent.total_flops_offloaded})
             total_flops_on_ue_per_episode.append({'time_step': k, 'y_ue': agent.agent.total_flops_on_ue})
             energy_credit_consumed_per_episode.append({'time_step': k, 'energy_credit': agent.agent.energy_credit_consumed})
+            flops_offloaded_per_episode.append({'time_step': k, 'flops_off': agent.agent.flops_offloaded})
         else:   # for all other baseline algorithms i.e. random/fixed split/ue only
             energy_credit_consumed_per_episode.append({'time_step': k, 'energy_credit': baseline.energy_credit_consumed})
+            flops_offloaded_per_episode.append({'time_step': k, 'flops_off': baseline.flops_offloaded})
         # -----------------------
         # Final Classification Output
         # -----------------------
@@ -212,7 +216,8 @@ for ep in range(start_episode, scenario_params['n_episodes'] + 1):
     data = {'inference_time': inference_time_per_episode, 'ue_energy_comp': ue_energy_comp_per_episode,
             'ue_energy_comm': ue_energy_comm_per_episode, 'success_rate': success_rate_per_episode,
             'y_net': total_flops_offloaded_per_episode, 'y_ue': total_flops_on_ue_per_episode,
-            'energy_credit': energy_credit_consumed_per_episode, 'split': split_config_per_episode,
+            'energy_credit': energy_credit_consumed_per_episode, 'flops_off': flops_offloaded_per_episode,
+            'split': split_config_per_episode,
             'top1': top1_accuracy_per_episode, 'top5': top5_accuracy_per_episode}
     write_logs(scenario_params, ep, data, agent)
     # --------------------------------------

@@ -18,6 +18,7 @@ class Opt:
         self.max_inference_latency = self.scenario_params['max_inference_latency']
         self.opt_split = [(0, 0, 18), (1, 18, 18), (2, 18, 18), (3, 18, 18)]
         self.energy_credit_consumed = 0.0  # energy credit consumed initially is 0%
+        self.flops_offloaded = 0.0  # the instantaneous flops offloaded to the network
         self.total_flops_offloaded = 0  # captures the cumulative flops offloaded by the ue until now
         self.total_flops = 0  # captures total flops of all layers (static value)
         self.total_flops_on_ue = 0  # captures the cumulative flops computed on the ue until now
@@ -74,6 +75,9 @@ class Opt:
             if energy_credit_criteria:  # update only when the offloading criteria is satisfied, else previous value remains
                 self.energy_credit_consumed = energy_credit_consumed
                 self.total_flops_offloaded += flops_offloaded
+                self.flops_offloaded =flops_offloaded
+            else:
+                self.flops_offloaded = 0.0
                 #self.total_flops_on_ue += flops_on_ue
             # however, if none of the feasible splits satisfies the constraints, go to fallback option
             #if True not in constraints_satisfied:
@@ -95,12 +99,12 @@ class Opt:
         Returns:
             the flops offloaded to the network and the corresponding flops on the ue.
         """
-        flops_on_ue = 0
+        flops_on_ue = 0.0
         (node_id, start, end) = selected_split_config[0] # extract start and end layers of ue
         # case 1: all layers on ue, ue offloads nothing
         if start == 0 and end == 18:
             flops_on_ue = self.total_flops
-            flops_offloaded = 0
+            flops_offloaded = 0.0
             return flops_offloaded, flops_on_ue
         else:
             # case 2: at least one block on ue, ue offloads the rest
