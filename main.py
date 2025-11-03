@@ -6,6 +6,7 @@ from models.vgg16_model import VGG16
 from utils.flops_profile import compute_flops_per_layer, compute_flops_per_block
 from nodes.ue_node import UENode
 from nodes.network_node import NetworkNode
+from preprocessing.data_processing import read_trace_file
 from utils.param_generator import read_params_from_file
 from utils.split_generator import Baseline
 from utils.scenario_generator import generate_scenario
@@ -15,6 +16,7 @@ from utils.logging_utils import write_logs
 from rl.agent import Agent
 from PIL import Image
 import torchvision.transforms as transforms
+from timeit import default_timer as timer
 
 # -----------------------
 # Setup and Parameters
@@ -64,6 +66,7 @@ allowed_splits_blocks = [(1, 0, 3), (2, 3, 6), (3, 6, 10), (4, 10, 14), (5, 14, 
 # Generate split configuration according to desired algorithm
 # -----------------------
 for ep in range(start_episode, scenario_params['n_episodes'] + 1):
+    start = timer()
     print('Episode {}'.format(ep))
     # ------------------------------
     # initialize logging variables
@@ -93,10 +96,13 @@ for ep in range(start_episode, scenario_params['n_episodes'] + 1):
         #print('Time step {} in episode {}'.format(k, ep))
         # ------------------------ Read params from file ---------------------------------------------------
         # for now, the same randomly generated set of parameters are used for all episodes
+        # first, read radio parameters from file
+        df_radio_params = read_trace_file()
+        # then read other params
         df = read_params_from_file(episode=1, num_nodes=num_nodes)
         ue_freq = df['ue_freq'][k-1]
         ue_flops_cycle = df['ue_flops_per_cycle'][k-1]
-        ue_bandwidth = df['ue_bandwidth'][k-1]
+        ue_bandwidth = df_radio_params['DL_bitrate'][k-1] / 8000    # convert kbps to megabytes/s
         freqs = []
         flops_cycle = []
         bandwidth = []
@@ -225,4 +231,8 @@ for ep in range(start_episode, scenario_params['n_episodes'] + 1):
     # --------------------------------------
     if scenario_params['split_algorithm'] == 2:
         print('Cumulative episode reward {}'.format(agent.agent.cumulative_reward))
+
+    end = timer()
+    elapsed = end - start
+    print('Elapsed wall clock time {} s'.format(elapsed))
 
