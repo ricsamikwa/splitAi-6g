@@ -234,5 +234,5 @@ for ep in range(start_episode, scenario_params['n_episodes'] + 1):
 
     end = timer()
     elapsed = end - start
-    print('Elapsed wall clock time {} s'.format(elapsed))
+    print('Elapsed wall clock time {} min'.format(elapsed/60))
 

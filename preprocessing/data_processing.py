@@ -5,6 +5,17 @@ import matplotlib.pyplot as plt
 import plotly.express as px
 import math
 
+
+def split_and_store_dataset(df):
+    episode_duration = 50   # in s
+    num_input_files = 19
+    running_idx = 0
+    for i in range(1, num_input_files + 1):
+        last_idx = i * episode_duration
+        df_sub = df[running_idx:last_idx]
+        df_sub.to_csv('input/episode_parameters/radio_parameters_moving_{}.csv'.format(i))
+        running_idx = last_idx
+
 def read_trace_file():
     path = 'input/episode_parameters/radio_parameters_moving.csv'
     # save headers in a list
@@ -19,28 +30,32 @@ def read_trace_file():
     #print(df)
     df_subset = df[:950]
     #print(df_subset)
-    #fig = px.scatter_map(df_subset, lat='Latitude', lon='Longitude')
-    #fig.update_layout(mapbox_style='open-street-map')
-    #fig.show()
-    n_samples = df_subset['Timestamp'].size
-    #print(df_subset['SNR'])
-    snr_numpy = df_subset['SNR'].to_numpy(dtype=float)
-    #print(snr_numpy)
+    df_subset.to_csv('input/episode_parameters/radio_parameters_moving_clean.csv')
+    return df_subset
+
+def plot_radio_metrics(df):
+    fig = px.scatter_map(df, lat='Latitude', lon='Longitude')
+    fig.update_layout(mapbox_style='open-street-map')
+    fig.show()
+    n_samples = df['Timestamp'].size
+    # print(df_subset['SNR'])
+    snr_numpy = df['SNR'].to_numpy(dtype=float)
+    # print(snr_numpy)
     snr_linear = np.zeros(n_samples)
     for i in range(n_samples):
-        snr_linear[i] = math.pow(snr_numpy[i]/10, 10)
-    #df_SNR_linear = math.pow(snr_series/10, 10)
-    #figure, ax = plt.subplots()
-    #plt.plot([x for x in range(n_samples)], snr_numpy)
-    #ax.set_xlabel('Timestamp')
-    #ax.set_ylabel('SNR (dB)')
-    #plt.grid()
-    #plt.show()
-    return df_subset
+        snr_linear[i] = math.pow(snr_numpy[i] / 10, 10)
+    figure, ax = plt.subplots()
+    plt.plot([x for x in range(n_samples)], snr_numpy)
+    ax.set_xlabel('Timestamp')
+    ax.set_ylabel('SNR (dB)')
+    plt.grid()
+    plt.show()
 
 if __name__ == '__main__':
     #write_params_to_file()
     #read_params_from_file(episode=1, num_nodes=4)
     path_parent = os.path.dirname(os.getcwd())
     os.chdir(path_parent)
-    read_trace_file()
+    df_subset = read_trace_file()
+    split_and_store_dataset(df_subset)
+    #plot_radio_metrics(df_subset)
