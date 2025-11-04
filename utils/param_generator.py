@@ -50,7 +50,7 @@ def write_params_to_file():
 
     num_nodes = 4
 
-    n_episodes = params['n_episodes']
+    n_episodes = 19 # follows from the number of input files we want
     # change this parameter manually
     episode_duration = params['episode_duration']
     start_episode = params['start_episode']
@@ -66,7 +66,6 @@ def write_params_to_file():
     headers_and_params_per_episode = []
     for ep in range(start_episode, n_episodes + 1):
         params_per_episode = []
-        ep_str = parse_episode_number(order, ep)
         for k in range(0, episode_duration, time_interval):
             params_per_timestep = []
             ue_freq, ue_flops_per_cycle, ue_bandwidth, freqs, flops_per_cycle, bandwidth = generate_params(num_nodes)
@@ -83,7 +82,7 @@ def write_params_to_file():
         # convert to dataframe
         df = pd.DataFrame(params_per_episode, columns=headers)
         # save to file
-        df.to_csv('input/episode_parameters/ep_0001.csv')
+        df.to_csv('input/episode_parameters/system_parameters_{}.csv'.format(ep))
 
 
 def read_params_from_file(episode, num_nodes):
@@ -93,8 +92,7 @@ def read_params_from_file(episode, num_nodes):
         headers.append('freqs{}'.format(k))
         headers.append('flops_per_cycle{}'.format(k))
         headers.append('bandwidth{}'.format(k))
-    ep_str = parse_episode_number(order, episode)
-    path = 'input/episode_parameters/ep_{}.csv'.format(ep_str)
+    path = 'input/episode_parameters/system_parameters_{}.csv'.format(episode)
     df = pd.read_csv(path)
     #print(df['ue_freq'][0])
     return df

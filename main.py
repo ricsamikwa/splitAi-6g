@@ -1,3 +1,4 @@
+import pandas as pd
 import torch
 import random
 import torch.nn as nn
@@ -27,6 +28,8 @@ power = 5
 agent = None
 opt = None
 baseline = None
+num_input_files = 19    # number of input files to read data from
+file_number = 1   # counter to set the file number
 
 # Import the scenario params
 scenario_params = generate_scenario()
@@ -92,14 +95,19 @@ for ep in range(start_episode, scenario_params['n_episodes'] + 1):
     else:
         # initialize the baseline algorithm i.e. random/fixed split/ue only
         baseline = Baseline(scenario_params, allowed_splits, num_nodes, flops_per_block, allowed_splits_blocks)
+    # determine the file number for the episode
+    if file_number > num_input_files:
+        file_number = 1  # reset the counter to 1 if its value exceeds the number of input files
+    print('File number {}'.format(file_number))
     for k in range(1, scenario_params['episode_duration'] + 1, scenario_params['time_interval']):
         #print('Time step {} in episode {}'.format(k, ep))
         # ------------------------ Read params from file ---------------------------------------------------
         # for now, the same randomly generated set of parameters are used for all episodes
-        # first, read radio parameters from file
-        df_radio_params = read_trace_file()
+        # first, read radio parameters from file based on the episode number
+        path = 'input/episode_parameters/radio_parameters_moving_{}.csv'.format(file_number)
+        df_radio_params = pd.read_csv(path)
         # then read other params
-        df = read_params_from_file(episode=1, num_nodes=num_nodes)
+        df = read_params_from_file(episode=file_number, num_nodes=num_nodes)
         ue_freq = df['ue_freq'][k-1]
         ue_flops_cycle = df['ue_flops_per_cycle'][k-1]
         ue_bandwidth = df_radio_params['DL_bitrate'][k-1] / 8000    # convert kbps to megabytes/s
@@ -235,4 +243,5 @@ for ep in range(start_episode, scenario_params['n_episodes'] + 1):
     end = timer()
     elapsed = end - start
     print('Elapsed wall clock time {} min'.format(elapsed/60))
+    file_number = file_number + 1   # increment the file number by the episode number
 

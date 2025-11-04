@@ -4,6 +4,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import plotly.express as px
 import math
+import seaborn as sns
 
 
 def split_and_store_dataset(df):
@@ -36,7 +37,7 @@ def read_trace_file():
 def plot_radio_metrics(df):
     fig = px.scatter_map(df, lat='Latitude', lon='Longitude')
     fig.update_layout(mapbox_style='open-street-map')
-    fig.show()
+    #fig.show()
     n_samples = df['Timestamp'].size
     # print(df_subset['SNR'])
     snr_numpy = df['SNR'].to_numpy(dtype=float)
@@ -45,11 +46,22 @@ def plot_radio_metrics(df):
     for i in range(n_samples):
         snr_linear[i] = math.pow(snr_numpy[i] / 10, 10)
     figure, ax = plt.subplots()
-    plt.plot([x for x in range(n_samples)], snr_numpy)
-    ax.set_xlabel('Timestamp')
+    #plt.plot([x for x in range(n_samples)], snr_numpy)
+    #print(df['CQI'])
+    cqi_numpy = df['CQI'].to_numpy(dtype=int)
+    #print(cqi_numpy)
+    #plt.scatter(df['Latitude'], df['Longitude'])
+    #plt.plot(cqi_numpy, df['DL_bitrate'])
+    df.boxplot(column='DL_bitrate', by='CQI')
+    ax.set_xlabel('CQI')
     ax.set_ylabel('SNR (dB)')
     plt.grid()
     plt.show()
+    #cells = df['CellID']
+    #cells = cells.drop_duplicates()
+    sns.scatterplot(data=df, x='Latitude', y='Longitude', hue='CellID', palette='deep')
+    plt.grid()
+    #plt.show()
 
 if __name__ == '__main__':
     #write_params_to_file()
@@ -57,5 +69,5 @@ if __name__ == '__main__':
     path_parent = os.path.dirname(os.getcwd())
     os.chdir(path_parent)
     df_subset = read_trace_file()
-    split_and_store_dataset(df_subset)
-    #plot_radio_metrics(df_subset)
+    #split_and_store_dataset(df_subset)
+    plot_radio_metrics(df_subset)
