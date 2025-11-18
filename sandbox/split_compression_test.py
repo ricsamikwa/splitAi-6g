@@ -181,9 +181,6 @@ def main():
         pred_base = torch.argmax(logits_base, dim=1).item()
         baseline_top1[idx] = pred_base
 
-    # Baseline "accuracy" w.r.t teacher is trivially 100%
-    print("Baseline (no split, no compression): Top-1 agreement with itself = 100.00%")
-    print()
 
     results = {}  # dict keyed by split_idx: list of (rho, acc, avg_full_bytes, avg_tx_bytes, red%)
 
@@ -218,11 +215,25 @@ def main():
 
     # Print results grouped by split index
     for split_idx in ALLOWED_SPLITS:
+
         print(f"\n=== Split index {split_idx} (UE→Net after conv layer {split_idx}) ===")
-        print("rho   | Rel. Top1 acc vs baseline | Avg bytes full (float32) | Avg bytes UE→Net | Data reduction")
-        print("-" * 95)
+        print("rho   | Top-1 acc | Rel (%) | Avg bytes full (float32) | Avg bytes UE→Net | Reduction")
+        print("-" * 110)
+
+        # The first entry is rho = 1.0 → its acc is the reference
+        base_acc = results[split_idx][0][1]  # acc at rho=1.0
+
         for rho, acc, avg_full, avg_tx, red in results[split_idx]:
-            print(f"{rho:4.2f} | {acc*100:7.2f}%                  | {avg_full:21.0f} | {avg_tx:15.0f} | {red:6.2f}%")
+
+            # Relative percentage vs the uncompressed case
+            rel = (acc / base_acc * 100.0) if base_acc > 0 else 0.0
+
+            print(f"{rho:4.2f} | {acc:8.4f} | {rel:7.2f}% | "
+                f"{avg_full:23.0f} | {avg_tx:17.0f} | {red:8.2f}%")
+
+
+
+
 
 if __name__ == "__main__":
     main()
