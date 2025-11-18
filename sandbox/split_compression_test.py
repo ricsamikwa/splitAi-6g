@@ -70,51 +70,42 @@ def baseline_inference(model, x):
 # Simple compression: channel reduction + 8-bit quant/dequant + zero pad
 # -----------------------
 def compress_feature(feat, rho):
-    """
-    feat: [B, C, H, W] from UE at split layer
-    rho: compression rate in (0,1]
-    Returns:
-        feat_hat: reconstructed feature [B, C, H, W] at network side
-        bytes_tx: number of bytes transmitted (compressed)
-        bytes_full: number of bytes if sent uncompressed as float32
-    """
     B, C, H, W = feat.shape
+    bytes_full = B * C * H * W * 4
 
-    # Reference: full-precision, uncompressed tensor (float32)
-    bytes_full = B * C * H * W * 4  # 4 bytes per float32
-
-    # Case 1: ρ = 1.0 → no compression, no quantization
     if abs(rho - 1.0) < 1e-8:
-        bytes_tx = bytes_full
-        # Just forward the exact feature
-        return feat.clone(), bytes_tx, bytes_full
+        return feat.clone(), bytes_full, bytes_full
 
-    # Case 2: ρ < 1.0 → compress: keep fewer channels + 8-bit quantization
-    C_red = max(1, int(rho * C))  # at least 1 channel
+    C_red = max(1, int(rho * C))
+    feat_red = feat[:, :C_red, :, :]
 
-    # Keep first C_red channels as a simple approximation of 1x1 bottleneck
-    feat_red = feat[:, :C_red, :, :]  # [B, C_red, H, W]
-
-    # Simulate 8-bit quantization (per-tensor, naive)
-    x = feat_red
-    x_min = x.min()
-    x_max = x.max()
-    if (x_max - x_min) < 1e-8:
-        x_q = x.clone()
+    # Decide whether to quantize based on rho
+    # if rho >= 0.75:
+    if True:
+        # No quantization, just channel reduction
+        x_q = feat_red
+        num_elements = B * C_red * H * W
+        bytes_tx = num_elements * 4  # model as float32 if you want
     else:
-        x_norm = (x - x_min) / (x_max - x_min)          # [0,1]
-        x_int = torch.round(x_norm * 255.0)            # [0..255]
-        x_q = x_int / 255.0 * (x_max - x_min) + x_min  # dequantized float
+        # Quantize to 8-bit
+        x = feat_red
+        x_min = x.min()
+        x_max = x.max()
+        if (x_max - x_min) < 1e-8:
+            x_q = x.clone()
+        else:
+            x_norm = (x - x_min) / (x_max - x_min)
+            x_int = torch.round(x_norm * 255.0)
+            x_q = x_int / 255.0 * (x_max - x_min) + x_min
 
-    # Transmitted: C_red channels in 8-bit
-    num_elements = B * C_red * H * W
-    bytes_tx = num_elements  # 1 byte per 8-bit value
+        num_elements = B * C_red * H * W
+        bytes_tx = num_elements  # 1 byte per element
 
-    # Reconstruct to original C by zero-padding extra channels
     feat_hat = torch.zeros(B, C, H, W, device=feat.device, dtype=feat.dtype)
     feat_hat[:, :C_red, :, :] = x_q
 
     return feat_hat, bytes_tx, bytes_full
+
 
 # -----------------------
 # Split + compression inference
