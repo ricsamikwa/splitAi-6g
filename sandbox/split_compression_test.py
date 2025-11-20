@@ -124,32 +124,31 @@ def decompress_feature_gnb(feat_red, C_full):
 
 # -----------------------
 # Split + compression inference
-# -----------------------
 @torch.no_grad()
 def split_inference_with_compression(model, x, split_idx, rho):
-    """
-    x: input [B,3,224,224]
-    split_idx: index in conv_layers where we split UE vs network
-    rho: compression rate
-    """
     total_layers = len(list(model.conv_layers.children()))
 
-    # UE part: conv layers up to split_idx
-    ue_out = model.forward(x, 0, split_idx)  # [B, C, H, W]
+    # UE forward pass up to split
+    ue_out = model.forward(x, 0, split_idx)
 
-    # Compress and "transmit"
-    ue_out_hat, bytes_tx, bytes_full = compress_feature(ue_out, rho)
+    # UE compresses
+    feat_red, bytes_tx, bytes_full, C_red = compress_feature_ue(ue_out, rho)
 
-    # Network part: remaining conv layers
+    # gNB decompresses
+    C_full = ue_out.shape[1]
+    ue_out_hat = decompress_feature_gnb(feat_red, C_full)
+
+    # Network forward pass after split
     net_out = model.forward(ue_out_hat, split_idx, total_layers)
 
-    # FC layers at network side
+    # Fully connected layers at network
     net_out = torch.flatten(net_out, 1)
     net_out = model.fc1(net_out)
     net_out = model.fc2(net_out)
     net_out = model.fc3(net_out)
 
-    return net_out, bytes_tx, bytes_full  # logits, bytes transmitted, baseline bytes
+    return net_out, bytes_tx, bytes_full
+
 
 # -----------------------
 # Load all test images
