@@ -69,42 +69,44 @@ def baseline_inference(model, x):
 # -----------------------
 # Simple compression: channel reduction + 8-bit quant/dequant + zero pad
 # -----------------------
-def compress_feature(feat, rho):
+def compress_feature_ue(feat, rho):
+    """
+    UE-side compression: channel reduction 
+    Returns:
+        feat_red   : compressed feature [B, C_red, H, W]
+        bytes_tx   : bytes to transmit
+        bytes_full : reference cost (float32 full tensor)
+        C_red      : number of retained channels
+    """
     B, C, H, W = feat.shape
+
+    # Reference size (float32)
     bytes_full = B * C * H * W * 4
 
+    # Case rho = 1.0 → no compression
     if abs(rho - 1.0) < 1e-8:
-        return feat.clone(), bytes_full, bytes_full
+        return feat.clone(), bytes_full, bytes_full, C
 
+    # Channel reduction
     C_red = max(1, int(rho * C))
-    feat_red = feat[:, :C_red, :, :]
+    feat_red = feat[:, :C_red, :, :]        # reduced feature
 
-    # Decide whether to quantize based on rho
-    # if rho >= 0.75:
-    if True:
-        # No quantization, just channel reduction
-        x_q = feat_red
-        num_elements = B * C_red * H * W
-        bytes_tx = num_elements * 4  # model as float32 if you want
-    else:
-        # Quantize to 8-bit
-        x = feat_red
-        x_min = x.min()
-        x_max = x.max()
-        if (x_max - x_min) < 1e-8:
-            x_q = x.clone()
-        else:
-            x_norm = (x - x_min) / (x_max - x_min)
-            x_int = torch.round(x_norm * 255.0)
-            x_q = x_int / 255.0 * (x_max - x_min) + x_min
+    x_q = feat_red
+    bytes_tx = B * C_red * H * W * 4    # model as float32 transmission
+   
+    # --- Optional quantization block ---
+    # x = feat_red
+    # x_min = x.min()
+    # x_max = x.max()
+    # if (x_max - x_min) < 1e-8:
+    #     x_q = x.clone()
+    # else:
+    #     x_norm = (x - x_min) / (x_max - x_min)
+    #     x_int = torch.round(x_norm * 255.0)
+    #     x_q = x_int / 255.0 * (x_max - x_min) + x_min
+    # bytes_tx = B * C_red * H * W        # 1 byte per value
 
-        num_elements = B * C_red * H * W
-        bytes_tx = num_elements  # 1 byte per element
-
-    feat_hat = torch.zeros(B, C, H, W, device=feat.device, dtype=feat.dtype)
-    feat_hat[:, :C_red, :, :] = x_q
-
-    return feat_hat, bytes_tx, bytes_full
+    return x_q, bytes_tx, bytes_full, C_red
 
 
 # -----------------------
