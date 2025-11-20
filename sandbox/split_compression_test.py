@@ -92,7 +92,7 @@ def compress_feature_ue(feat, rho):
     feat_red = feat[:, :C_red, :, :]        # reduced feature
 
     x_q = feat_red
-    bytes_tx = B * C_red * H * W * 4    # model as float32 transmission
+    bytes_tx = B * C_red * H * W * 4  
    
     # --- Optional quantization block ---
     # x = feat_red
@@ -108,6 +108,19 @@ def compress_feature_ue(feat, rho):
 
     return x_q, bytes_tx, bytes_full, C_red
 
+def decompress_feature_gnb(feat_red, C_full):
+    """
+    gNB-side reconstruction: zero-pad reduced channels back to full C.
+    feat_red : [B, C_red, H, W]
+    C_full   : original channel count
+    """
+    B, C_red, H, W = feat_red.shape
+
+    feat_hat = torch.zeros(B, C_full, H, W,
+                           device=feat_red.device,
+                           dtype=feat_red.dtype)
+    feat_hat[:, :C_red, :, :] = feat_red
+    return feat_hat
 
 # -----------------------
 # Split + compression inference
