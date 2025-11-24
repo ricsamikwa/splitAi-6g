@@ -176,44 +176,45 @@ def main():
     print(f"Number of test images: {len(images)}")
     print()
 
-    # Precompute baseline logits & top1 classes
-    baseline_top1 = {}
-    for idx, x in images:
-        logits_base = baseline_inference(model, x)
-        pred_base = torch.argmax(logits_base, dim=1).item()
-        baseline_top1[idx] = pred_base
-
-
-    results = {}  # dict keyed by split_idx: list of (rho, acc, avg_full_bytes, avg_tx_bytes, red%)
+    # results[split_idx] = list of (rho, mean_top1, avg_full_bytes, avg_tx_bytes, reduction)
+    results = {}
 
     for split_idx in ALLOWED_SPLITS:
         results[split_idx] = []
         for rho in COMPRESSION_RATES:
-            correct = 0
             total = 0
             total_bytes_tx = 0
             total_bytes_full = 0
+            sum_top1_conf = 0.0  # accumulate Top-1 softmax confidence
 
             for idx, x in images:
-                logits_split, bytes_tx, bytes_full = split_inference_with_compression(model, x, split_idx, rho)
-                pred_split = torch.argmax(logits_split, dim=1).item()
+                # Forward with given split and compression
+                logits_split, bytes_tx, bytes_full = split_inference_with_compression(
+                    model, x, split_idx, rho
+                )
 
-                # "Accuracy": top-1 agreement with baseline prediction
-                if pred_split == baseline_top1[idx]:
-                    correct += 1
+                # Top-1 confidence for this (image, split, rho)
+                final_output = F.softmax(logits_split, dim=1)
+                top1_prob, top1_idx = torch.topk(final_output, 1)
+                top1_conf = top1_prob.item()  # scalar in [0,1]
+
+                sum_top1_conf += top1_conf
                 total += 1
 
                 total_bytes_tx += bytes_tx
                 total_bytes_full += bytes_full
 
-            acc = correct / total if total > 0 else 0.0
+            mean_top1 = sum_top1_conf / max(total, 1)      # Mean Top-1 prob over images
             avg_bytes_tx = total_bytes_tx / max(total, 1)
             avg_bytes_full = total_bytes_full / max(total, 1)
+
             reduction = 0.0
             if avg_bytes_full > 0:
                 reduction = 100.0 * (1.0 - (avg_bytes_tx / avg_bytes_full))
 
-            results[split_idx].append((rho, acc, avg_bytes_full, avg_bytes_tx, reduction))
+            results[split_idx].append(
+                (rho, mean_top1, avg_bytes_full, avg_bytes_tx, reduction)
+            )
 
     # # Print results grouped by split index
     # for split_idx in ALLOWED_SPLITS:
@@ -235,29 +236,29 @@ def main():
 
         # Print results grouped by split index
     for split_idx in ALLOWED_SPLITS:
-        print(f"\n=== Split index {split_idx} (UE→Net after conv layer {split_idx}) ===")
+            print(f"\n=== Split index {split_idx} (UE→Net after conv layer {split_idx}) ===")
 
-        # take rho=1.0 as reference for this split
-        base_top1 = None
-        for rho, mean_top1, avg_full, avg_tx, red in results[split_idx]:
-            if abs(rho - 1.0) < 1e-8:
-                base_top1 = mean_top1
-                break
+            # Find reference mean_top1 for rho = 1.0
+            base_top1 = None
+            for rho, mean_top1, avg_full, avg_tx, red in results[split_idx]:
+                if abs(rho - 1.0) < 1e-8:
+                    base_top1 = mean_top1
+                    break
 
-        if base_top1 is None or base_top1 == 0.0:
-            print("Warning: no valid baseline (rho=1.0) top-1 confidence for this split.")
-            continue
+            if base_top1 is None or base_top1 == 0.0:
+                print("Warning: no valid baseline (rho=1.0) Top-1 confidence for this split.")
+                continue
 
-        print("rho   | Mean Top-1 prob | Rel (%) vs ρ=1.0 | Avg bytes full (float32) | Avg bytes UE→Net | Data reduction")
-        print("-" * 120)
+            print("rho   | Mean Top-1 prob | Rel (%) vs ρ=1.0 | Avg bytes full (float32) | Avg bytes UE→Net | Data reduction")
+            print("-" * 120)
 
-        for rho, mean_top1, avg_full, avg_tx, red in results[split_idx]:
-            rel = (mean_top1 / base_top1) * 100.0 if base_top1 > 0 else 0.0
+            for rho, mean_top1, avg_full, avg_tx, red in results[split_idx]:
+                rel = (mean_top1 / base_top1) * 100.0 if base_top1 > 0 else 0.0
 
-            print(
-                f"{rho:4.2f} | {mean_top1:15.4f} | {rel:14.2f}% | "
-                f"{avg_full:23.0f} | {avg_tx:17.0f} | {red:8.2f}%"
-            )
+                print(
+                    f"{rho:4.2f} | {mean_top1:15.4f} | {rel:14.2f}% | "
+                    f"{avg_full:23.0f} | {avg_tx:17.0f} | {red:8.2f}%"
+                )
 
 if __name__ == "__main__":
     main()
