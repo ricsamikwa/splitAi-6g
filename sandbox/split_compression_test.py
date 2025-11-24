@@ -18,15 +18,12 @@ DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # Same splits you already use
 ALLOWED_SPLITS = [0, 3, 6, 10, 14, 18]  # indices in conv_layers
-COMPRESSION_RATES = [1.0, 0.75, 0.5, 0.25]  # ρ values
+COMPRESSION_RATES = [1.0, 0.75, 0.5, 0.25]  # ρ values - can be increased
 
-# Directory with your test images: input1.JPEG ... input10.JPEG
 INPUT_DIR = "input"
-NUM_IMAGES = 10  # adjust if you have more/less
+NUM_IMAGES = 10  
 
-# -----------------------
-# Preprocessing (same as main script)
-# -----------------------
+
 preprocess = transforms.Compose([
     transforms.Resize(256),
     transforms.CenterCrop(224),
