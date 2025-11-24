@@ -16,8 +16,11 @@ from models.vgg16_model import VGG16
 # -----------------------
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-# Same splits you already use
+# Model splits
 ALLOWED_SPLITS = [0, 3, 6, 10, 14, 18]  # indices in conv_layers
+
+# Compression rates ρ ∈ (0,1]; 1.0 = no compression
+# Smaller values = stronger compression.
 COMPRESSION_RATES = [1.0, 0.75, 0.5, 0.25]  # ρ values - can be increased
 
 INPUT_DIR = "input"
@@ -64,7 +67,7 @@ def baseline_inference(model, x):
     return out  # logits
 
 # -----------------------
-# Simple compression: channel reduction + 8-bit quant/dequant + zero pad
+# Compression: channel reduction 
 # -----------------------
 def compress_feature_ue(feat, rho):
     """
@@ -222,14 +225,14 @@ def main():
     #
     #   rho
     #       Compression rate applied to the UE→gNB feature tensor.
-    #       - rho = 1.0 → no compression (full channels, float32).
-    #       - rho < 1.0 → reduced channels + compressed transmission.
+    #       - rho = 1.0 → no compression (full channels).
+    #       - rho < 1.0 → reduced channels .
     #
     #   Mean Top-1 prob
     #       Average softmax confidence of the Top-1 predicted class across
     #       all test images. Higher values = higher inference quality.
     #
-    #   Rel (%) vs ρ=1.0
+    #   Rel (%) vs rho =1.0
     #       Relative retention of Top-1 confidence compared to the
     #       uncompressed case:
     #           (MeanTop1(rho) / MeanTop1(1.0)) * 100
