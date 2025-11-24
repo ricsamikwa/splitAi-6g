@@ -216,25 +216,40 @@ def main():
                 (rho, mean_top1, avg_bytes_full, avg_bytes_tx, reduction)
             )
 
-    # # Print results grouped by split index
-    # for split_idx in ALLOWED_SPLITS:
+    # Print results grouped by split index
+    # ----------------------------------------------------------------------
+    # Explanation of output columns:
+    #
+    #   rho
+    #       Compression rate applied to the UE→gNB feature tensor.
+    #       - rho = 1.0 → no compression (full channels, float32).
+    #       - rho < 1.0 → reduced channels + compressed transmission.
+    #
+    #   Mean Top-1 prob
+    #       Average softmax confidence of the Top-1 predicted class across
+    #       all test images. Higher values = higher inference quality.
+    #
+    #   Rel (%) vs ρ=1.0
+    #       Relative retention of Top-1 confidence compared to the
+    #       uncompressed case:
+    #           (MeanTop1(rho) / MeanTop1(1.0)) * 100
+    #       - 100% means no degradation.
+    #       - Lower % indicates accuracy/confidence loss due to compression.
+    #
+    #   Avg bytes full (float32)
+    #       Number of bytes that *would* be transmitted if UE sent the
+    #       full tensor (float32). Used as the baseline reference.
+    #
+    #   Avg bytes UE→Net
+    #       Actual transmitted bytes after compression using rho. This is
+    #       the communication load for that split+compression setting.
+    #
+    #   Data reduction
+    #       Percentage reduction in transmitted data compared to the
+    #       full-precision tensor:
+    #           100 * (1 - bytes_tx / bytes_full)
+    # ----------------------------------------------------------------------
 
-    #     print(f"\n=== Split index {split_idx} (UE→Net after conv layer {split_idx}) ===")
-    #     print("rho   | Top-1 acc | Rel (%) | Avg bytes full (float32) | Avg bytes UE→Net | Reduction")
-    #     print("-" * 110)
-
-    #     # The first entry is rho = 1.0 → its acc is the reference
-    #     base_acc = results[split_idx][0][1]  # acc at rho=1.0
-
-    #     for rho, acc, avg_full, avg_tx, red in results[split_idx]:
-
-    #         # Relative percentage vs the uncompressed case
-    #         rel = (acc / base_acc * 100.0) if base_acc > 0 else 0.0
-
-    #         print(f"{rho:4.2f} | {acc:8.4f} | {rel:7.2f}% | "
-    #             f"{avg_full:23.0f} | {avg_tx:17.0f} | {red:8.2f}%")
-
-        # Print results grouped by split index
     for split_idx in ALLOWED_SPLITS:
             print(f"\n=== Split index {split_idx} (UE→Net after conv layer {split_idx}) ===")
 
