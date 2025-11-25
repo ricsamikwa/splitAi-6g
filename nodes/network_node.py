@@ -8,6 +8,8 @@ decompresses the activation coming from the UE if channel compression
 """
 
 import torch
+import torch.nn as nn
+import torch.nn.functional as F
 from utils.flop_utils import calculate_inference_time
 
 class NetworkNode:
@@ -25,45 +27,79 @@ class NetworkNode:
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         
     @staticmethod
-    def _decompress_feature(
-        feat: torch.Tensor,
-        rho: float,
-        model,
-        start_layer: int,
-    ) -> torch.Tensor:
-        """
-        Decompress feature map that was compressed by channel reduction.
+    def _find_in_channels(block: nn.Module):
+        """Return in_channels of the first Conv2d inside a block (Sequential or Conv2d)."""
+        for m in block.modules():
+            if isinstance(m, nn.Conv2d):
+                return m.in_channels
+        return None
 
-        Restore the original channel dimension expected by the first
-        conv layer executed on this node. 
-        Args:
-            feat (Tensor): Compressed feature of shape (B, C_red, H, W).
-            rho (float): Compression ratio used at UE.
-            model (nn.Module): Model containing conv_layers.
-            start_layer (int): Index of the first conv layer this node runs.
+    @staticmethod
+    def _find_last_conv_out_channels(model: nn.Module):
+        """Return out_channels of the last Conv2d in the conv stack."""
+        for m in reversed(list(model.conv_layers.modules())):
+            if isinstance(m, nn.Conv2d):
+                return m.out_channels
+        return None
 
-        Returns:
-            Tensor: Decompressed feature of shape (B, C_target, H, W).
+    @staticmethod
+    def _decompress_for_conv(feat: torch.Tensor, rho: float, model, start_layer: int):
         """
-        if rho >= 1.0:
-            return feat
+        Decompress feature map before running conv layers.
+
+        We restore the original channel dimension expected by the first conv
+        layer executed on this node (in_channels of that conv).
+        """
+        if rho is None or rho >= 1.0:
+            return feat  # no compression → nothing to do
+
+        if feat.dim() != 4:
+            return feat  # only compress/decompress 4D feature maps
 
         B, C_red, H, W = feat.shape
 
-        conv_layer = list(model.conv_layers.children())[start_layer]
-        C_target = conv_layer.in_channels
+        # Get the conv block at this start_layer
+        block = list(model.conv_layers.children())[start_layer]
+        C_target = NetworkNode._find_in_channels(block)
+        if C_target is None:
+            # Should not happen with your VGG, but safe fallback
+            return feat
 
         if C_red == C_target:
             return feat
         elif C_red > C_target:
-            # Too many channels: just keep the first C_target.
             return feat[:, :C_target, :, :]
         else:
-            # Too few channels: zero-pad the missing ones.
-            pad_channels = C_target - C_red
-            # F.pad pads in the order (W_left, W_right, H_left, H_right, C_left, C_right)
-            pad = (0, 0, 0, 0, 0, pad_channels)
+            pad_ch = C_target - C_red
+            pad = (0, 0, 0, 0, 0, pad_ch)  # (W_left, W_right, H_left, H_right, C_left, C_right)
             return F.pad(feat, pad)
+
+    @staticmethod
+    def _decompress_for_fc(feat: torch.Tensor, rho: float, model):
+        """
+        Decompress feature map when this node runs ONLY the FC layers (no conv).
+        We restore to the out_channels of the LAST Conv2d (e.g., 512 for VGG16).
+        """
+        if rho is None or rho >= 1.0:
+            return feat
+
+        if feat.dim() != 4:
+            return feat
+
+        B, C_red, H, W = feat.shape
+        C_target = NetworkNode._find_last_conv_out_channels(model)
+        if C_target is None:
+            return feat
+
+        if C_red == C_target:
+            return feat
+        elif C_red > C_target:
+            return feat[:, :C_target, :, :]
+        else:
+            pad_ch = C_target - C_red
+            pad = (0, 0, 0, 0, 0, pad_ch)
+            return F.pad(feat, pad)
+
         
     def compute(self, model, x, start_layer, end_layer, flops, include_fc=False, rho: float = None):
         """
@@ -85,15 +121,31 @@ class NetworkNode:
         if rho is None:
             rho = self.rho
 
-        if start_layer == end_layer and not include_fc:
-            return x, 0.0
+        # Case 1: no conv layers assigned to this node
+        if start_layer == end_layer:
+            if not include_fc:
+                # Purely idle node
+                return x, 0.0
 
+            # FC-only node: may receive compressed feature from UE
+            output = self._decompress_for_fc(x, rho, model)
+
+            output = torch.flatten(output, 1)
+            output = model.fc1(output)
+            output = model.fc2(output)
+            output = model.fc3(output)
+
+            comp_time = calculate_inference_time(flops, self.cpu_freq, self.flops_per_cycle)
+            return output, comp_time
+
+        # Case 2: node has conv layers (and optionally FC)
         output = x
 
-        # Run convolutional layers
-        if start_layer < end_layer:
-            output = self._decompress_feature(output, rho, model, start_layer)
-            output = model.forward(output, start_layer, end_layer)
+        # Decompress before running convs, if needed
+        output = self._decompress_for_conv(output, rho, model, start_layer)
+
+        # Run conv layers
+        output = model.forward(output, start_layer, end_layer)
 
         # Optionally run FC layers if this is the last node
         if include_fc:

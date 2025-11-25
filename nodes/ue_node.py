@@ -43,11 +43,13 @@ class UENode:
         if rho >= 1.0:
             return feat
 
+        # Only compress 4D conv feature maps
+        if feat.dim() != 4:
+            return feat
+
         B, C, H, W = feat.shape
         C_red = max(1, int(rho * C))
-
-        feat_red = feat[:, :C_red, :, :]
-        return feat_red
+        return feat[:, :C_red, :, :]
     
     def compute(self, model, x, start_layer, end_layer, flops, include_fc=False, rho: float = None):
         """
