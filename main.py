@@ -168,6 +168,7 @@ for ep in range(start_episode, scenario_params['n_episodes'] + 1):
         else:   # ue only i.e. no split
             split_config = baseline.ue_computation_only()
         # compute inference using the generated split configuration
+        # Here add compression ratio inside compute_inference
         total_time, ue_energy_comp, ue_energy_comm, current_output = compute_inference(split_config, model,
                                                                                        episode_params, current_output)
 
