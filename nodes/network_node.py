@@ -2,7 +2,9 @@
 network_node.py
 
 Defines a network node responsible for executing a portion of the model
-during split inference across multiple computation nodes.
+during split inference across multiple computation nodes. Optionally
+decompresses the activation coming from the UE if channel compression
+(ρ < 1) was applied.
 """
 
 import torch
