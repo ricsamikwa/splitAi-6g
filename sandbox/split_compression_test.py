@@ -19,9 +19,9 @@ DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 # Model splits
 ALLOWED_SPLITS = [0, 3, 6, 10, 14, 18]  # indices in conv_layers
 
-# Compression rates ρ ∈ (0,1]; 1.0 = no compression
-# Smaller values = stronger compression.
-COMPRESSION_RATES = [1.0, 0.75, 0.5, 0.25]  # ρ values - can be increased
+# Compression rate ρ (rho) = (# channels after compression) / (# original channels).
+# ρ = 1.0 means no compression; smaller ρ gives stronger compression.
+COMPRESSION_RATES = [1.0, 0.75, 0.5, 0.25]  # ρ values - can be added
 
 INPUT_DIR = "input"
 NUM_IMAGES = 10  
