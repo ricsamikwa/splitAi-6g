@@ -65,7 +65,7 @@ class NetworkNode:
             pad = (0, 0, 0, 0, 0, pad_channels)
             return F.pad(feat, pad)
         
-    def compute(self, model, x, start_layer, end_layer, flops, include_fc=False):
+    def compute(self, model, x, start_layer, end_layer, flops, include_fc=False, rho: float = None):
         """
         Execute assigned model layers for inference.
 
@@ -81,6 +81,10 @@ class NetworkNode:
         Returns:
             Tuple: (output tensor, computation time in seconds)
         """
+        # Backwards compatibility: old calls remain valid.
+        if rho is None:
+            rho = self.rho
+
         if start_layer == end_layer and not include_fc:
             return x, 0.0
 
@@ -88,6 +92,7 @@ class NetworkNode:
 
         # Run convolutional layers
         if start_layer < end_layer:
+            output = self._decompress_feature(output, rho, model, start_layer)
             output = model.forward(output, start_layer, end_layer)
 
         # Optionally run FC layers if this is the last node
