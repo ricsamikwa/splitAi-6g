@@ -228,8 +228,8 @@ def plot_kpis_all_episodes(df_inference_time_list, df_ue_energy_comp_list, df_ue
         ax.legend(loc='upper left', ncols=1)
         ax.grid()
         plt.yscale('log')
-        plt.savefig('results/inference_energy_comparison.png')
-        plt.savefig('results/inference_energy_comparison.svg')
+        plt.savefig('results/inference_energy_comparison_mobility.png')
+        plt.savefig('results/inference_energy_comparison_mobility.svg')
         plt.show()
     else:
         window = 1
@@ -445,7 +445,7 @@ def main():
 
     n_episodes_to_plot = 1500
     #n_episodes = {'optimum': 1, 'random': 999, 'rl/ddqn': 999}
-    n_episodes = {'optimum': 1, 'rl/ddqn': 1500, 'random': 20, 'fixed': 1, 'ue': 1}
+    n_episodes = {'optimum': 19, 'rl/ddqn': 869, 'random': 19, 'fixed': 19, 'ue': 19}
     #n_episodes = {'optimum': 1, 'rl/ddqn': 1500, 'random': 15, 'fixed': 1}
     algorithms = ['optimum', 'rl/ddqn', 'random', 'fixed', 'ue']
     #algorithms = ['optimum', 'rl/ddqn', 'random', 'fixed']
@@ -460,8 +460,8 @@ def main():
 
     # specifies the episodes of convergence of ddqn
     n_episodes_to_train = 900   # mean inference latency & ue energy of different methods
-    n_episodes_to_train = 1460  # for inference latency vs energy plots
-    total_episodes_train = 1500 # mean inference latency & ue energy of different methods
+    n_episodes_to_train = 400  # for inference latency vs energy plots
+    total_episodes_train = 869 # mean inference latency & ue energy of different methods
     for alg in algorithms:
         df_inference_time, df_ue_energy_comp, df_ue_energy_comm, df_energy_credit, df_y_net, df_flops_off = (
             parse_kpis(alg, n_episodes[alg], None))
@@ -480,7 +480,7 @@ def main():
     # barplot=False implies plotting one kpi vs another e.g. energy credit vs ue energy
     plot_kpis_all_episodes(df_inference_time_list, df_ue_energy_comp_list, df_ue_energy_comm_list,
     df_energy_credit_list, df_y_net_list, df_flops_off_list, algorithms, n_episodes_to_train, total_episodes_train,
-                           barplot=False)
+                           barplot=True)
 
     # -------------------------- Only for optimum ---------------------------
     omega_list = [0.1, 0.3, 0.5, 0.7, 0.9]

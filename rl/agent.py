@@ -5,12 +5,14 @@ Defines the generic RL agent and its associated methods to train or infer the RL
 """
 
 from rl.ddqn import DDQNAgent, QValues
-from rl.replay_buffer import Experience, extract_tensors
-from utils.action_space import enumerate_action_space
+from rl.a2c import  A2CAgent
+from rl.replay_buffer import Experience, extract_tensors, Sample
+from utils.action_space import enumerate_action_space, extended_action_space
 from utils.rl_utils import load_model_params
 
 import torch
 import torch.optim as optim
+torch.autograd.set_detect_anomaly(True)
 
 class Agent:
     def __init__(self, scenario_params, allowed_splits, num_nodes, flops_per_block, allowed_splits_blocks):
@@ -23,16 +25,29 @@ class Agent:
         # initializing class variables that are to be defined later
         self.target_agent = None
         self.episode_count = None
-        self.n_states = 3 * self.num_nodes + 6 + 3
-        self.action_space, self.action_indices = enumerate_action_space(self.allowed_splits, self.num_nodes, allow_empty_nodes=True)
-        self.n_actions = len(self.action_space)
-
         self.optimizer = None
+        self.actor_optimizer = None
+        self.critic_optimizer = None
+        # total 27 states
+        # first 5 is for ue_bandwidth, ue_freq, ue_flops_cycle, energy_cost, power
+        # then bandwidth, freqs, flops_cycle for each network node (excluding the ue)
+        # then 6 is for flops per block
+        # then energy_credit_consumed
+        # the last 6 is for the radio channel conditions for UE mobility (speed, rsrp, rsrq, cqi, snr, state)
+        self.n_states = 5 + (3 * (self.num_nodes-1)) + 6 + 1 + 6
+        self.action_space, self.action_indices = enumerate_action_space(self.allowed_splits, self.num_nodes,
+                                                                        allow_empty_nodes=True)
+        self.n_actions = len(self.action_space)
         self.agent_type = 'ddqn' if self.rl_algorithm == 1 else 'a2c'
         if self.agent_type == 'ddqn':
             self.agent = DDQNAgent(self.scenario_params, self.n_states, self.n_actions, self.allowed_splits,
                                    self.num_nodes, self.flops_per_block)
-        #print(flops_per_block)
+
+        else:
+            self.agent = A2CAgent(self.scenario_params, self.n_states, self.n_actions, self.allowed_splits,
+                                   self.num_nodes, self.flops_per_block)
+            self.lr_actor = self.scenario_params['lr_actor']
+            self.lr_critic = self.scenario_params['lr_critic']
 
 
     def execute(self, time, episode_count, dnn_model, episode_params, output):
@@ -48,15 +63,68 @@ class Agent:
         Returns:
             The final split config to be used for inference.
         """
-        final_action = None
         self.episode_count = episode_count
         # define the agent attributes
         self.define_agent_attributes()
         # if training mode is on
         if not self.scenario_params['inference']:
-            # train the agent
-            self.train_ddqn_agent(time, dnn_model, episode_params, output)
+            # train the agent based on the type of algorithm to run
+            if self.agent_type == 'ddqn':
+                self.train_ddqn_agent(time, dnn_model, episode_params, output)
+            else:
+                self.train_a2c_agent(time, dnn_model, episode_params, output)
         return self.agent.split_config
+
+    def train_a2c_agent(self, time, dnn_model, episode_params, output):
+        # state is a vector, while log probs, rewards actions and entropies are scalars
+        state = self.agent.get_agent_state(episode_params, self.flops_per_block)
+        action, action_idx, entropy, log_prob = self.agent.choose_action(self.action_space, state)
+        inference_time, ue_en_comp, ue_en_comm = self.agent.perform_action(action, self.allowed_splits_blocks,
+                                                                           dnn_model, episode_params, output)
+        reward = self.agent.get_instant_reward(inference_time, ue_en_comp, ue_en_comm)
+        # log the reward
+        self.agent.reward.append({'time': time, 'reward': reward})
+        # update reward counter and compute cumulative average
+        self.agent.reward_counter += 1
+        self.agent.cumulative_reward = reward / self.agent.reward_counter
+        next_state = self.agent.get_agent_state(episode_params, self.flops_per_block)
+        self.agent.replay_buffer.push(Sample(
+            log_prob,
+            state,
+            torch.tensor([reward]),
+            next_state,
+            torch.tensor([entropy])
+        ))
+        if self.agent.replay_buffer.check_provide_samples(self.agent.batch_size):
+            #print('Inside batch block')
+            samples = self.agent.replay_buffer.sample(self.agent.batch_size)
+            lp, s, r, s_prime, entropy = extract_tensors(samples, 'sample')
+
+            target = r.unsqueeze(1) + self.agent.discount_factor * self.agent.critic(s_prime)
+            current = self.agent.critic(s)
+            advantage = target - current
+            lp = lp.unsqueeze(1)
+            entropy = entropy.unsqueeze(1)
+
+            critic_loss = advantage.pow(2).mean()
+            actor_loss = torch.mean(-lp * advantage.detach() - self.agent.entropy * (
+                    self.agent.entropy_factor * entropy))
+
+            self.actor_optimizer.zero_grad()
+            self.critic_optimizer.zero_grad()
+            #with torch.autograd.detect_anomaly():
+            actor_loss.backward()
+            critic_loss.backward()
+
+            self.actor_optimizer.step()
+            self.critic_optimizer.step()
+
+            self.agent.replay_buffer.clearSamples()
+            # logging
+            self.agent.actor_loss.append({'time': time, 'loss': actor_loss.item()})
+            self.agent.critic_loss.append({'time': time, 'loss': critic_loss.item()})
+            self.agent.advantages.append({'time': time, 'advantage': advantage.detach().mean().numpy()})
+
 
     def train_ddqn_agent(self, time, dnn_model, episode_params, output):
         """
@@ -96,7 +164,7 @@ class Agent:
         # if there are sufficient experiences in the replay buffer
         if self.agent.replay_buffer.check_provide_samples(self.agent.batch_size):
             experiences = self.agent.replay_buffer.sample(self.agent.batch_size)
-            s, a, s_prime, r = extract_tensors(experiences)
+            s, a, s_prime, r = extract_tensors(experiences, 'experience')
             # training mode
             current_q_values = QValues.get_current(self.agent, s, a)
             next_q_values = QValues.get_next_ddqn(self.agent, self.target_agent, s_prime)
@@ -128,7 +196,7 @@ class Agent:
 
     def define_agent_attributes(self):
         """
-        Function that defines attributes specific to the agent.
+        Function that defines attributes specific to the agent algorithm.
         For ddqn, it defines the optimizer and initializes/loads the params of the target agent.
         Returns:
 
@@ -152,4 +220,10 @@ class Agent:
                                                                         self.episode_count - 1))
                 # set target agent to evaluation mode (no training)
                 self.target_agent.eval()
+        else:
+            # both actor and critic need individual optimizers
+            self.actor_optimizer = optim.Adam(params=self.agent.actor.parameters(), lr=self.lr_actor)
+            self.critic_optimizer = optim.Adam(params=self.agent.critic.parameters(), lr=self.lr_critic)
+            # then load models (inference case should be covered in this method)
+            self.agent.load_model_a2c(self.episode_count)
 

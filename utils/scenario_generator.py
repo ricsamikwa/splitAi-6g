@@ -52,6 +52,10 @@ def pack_parameters(filename):
     epsilon_ini = float(config['DRL_HYPERPARAMETERS']['EPSILON_INI'])
     epsilon_fin = float(config['DRL_HYPERPARAMETERS']['EPSILON_FIN'])
     epsilon_step_percent = float(config['DRL_HYPERPARAMETERS']['EPSILON_STEP_PERCENT'])
+    lr_actor = float(config['DRL_HYPERPARAMETERS']['LR_ACTOR'])
+    lr_critic = float(config['DRL_HYPERPARAMETERS']['LR_CRITIC'])
+    entropy = int(config['DRL_HYPERPARAMETERS']['ENTROPY'])
+    entropy_factor = float(config['DRL_HYPERPARAMETERS']['ENTROPY_FACTOR'])
 
 
     params = {
@@ -77,6 +81,11 @@ def pack_parameters(filename):
         'epsilon_ini': epsilon_ini,
         'epsilon_fin': epsilon_fin,
         'epsilon_step_percent': epsilon_step_percent,
+
+        'lr_actor': lr_actor,
+        'lr_critic': lr_critic,
+        'entropy': entropy,
+        'entropy_factor': entropy_factor
 
     }
     return params

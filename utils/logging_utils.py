@@ -3,7 +3,6 @@ from csv import writer
 from utils.rl_utils import save_model_params, return_order, parse_episode_number
 
 
-
 def writeToCsv(data, filename, folder):
     with open('logs/{}/{}.csv'.format(folder, filename), 'w', encoding='utf8', newline='') as file:
         fc = csv.DictWriter(file, fieldnames=data[0].keys())
@@ -16,7 +15,10 @@ def write_logs(scenario_params, episode, data, model):
     if scenario_params['split_algorithm'] == 1:
         folder = 'random'
     elif scenario_params['split_algorithm'] == 2:
-        folder = 'rl/ddqn'
+        if scenario_params['rl_algorithm'] == 1:
+            folder = 'rl/ddqn'
+        else:
+            folder = 'rl/a2c'
     elif scenario_params['split_algorithm'] == 3:
         folder = 'optimum'
     elif scenario_params['split_algorithm'] == 4:
@@ -46,7 +48,7 @@ def write_logs(scenario_params, episode, data, model):
     writeToCsv(data['energy_credit'], filename, folder)
     filename = 'system/{}_{}'.format('flops_off', episode_count)
     writeToCsv(data['flops_off'], filename, folder)
-    if folder == 'rl/ddqn':
+    if scenario_params['split_algorithm'] == 2:     # for rl algorithm
         # success rate
         #filename = 'system/{}_{}'.format('success_rate', episode_count)
         #writeToCsv(data['success_rate'], filename, folder)
@@ -66,6 +68,18 @@ def write_logs(scenario_params, episode, data, model):
             writeToCsv(model.agent.reward, filename, folder)
             fol = '{}/epsilon'.format(folder)
             logKPIs([model.agent.epsilon], 'epsilon', episode_count, fol)
+        else:
+            save_model_params(model.agent.actor, 'a2c', 'actor', scenario_params, episode_count)
+            save_model_params(model.agent.critic, 'a2c', 'critic', scenario_params, episode_count)
+            filename = 'loss/actor_loss_ep{}'.format(episode_count)
+            writeToCsv(model.agent.actor_loss, filename, folder)
+            filename = 'loss/critic_loss_ep{}'.format(episode_count)
+            writeToCsv(model.agent.critic_loss, filename, folder)
+            filename = 'advantage/advantage_ep{}'.format(episode_count)
+            writeToCsv(model.agent.advantages, filename, folder)
+            filename = 'reward/reward_ep{}'.format(episode_count)
+            writeToCsv(model.agent.reward, filename, folder)
+
 
 def logKPIs(data, kpi_type, episode_count, folder):
     file = 'logs/{}/{}.csv'.format(folder, kpi_type)
