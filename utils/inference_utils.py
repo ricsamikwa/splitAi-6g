@@ -1,7 +1,7 @@
 from utils.comm_utils import calculate_comm_time, calculate_comm_energy
 from utils.flops_profile import compute_flops_per_layer, compute_flops_per_segment
 
-def compute_inference(split_config, model, episode_params, output):
+def compute_inference(split_config, model, episode_params, output, rho: float = 1.0):
     last_active_idx = max(i for i, (_, s, e) in enumerate(split_config) if s != e)
     last_active_node_id = split_config[last_active_idx][0]
 
@@ -33,7 +33,8 @@ def compute_inference(split_config, model, episode_params, output):
         if node_id == 0:
             output, comp_time, energy = episode_params['ue'].compute(
                 model, output, start, end, flops_per_segment[node_id],
-                include_fc=is_last_active
+                include_fc=is_last_active,
+                rho = rho
             )
             ue_energy_comp += energy
             total_time += comp_time
@@ -41,7 +42,8 @@ def compute_inference(split_config, model, episode_params, output):
             node = episode_params['network_nodes'][node_id - 1]
             output, comp_time = node.compute(
                 model, output, start, end, flops_per_segment[node_id],
-                include_fc=is_last_active
+                include_fc=is_last_active,
+                rho = rho
             )
 
             total_time += comp_time
