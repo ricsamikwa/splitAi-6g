@@ -39,23 +39,44 @@ def plot_radio_metrics(df):
     fig.update_layout(mapbox_style='open-street-map')
     #fig.show()
     n_samples = df['Timestamp'].size
-    # print(df_subset['SNR'])
+    print(n_samples)
+    df_time = pd.DataFrame({'Timestep': [x for x in range(1, n_samples+1)]})
+    df = pd.concat([df_time, df], axis=1)
+    speed_df = df.loc[df['Speed'] > 0]
+    print(df_time)
+    print(df)
     snr_numpy = df['SNR'].to_numpy(dtype=float)
+    rsrq = df['RSRQ'].to_numpy(dtype=int)
+    cqi_numpy = df['CQI'].to_numpy(dtype=int)
     # print(snr_numpy)
     snr_linear = np.zeros(n_samples)
+    # this calculation is not required for now
     for i in range(n_samples):
         snr_linear[i] = math.pow(snr_numpy[i] / 10, 10)
-    figure, ax = plt.subplots()
-    #plt.plot([x for x in range(n_samples)], snr_numpy)
-    #print(df['CQI'])
-    cqi_numpy = df['CQI'].to_numpy(dtype=int)
+    figure, ax1 = plt.subplots()
+    # change here
+    plt.plot([x for x in range(n_samples)], cqi_numpy)
+    ax2 = ax1.twinx()
+    ax2.scatter([x for x in range(n_samples)], df['Speed'], marker='*', color='black')
     #print(cqi_numpy)
     #plt.scatter(df['Latitude'], df['Longitude'])
     #plt.plot(cqi_numpy, df['DL_bitrate'])
-    df.boxplot(column='DL_bitrate', by='CQI')
-    ax.set_xlabel('CQI')
-    ax.set_ylabel('SNR (dB)')
-    plt.grid()
+    #plt.boxplot(df['DL_bitrate'], by=)
+    #df.boxplot(column='UL_bitrate', by='CQI')
+    ax1.set_xlabel('Time (s)')
+    ax1.set_ylabel('CQI')
+    ax2.set_ylabel('Speed (km/hr)')
+    ax1.grid()
+    # record timesteps when handovers occurred
+    timesteps_handovers = []
+    cell_id = df['CellID'][0]
+    for i in range(n_samples):
+        if cell_id != df['CellID'][i]:
+            timesteps_handovers.append(df['Timestep'][i])
+            cell_id = df['CellID'][i]
+    print(timesteps_handovers)
+    for i in range(len(timesteps_handovers)):
+        plt.axvline(x=timesteps_handovers[i], color='red')
     plt.show()
     #cells = df['CellID']
     #cells = cells.drop_duplicates()

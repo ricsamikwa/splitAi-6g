@@ -1,7 +1,7 @@
 """
-agent.py
+ddqn.py
 
-Defines the RL agent and its associated parameters to train or infer the RL algorithm
+Defines the RL agent running the DDQN algorithm and its associated parameters to train or infer the RL algorithm
 """
 import numpy as np
 import random
@@ -81,6 +81,19 @@ class DDQNAgent(nn.Module):
         state[idx] = episode_params['energy_cost']
         idx += 1
         state[idx] = episode_params['power']
+        idx += 1
+        # ue mobility related params
+        state[idx] = episode_params['speed']
+        idx += 1
+        state[idx] = episode_params['rsrp']
+        idx += 1
+        state[idx] = episode_params['rsrq']
+        idx += 1
+        state[idx] = episode_params['snr']
+        idx += 1
+        state[idx] = episode_params['cqi']
+        idx += 1
+        state[idx] = episode_params['ue_state']
         idx += 1
         for node_id in range(1, self.num_nodes):
         # freq, flops per cycle
