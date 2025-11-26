@@ -61,6 +61,17 @@ def enumerate_action_space(allowed_splits, num_nodes, allow_empty_nodes=True):
 
     return actions, action_indices
 
+def extended_action_space(splits):
+    full_action_space = []
+    # move to config file
+    compression_rates = [1.0, 0.75, 0.5, 0.25]
+    # extended action space, where each action is in the format
+    # action = {'split': selected_split_config, 'compression': compression_rate}
+    for selected_split_config in splits:
+        for compression in compression_rates:
+            full_action_space.append({'split': selected_split_config, 'compression': compression})
+    return full_action_space
+
 
 #Sample usage:
 if __name__ == "__main__":
@@ -77,4 +88,7 @@ if __name__ == "__main__":
     for k, v in action_indices.items():
         if v == act:
             print(k)
+    action_space = extended_action_space(all_actions)
+    print(action_space)
+    print(len(action_space))
 

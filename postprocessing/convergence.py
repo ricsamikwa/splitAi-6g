@@ -40,17 +40,17 @@ def plot_metric(metric, df, outfile, folder):
     plt.savefig('results/{}/{}.svg'.format(folder, outfile))
     plt.show()
 
-def generate_metric(params, n_episodes, order_to_convert, metric):
+def generate_metric(folder, n_episodes, order_to_convert, metric):
     order = return_order(order_to_convert)
     df = pd.DataFrame(columns=['episode', metric])
     idx = 0
     for ep in range(1, n_episodes + 1):
         ep_str = parse_episode_number(order, ep)
         if metric == 'mean_loss':
-            file = 'logs/rl/ddqn/loss/loss_ep{}'.format(ep_str)
+            file = 'logs/{}/loss/loss_ep{}'.format(folder, ep_str)
             _, data = read_single_col_data(file, 'time', 'loss', float, float)
         else:
-            file = 'logs/rl/ddqn/reward/reward_ep{}'.format(ep_str)
+            file = 'logs/{}/reward/reward_ep{}'.format(folder, ep_str)
             _, data = read_single_col_data(file, 'time', 'reward', float, float)
         mean_data = statistics.mean(data)
         df.loc[idx] = pd.Series({'episode': ep, metric: mean_data})
@@ -65,18 +65,18 @@ def main():
 
     params = generate_scenario()
     # specify the number of episodes to be plotted
-    n_episodes = 1500
+    n_episodes = 407
     order_to_convert = 1000
-    folder = 'rl/ddqn'
-    df_loss = generate_metric(params, n_episodes, order_to_convert, 'mean_loss')
-    df_reward = generate_metric(params, n_episodes, order_to_convert, 'mean_reward')
+    folder = 'rl/a2c'
+    #df_loss = generate_metric(params, n_episodes, order_to_convert, 'mean_loss')
+    df_reward = generate_metric(folder, n_episodes, order_to_convert, 'mean_reward')
 
     # call this function to generate loss and reward charts separately
     #plot_metric('mean_loss', df_loss, 'mean_loss', folder)
-    #plot_metric('mean_reward', df_reward, 'mean_reward', folder)
+    plot_metric('mean_reward', df_reward, 'mean_reward', folder)
 
     # call this function to plot both loss and reward in the same chart
-    plot_metrics_together('mean_loss', 'mean_reward', df_loss, df_reward, 'loss_reward', folder)
+    #plot_metrics_together('mean_loss', 'mean_reward', df_loss, df_reward, 'loss_reward', folder)
 
 
 if __name__ == '__main__':

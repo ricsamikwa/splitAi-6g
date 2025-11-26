@@ -85,10 +85,12 @@ for ep in range(start_episode, scenario_params['n_episodes'] + 1):
     top1_accuracy_per_episode = []
     top5_accuracy_per_episode = []
     # ------------------------------
-    if scenario_params['split_algorithm'] == 2: # update epsilon for ddqn based on episode number
+    if scenario_params['split_algorithm'] == 2:
         # initialize agent
         agent = Agent(scenario_params, allowed_splits, num_nodes, flops_per_block, allowed_splits_blocks)
-        agent.agent.get_epsilon(ep)
+        # update epsilon for ddqn based on episode number
+        if scenario_params['rl_algorithm'] == 1:
+            agent.agent.get_epsilon(ep)
     elif scenario_params['split_algorithm'] == 3:   # if optimal solution is selected
         # initialize solver
         opt = Opt(scenario_params, allowed_splits, num_nodes, flops_per_block, allowed_splits_blocks)
@@ -143,6 +145,8 @@ for ep in range(start_episode, scenario_params['n_episodes'] + 1):
         # ----------------------------
         # Pack episode-specific params
         # ----------------------------
+        ue_state = df_radio_params['State'][k-1]
+        ue_state = 1 if ue_state == 'D' else 0
         episode_params = {'ue': ue,
                           'network_nodes': network_nodes,
                           'bandwidth': bandwidth,
@@ -152,7 +156,13 @@ for ep in range(start_episode, scenario_params['n_episodes'] + 1):
                           'freqs': freqs,
                           'flops_cycle': flops_cycle,
                           'energy_cost': energy_cost,
-                          'power': power}
+                          'power': power,
+                          'speed': df_radio_params['Speed'][k-1],
+                          'rsrp': df_radio_params['RSRP'][k-1],
+                          'rsrq': df_radio_params['RSRQ'][k-1],
+                          'snr': df_radio_params['SNR'][k-1],
+                          'cqi': df_radio_params['CQI'][k-1],
+                          'ue_state': ue_state}
 
         if scenario_params['split_algorithm'] == 1:  # indicates random split
             split_config = baseline.generate_random_split(allowed_splits, num_nodes, True, model,
