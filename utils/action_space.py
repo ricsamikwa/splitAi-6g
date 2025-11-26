@@ -1,4 +1,5 @@
 from itertools import product, combinations
+from utils.scenario_generator import generate_scenario
 import numpy as np
 
 def enumerate_action_space(allowed_splits, num_nodes, allow_empty_nodes=True):
@@ -11,7 +12,7 @@ def enumerate_action_space(allowed_splits, num_nodes, allow_empty_nodes=True):
         allow_empty_nodes (bool): If True, nodes may have zero layers.
 
     Returns:
-        list of list of tuples: Each element is a split configuration 
+        list of tuples: Each element is a split configuration
                                 [(node_id, start, end), ...]
     """
     action_indices = {}
@@ -61,20 +62,35 @@ def enumerate_action_space(allowed_splits, num_nodes, allow_empty_nodes=True):
 
     return actions, action_indices
 
-def extended_action_space(splits):
+def extended_action_space(splits, compression_rates):
+    """
+    Enumerates all combinations of splits and compression rates.
+    Args:
+        splits (list): List containing all (unique) possible split options.
+        compression_rates (list): List containing the configured compression rates.
+
+    Returns:
+        Dict of the format {'split': selected_split_config, 'compression': compression_rate} of the full action space
+        and corresponding indices
+    """
     full_action_space = []
-    # move to config file
-    compression_rates = [1.0, 0.75, 0.5, 0.25]
-    # extended action space, where each action is in the format
+    action_indices_full = {}
+    # extended action space, where each action is in the format:
     # action = {'split': selected_split_config, 'compression': compression_rate}
     for selected_split_config in splits:
         for compression in compression_rates:
             full_action_space.append({'split': selected_split_config, 'compression': compression})
-    return full_action_space
+
+    for idx, action in enumerate(full_action_space):
+        #print(a)
+        action_indices_full[idx] = action
+    return full_action_space, action_indices_full
 
 
 #Sample usage:
 if __name__ == "__main__":
+    params = generate_scenario()
+    compression_rate_list = params['compression_rates']
     allowed_splits = [0, 3, 6, 10, 14, 18]
     num_nodes = 4
     all_actions, action_indices = enumerate_action_space(allowed_splits, num_nodes, allow_empty_nodes=True)
@@ -88,7 +104,7 @@ if __name__ == "__main__":
     for k, v in action_indices.items():
         if v == act:
             print(k)
-    action_space = extended_action_space(all_actions)
+    action_space = extended_action_space(all_actions, compression_rate_list)
     print(action_space)
     print(len(action_space))
 
