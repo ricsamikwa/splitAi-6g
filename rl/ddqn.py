@@ -52,6 +52,7 @@ class DDQNAgent(nn.Module):
         self.reward = []
         self.reward_counter = 0 # to compute running average of the rewards
         self.cumulative_reward = 0
+        self.selected_compression_rate = []
         self.epsilon = None
         self.epsilon_ini = self.scenario_params['epsilon_ini']
         self.epsilon_step_percent = self.scenario_params['epsilon_step_percent']
@@ -120,20 +121,22 @@ class DDQNAgent(nn.Module):
         if self.epsilon > random_value and not self.scenario_params['inference']:
             playable_action_indx = [k for k in range(self.n_actions)]
             action_idx = random.sample(playable_action_indx, k=1)[0]
-            selected_split_config = playable_actions[action_idx]
-            #selected_split_config = generate_random_split(self.allowed_splits, self.num_nodes)
+            selected_split_config_compression = playable_actions[action_idx]
         # agent exploits the current learned knowledge by selecting the action with the highest Q-value
         elif self.epsilon <= random_value or self.params_config['inference']:
             with torch.no_grad():
                 playable_action_indx = [k for k in range(self.n_actions)]
                 playable_action_indx = torch.LongTensor(playable_action_indx)
                 action_idx = self(state.clone().detach().float())[playable_action_indx].argmax().item()
-                selected_split_config = playable_actions[action_idx]
+                selected_split_config_compression = playable_actions[action_idx]
         #print(selected_split_config)
-        return selected_split_config
+        return selected_split_config_compression
 
 
-    def perform_action(self, selected_split_config, allowed_splits_blocks, dnn_model, episode_params, output):
+    def perform_action(self, selected_split_config_compression, allowed_splits_blocks, dnn_model, episode_params, output):
+        # extract the selected split and compression
+        selected_split_config = selected_split_config_compression['split']
+        selected_compression = selected_split_config_compression['compression']
         # update the logging variable
         self.n_attempts_to_split += 1
         # for the selected split config (or action)

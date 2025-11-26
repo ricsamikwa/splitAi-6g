@@ -88,6 +88,7 @@ class Agent:
         self.agent.reward_counter += 1
         self.agent.cumulative_reward = reward / self.agent.reward_counter
         next_state = self.agent.get_agent_state(episode_params, self.flops_per_block)
+        # print version
         self.agent.replay_buffer.push(Sample(
             log_prob,
             state,
@@ -95,6 +96,7 @@ class Agent:
             next_state,
             torch.tensor([entropy])
         ))
+        # print version
         if self.agent.replay_buffer.check_provide_samples(self.agent.batch_size):
             #print('Inside batch block')
             samples = self.agent.replay_buffer.sample(self.agent.batch_size)
@@ -148,6 +150,8 @@ class Agent:
             if v == self.agent.split_config:
                 action_idx = k
                 break
+        # log the selected compression rate
+        self.agent.selected_compression_rate.append({'time': time, 'compression': action['compression']})
         #print('Split config {}, success {}, n_success {}'.format(action, self.agent.success, self.agent.n_success))
         #print()
         reward = self.agent.get_instant_reward(inference_time, ue_en_comp, ue_en_comm)

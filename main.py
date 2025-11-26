@@ -218,6 +218,7 @@ for ep in range(start_episode, scenario_params['n_episodes'] + 1):
             final_output = F.softmax(current_output, dim=1)
 
             top1_prob, top1_idx = torch.topk(final_output, 1)
+            # log top3 here
             top5_prob, top5_idx = torch.topk(final_output, 5)
 
             #print(f"Top-1 Accuracy Confidence: {top1_idx.item()} (prob: {top1_prob.item():.4f})")
@@ -232,7 +233,6 @@ for ep in range(start_episode, scenario_params['n_episodes'] + 1):
             # Optional: sum of top-5 probabilities (should be ≤ 1)
             #print(f"Top-5 Accuracy Confidence: {top5_prob.sum().item():.4f}")
         top1_accuracy_per_episode.append({'time_step': k, 'top1': top1_prob.item()})
-        #top5_accuracy_per_episode.append({'time_step': k, 'top5': top5_prob.item()})
 
 
     # --------------------------------------
