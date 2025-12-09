@@ -16,7 +16,7 @@ from utils.inference_utils import compute_inference
 from rl.replay_buffer import ReplayBuffer
 
 class DDQNAgent(nn.Module):
-    def __init__(self, scenario_params, n_states, n_actions, allowed_splits, num_nodes, flops_per_block):
+    def __init__(self, scenario_params, n_states, n_actions, allowed_splits, num_nodes, flops_per_block, split_indices):
         nn.Module.__init__(self)
         self.scenario_params = scenario_params
         self.n_states = n_states
@@ -27,11 +27,23 @@ class DDQNAgent(nn.Module):
         self.max_energy_credit = self.scenario_params['max_energy_credit']
         self.max_inference_latency = self.scenario_params['max_inference_latency']
         self.action_indices = [k for k in range(self.n_actions)]
-        self.layer1 = nn.Linear(self.n_states, 128)
-        self.layer2 = nn.Linear(128, 128)
-        self.layer3 = nn.Linear(128, self.n_actions)
+        self.layer1 = nn.Linear(self.n_states, 256)
+        self.layer2 = nn.Linear(256, 256)
+        self.layer3 = nn.Linear(256, self.n_actions)
+        self.split_indices = split_indices
         # default split cannot be none - set ue only computation to avoid exceptions
         self.split_config = [(0, 0, 18), (1, 18, 18), (2, 18, 18), (3, 18, 18)]
+        # extract the index of the default split
+        for k, v in self.split_indices.items():
+            if v == self.split_config:
+                self.split_idx = k
+                break
+        # set default compression rate to 1.0
+        self.compression_rate = 1.0
+        # full default action
+        self.split_compression_action = {'split': self.split_config, 'compression': self.compression_rate}
+        # set the top1 accuracy confidence to None
+        self.top1_accuracy_confidence = None
         self.energy_credit_consumed = 0.0    # energy credit consumed initially is 0%
         self.flops_offloaded = 0.0    # the instantaneous flops offloaded to the network
         self.total_flops_offloaded = 0  # captures the cumulative flops offloaded by the ue until now
@@ -74,43 +86,62 @@ class DDQNAgent(nn.Module):
         state = np.zeros((self.n_states,))
         idx = 0
         state[idx] = episode_params['ue_bandwidth']
-        idx += 1
+        idx = idx + 1
         state[idx] = episode_params['ue_freq']
-        idx += 1
+        idx = idx + 1
         state[idx] = episode_params['ue_flops_cycle']
-        idx += 1
+        idx = idx + 1
         state[idx] = episode_params['energy_cost']
-        idx += 1
+        idx = idx + 1
         state[idx] = episode_params['power']
-        idx += 1
+        idx = idx + 1
         # ue mobility related params
         state[idx] = episode_params['speed']
-        idx += 1
+        idx = idx + 1
         state[idx] = episode_params['rsrp']
-        idx += 1
-        state[idx] = episode_params['rsrq']
-        idx += 1
+        idx = idx + 1
+        # uncomment this for production dataset
+        #state[idx] = episode_params['rsrq']
+        #idx += 1
         state[idx] = episode_params['snr']
-        idx += 1
+        idx = idx + 1
         state[idx] = episode_params['cqi']
-        idx += 1
-        state[idx] = episode_params['ue_state']
-        idx += 1
+        idx = idx + 1
+        # uncomment this for production dataset
+        #state[idx] = episode_params['ue_state']
+        #idx += 1
+        # additional context in the ns-3 dataset
+        state[idx] = episode_params['tb_size']
+        idx = idx + 1
+        state[idx] = episode_params['delay']
+        idx = idx + 1
+        state[idx] = episode_params['tbler']
+        idx = idx + 1
+        state[idx] = episode_params['ccqi']
+        idx = idx + 1
+        state[idx] = episode_params['ndi']
+        idx = idx + 1
+        state[idx] = episode_params['csinr']
+        idx = idx + 1
+        state[idx] = episode_params['cthr']
+        idx = idx + 1
+        state[idx] = episode_params['thr']
+        idx = idx + 1
         for node_id in range(1, self.num_nodes):
         # freq, flops per cycle
             state[idx] = episode_params['bandwidth'][node_id - 1]
-            idx += 1
+            idx = idx + 1
             state[idx] = episode_params['freqs'][node_id - 1]
-            idx += 1
+            idx = idx + 1
             state[idx] = episode_params['flops_cycle'][node_id - 1]
-            idx += 1
+            idx = idx + 1
         # capture flops per block
         for block in range(1, 7):
             state[idx] = flops_per_block[block]
-            idx += 1
+            idx = idx + 1
         # finally, the energy credit consumed
         state[idx] = self.energy_credit_consumed
-        idx += 1
+        idx = idx + 1
         state = torch.Tensor(state)
         #print(state)
         return state
@@ -134,6 +165,13 @@ class DDQNAgent(nn.Module):
 
 
     def perform_action(self, selected_split_config_compression, allowed_splits_blocks, dnn_model, episode_params, output):
+        # first determine the top1 accuracy confidence for the default split ONLY for the first instance
+        if self.top1_accuracy_confidence is None:
+            # compute the top1 accuracy confidence for the default action
+            inference_time, ue_en_comp, ue_en_comm, expected_output = compute_inference(self.split_config, dnn_model,
+                                                                                        episode_params,
+                                                                                        output, self.compression_rate)
+            self.top1_accuracy_confidence = self.return_top1_accuracy_confidence(expected_output)
         # extract the selected split and compression
         selected_split_config = selected_split_config_compression['split']
         selected_compression = selected_split_config_compression['compression']
@@ -144,18 +182,22 @@ class DDQNAgent(nn.Module):
         # compute the flops to be offloaded due to this selected split
         flops_to_be_offloaded, flops_on_ue = self.get_flops_offloaded(selected_split_config, allowed_splits_blocks)
         # compute the inference due to this selected split
-        inference_time, ue_en_comp, ue_en_comm, _ = compute_inference(selected_split_config, dnn_model, episode_params,
-                                                                      output)
+        inference_time, ue_en_comp, ue_en_comm, expected_output = compute_inference(selected_split_config, dnn_model,
+                                                                                    episode_params,
+                                                                      output, selected_compression)
         # check 1) if the energy credit budget is satisfied based on the flops to be offloaded,
-        # then check 2) if inference latency is below the allowed limit
+        # then check 2) if inference latency is below the allowed limit,
+        # finally, check 3) if accuracy confidence does not decrease below accuracy_decrease %
         energy_credit_criteria, energy_credit_consumed = self.check_energy_credit_budget(flops_to_be_offloaded)
         latency_criteria = self.check_latency_criteria(inference_time)
+        accuracy_criteria = self.check_accuracy_confidence_criteria(expected_output)
         # if yes, then "perform" the split, mark it as a "successful" split, update the flops offloaded
         # if no, then ue cannot offload any layers to the network, computes everything on its own,
         # mark it as "unsuccessful", recompute inference time and ue energy for the fallback option
-        if energy_credit_criteria and latency_criteria:
+        if energy_credit_criteria and latency_criteria and accuracy_criteria:
             # selected split config satisfies constraints
             self.split_config = selected_split_config
+            self.compression_rate = selected_compression
             self.success = 1
             self.n_success += 1
             self.flops_offloaded = flops_to_be_offloaded
@@ -169,10 +211,11 @@ class DDQNAgent(nn.Module):
             self.flops_offloaded = 0.0    # as previous split is retained, flops offloaded is zero
             # goto fallback option for agent, ue computes everything, no layers offloaded to network
             # selected_split_config = [(0, 0, 18), (1, 18, 18), (2, 18, 18), (3, 18, 18)]
-            # recompute the inference due to the split config from the previous iteration, no need to update anything else
+            # recompute the inference due to the split config & compression rate from the previous iteration,
+            # no need to update anything else
             inference_time, ue_en_comp, ue_en_comm, _ = compute_inference(self.split_config, dnn_model,
                                                                           episode_params,
-                                                                          output)
+                                                                          output, self.compression_rate)
             # the flops on ue due to this selected split is the total flops
             #flops_on_ue = self.total_flops
         # # update the total flops on ue
@@ -187,10 +230,12 @@ class DDQNAgent(nn.Module):
         #optimization = inference_time + ue_energy_comm
         optimization = (self.scenario_params['weight_inference_time'] * inference_time) + (
                     (1 - self.scenario_params['weight_inference_time']) * (ue_energy_comp + ue_energy_comm))
-        #reward = self.success * (1 / optimization)
-        reward = math.pow(10, (1 / optimization))
+        reward_1 = 1 / optimization
+        reward_2 = math.pow(2, (1 / optimization))
+        # original reward
+        #reward = math.pow(10, (1 / optimization))
         #print('reward {}'.format(reward))
-        return reward
+        return reward_1
 
     def get_flops_offloaded(self, selected_split_config, allowed_splits_blocks):
         flops_on_ue = 0.0
@@ -231,6 +276,25 @@ class DDQNAgent(nn.Module):
             return True
         else:
             return False
+
+    def check_accuracy_confidence_criteria(self, out):
+        top1_acc_confidence = self.return_top1_accuracy_confidence(out)
+        # first check if the new accuracy confidence is less than the previous one
+        if top1_acc_confidence < self.top1_accuracy_confidence:
+            # then check if the difference is within the desired percentage decrease
+            if self.top1_accuracy_confidence - top1_acc_confidence <= self.scenario_params['accuracy_decrease']:
+                return True
+            else:
+                return False
+        else:
+            return True # new accuracy confidence is greater than the previous one
+
+    def return_top1_accuracy_confidence(self, out):
+        with torch.no_grad():
+            final_output = F.softmax(out, dim=1)
+            top1_prob, top1_idx = torch.topk(final_output, 1)
+        top1_accuracy_confidence = top1_prob.item()
+        return top1_accuracy_confidence
 
     def get_epsilon(self, episode_count):
         if self.scenario_params['inference']:

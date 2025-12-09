@@ -13,7 +13,7 @@ from utils.split_generator import Baseline
 from utils.scenario_generator import generate_scenario
 from utils.inference_utils import compute_inference
 from utils.optimum import Opt
-from utils.logging_utils import write_logs
+from utils.logging_utils import write_logs, writeToCsv
 from rl.agent import Agent
 from PIL import Image
 import torchvision.transforms as transforms
@@ -28,7 +28,8 @@ power = 5
 agent = None
 opt = None
 baseline = None
-num_input_files = 19    # number of input files to read data from
+folder = None
+num_input_files = 9    # number of input files to read data from, 19 for production dataset
 file_number = 1   # counter to set the file number
 
 # Import the scenario params
@@ -65,6 +66,7 @@ flops_per_block = compute_flops_per_block(flops_dict)
 allowed_splits = [0, 3, 6, 10, 14, 18]  # Safe boundaries (post-MaxPool layers)
 # mapping block numbers to the start-end boundaries
 allowed_splits_blocks = [(1, 0, 3), (2, 3, 6), (3, 6, 10), (4, 10, 14), (5, 14, 18)]
+elapsed_time = []   # records the time complexity for each episode
 # -----------------------
 # Generate split configuration according to desired algorithm
 # -----------------------
@@ -82,6 +84,7 @@ for ep in range(start_episode, scenario_params['n_episodes'] + 1):
     total_flops_on_ue_per_episode = []
     energy_credit_consumed_per_episode = []
     split_config_per_episode = []
+    split_config_idx_per_episode = []
     top1_accuracy_per_episode = []
     top5_accuracy_per_episode = []
     # ------------------------------
@@ -112,7 +115,9 @@ for ep in range(start_episode, scenario_params['n_episodes'] + 1):
         df = read_params_from_file(episode=file_number, num_nodes=num_nodes)
         ue_freq = df['ue_freq'][k-1]
         ue_flops_cycle = df['ue_flops_per_cycle'][k-1]
-        ue_bandwidth = df_radio_params['DL_bitrate'][k-1] / 8000    # convert kbps to megabytes/s
+        # uncomment this for production dataset
+        #ue_bandwidth = df_radio_params['DL_bitrate'][k-1] / 8000    # convert kbps to megabytes/s
+        ue_bandwidth = df_radio_params['PDCP Throughput'][k-1] / 8000 # convert kbps to megabytes/s
         freqs = []
         flops_cycle = []
         bandwidth = []
@@ -145,8 +150,25 @@ for ep in range(start_episode, scenario_params['n_episodes'] + 1):
         # ----------------------------
         # Pack episode-specific params
         # ----------------------------
-        ue_state = df_radio_params['State'][k-1]
-        ue_state = 1 if ue_state == 'D' else 0
+        # uncomment this for production dataset
+        #ue_state = df_radio_params['State'][k-1]
+        #ue_state = 1 if ue_state == 'D' else 0
+        # speed = df_radio_params['Speed'][k-1]
+        # rsrq = df_radio_params['RSRQ'][k-1]
+        # snr = df_radio_params['SNR'][k-1]
+        ue_state = None
+        speed = 80  # average value in km/hr
+        rsrq = None
+        snr = df_radio_params['SINR'][k-1]
+        # additional context in ns-3 dataset
+        tb_size = df_radio_params['TBSize'][k-1]
+        delay = df_radio_params['Delay'][k-1]
+        tbler = df_radio_params['TBLER'][k-1]
+        ccqi = df_radio_params['CCQI'][k-1]
+        ndi = df_radio_params['NDI'][k-1]
+        csinr = df_radio_params['CSINR'][k-1]
+        cthr = df_radio_params['CTHR'][k-1]
+        thr = df_radio_params['THR'][k-1]
         episode_params = {'ue': ue,
                           'network_nodes': network_nodes,
                           'bandwidth': bandwidth,
@@ -157,30 +179,48 @@ for ep in range(start_episode, scenario_params['n_episodes'] + 1):
                           'flops_cycle': flops_cycle,
                           'energy_cost': energy_cost,
                           'power': power,
-                          'speed': df_radio_params['Speed'][k-1],
+                          'speed': speed,
                           'rsrp': df_radio_params['RSRP'][k-1],
-                          'rsrq': df_radio_params['RSRQ'][k-1],
-                          'snr': df_radio_params['SNR'][k-1],
+                          'rsrq': rsrq,
+                          'snr': snr,
                           'cqi': df_radio_params['CQI'][k-1],
-                          'ue_state': ue_state}
+                          'ue_state': ue_state,
+                          'tb_size': tb_size,
+                          'delay': delay,
+                          'tbler': tbler,
+                          'ccqi': ccqi,
+                          'ndi': ndi,
+                          'csinr': csinr,
+                          'cthr': cthr,
+                          'thr': thr}
 
         if scenario_params['split_algorithm'] == 1:  # indicates random split
+            folder = 'random'
             split_config = baseline.generate_random_split(allowed_splits, num_nodes, True, model,
                                                           episode_params, current_output)
         elif scenario_params['split_algorithm'] == 2:   # rl agent
-            split_config = agent.execute(k, ep, model, episode_params, current_output)  # agent determines the split every time_interval seconds
+            # agent determines the split and compression rate every time_interval seconds
+            split_config, compression_rate, split_config_idx = agent.execute(k, ep, model, episode_params, current_output)
+            if scenario_params['rl_algorithm'] == 1:
+                folder = 'rl/ddqn'
+            else:
+                folder = 'rl/a2c'
             #print('Energy credit consumed {} Split config {}'.format(agent.agent.energy_credit_consumed, split_config))
         elif scenario_params['split_algorithm'] == 3:   # optimal solution
             split_config = opt.generate_optimal_split(k, ep, model, episode_params, current_output)
+            folder = 'optimum'
             #print('Energy credit consumed {} Optimal split {}'.format(opt.energy_credit_consumed, split_config))
         elif scenario_params['split_algorithm'] == 4:   # fixed split
             split_config = baseline.fixed_split()
+            folder = 'fixed'
         else:   # ue only i.e. no split
             split_config = baseline.ue_computation_only()
+            folder = 'ue'
         # compute inference using the generated split configuration
         # Here add compression ratio inside compute_inference
         total_time, ue_energy_comp, ue_energy_comm, current_output = compute_inference(split_config, model,
-                                                                                       episode_params, current_output)
+                                                                                       episode_params, current_output,
+                                                                                       compression_rate)
 
         #
         # -----------------------
@@ -198,6 +238,7 @@ for ep in range(start_episode, scenario_params['n_episodes'] + 1):
         ue_energy_comp_per_episode.append({'time_step': k, 'ue_energy_comp': ue_energy_comp})
         ue_energy_comm_per_episode.append({'time_step': k, 'ue_energy_comm': ue_energy_comm})
         split_config_per_episode.append({'time_step': k, 'split': split_config})
+        split_config_idx_per_episode.append({'time_step': k, 'split_idx': split_config_idx})
         if scenario_params['split_algorithm'] == 3: # optimum case
             energy_credit_consumed_per_episode.append({'time_step': k, 'energy_credit': opt.energy_credit_consumed})
             flops_offloaded_per_episode.append({'time_step': k, 'flops_off': opt.flops_offloaded})
@@ -219,6 +260,7 @@ for ep in range(start_episode, scenario_params['n_episodes'] + 1):
 
             top1_prob, top1_idx = torch.topk(final_output, 1)
             # log top3 here
+            top3_prob, top3_idx = torch.topk(final_output, 3)
             top5_prob, top5_idx = torch.topk(final_output, 5)
 
             #print(f"Top-1 Accuracy Confidence: {top1_idx.item()} (prob: {top1_prob.item():.4f})")
@@ -238,11 +280,15 @@ for ep in range(start_episode, scenario_params['n_episodes'] + 1):
     # --------------------------------------
     # Save logging variables in this episode
     # --------------------------------------
+    end = timer()
+    elapsed = end - start
+    elapsed_time.append({'ep': ep, 'time': elapsed})    # in seconds
+    print('Elapsed wall clock time {} min'.format(elapsed / 60))
     data = {'inference_time': inference_time_per_episode, 'ue_energy_comp': ue_energy_comp_per_episode,
             'ue_energy_comm': ue_energy_comm_per_episode, 'success_rate': success_rate_per_episode,
             'y_net': total_flops_offloaded_per_episode, 'y_ue': total_flops_on_ue_per_episode,
             'energy_credit': energy_credit_consumed_per_episode, 'flops_off': flops_offloaded_per_episode,
-            'split': split_config_per_episode,
+            'split': split_config_per_episode, 'split_idx': split_config_idx_per_episode,
             'top1': top1_accuracy_per_episode, 'top5': top5_accuracy_per_episode}
     write_logs(scenario_params, ep, data, agent)
     # --------------------------------------
@@ -251,8 +297,10 @@ for ep in range(start_episode, scenario_params['n_episodes'] + 1):
     if scenario_params['split_algorithm'] == 2:
         print('Cumulative episode reward {}'.format(agent.agent.cumulative_reward))
 
-    end = timer()
-    elapsed = end - start
-    print('Elapsed wall clock time {} min'.format(elapsed/60))
+
     file_number = file_number + 1   # increment the file number by the episode number
+
+    # log the time complexity at the last episode
+    if ep == scenario_params['n_episodes']:
+        writeToCsv(elapsed_time, 'system/elapsed_time', folder)
 

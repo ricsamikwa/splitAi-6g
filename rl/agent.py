@@ -28,24 +28,28 @@ class Agent:
         self.optimizer = None
         self.actor_optimizer = None
         self.critic_optimizer = None
-        # total 27 states
+        # total 27 states for the production dataset
         # first 5 is for ue_bandwidth, ue_freq, ue_flops_cycle, energy_cost, power
         # then bandwidth, freqs, flops_cycle for each network node (excluding the ue)
         # then 6 is for flops per block
         # then energy_credit_consumed
         # the last 6 is for the radio channel conditions for UE mobility (speed, rsrp, rsrq, cqi, snr, state)
-        self.n_states = 5 + (3 * (self.num_nodes-1)) + 6 + 1 + 6
-        self.action_space, self.action_indices = enumerate_action_space(self.allowed_splits, self.num_nodes,
+        # for ns-3 dataset (speed, rsrp, cqi, snr, tb_size, delay, tbler, ccqi, ndi, csinr, cthr, thr) i.e. 12
+        self.n_states = 5 + (3 * (self.num_nodes-1)) + 6 + 1 + 12
+        split_choices, split_indices = enumerate_action_space(self.allowed_splits, self.num_nodes,
                                                                         allow_empty_nodes=True)
+        # extended action space to include the compression rates
+        self.action_space, self.action_indices = extended_action_space(split_choices,
+                                                                       self.scenario_params['compression_rates'])
         self.n_actions = len(self.action_space)
         self.agent_type = 'ddqn' if self.rl_algorithm == 1 else 'a2c'
         if self.agent_type == 'ddqn':
             self.agent = DDQNAgent(self.scenario_params, self.n_states, self.n_actions, self.allowed_splits,
-                                   self.num_nodes, self.flops_per_block)
+                                   self.num_nodes, self.flops_per_block, split_indices)
 
         else:
             self.agent = A2CAgent(self.scenario_params, self.n_states, self.n_actions, self.allowed_splits,
-                                   self.num_nodes, self.flops_per_block)
+                                   self.num_nodes, self.flops_per_block, split_indices)
             self.lr_actor = self.scenario_params['lr_actor']
             self.lr_critic = self.scenario_params['lr_critic']
 
@@ -73,7 +77,7 @@ class Agent:
                 self.train_ddqn_agent(time, dnn_model, episode_params, output)
             else:
                 self.train_a2c_agent(time, dnn_model, episode_params, output)
-        return self.agent.split_config
+        return self.agent.split_config, self.agent.compression_rate, self.agent.split_idx
 
     def train_a2c_agent(self, time, dnn_model, episode_params, output):
         # state is a vector, while log probs, rewards actions and entropies are scalars
@@ -146,9 +150,15 @@ class Agent:
         # this function also checks and returns the feasible action
         inference_time, ue_en_comp, ue_en_comm = self.agent.perform_action(action, self.allowed_splits_blocks,
                                                                            dnn_model, episode_params, output)
+        # extract index of full action
         for k, v in self.action_indices.items():
-            if v == self.agent.split_config:
+            if v == self.agent.split_compression_action:
                 action_idx = k
+                break
+        # extract index of split config
+        for k, v in self.agent.split_indices.items():
+            if v == action['split']:
+                self.agent.split_idx = k
                 break
         # log the selected compression rate
         self.agent.selected_compression_rate.append({'time': time, 'compression': action['compression']})

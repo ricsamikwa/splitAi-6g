@@ -9,7 +9,7 @@ import seaborn as sns
 
 def split_and_store_dataset(df):
     episode_duration = 50   # in s
-    num_input_files = 19
+    num_input_files = 9 # 19 for the production dataset
     running_idx = 0
     for i in range(1, num_input_files + 1):
         last_idx = i * episode_duration
@@ -19,6 +19,7 @@ def split_and_store_dataset(df):
 
 def read_trace_file():
     path = 'input/episode_parameters/radio_parameters_moving.csv'
+    size = 450  # 950 for the production dataset
     # save headers in a list
     headers = ['Timestamp', 'Longitude', 'Latitude', 'Speed', 'Operatorname', 'CellID', 'NetworkMode', 'RSRP', 'RSRQ',
                'SNR', 'CQI', 'RSSI', 'DL_bitrate', 'UL_bitrate', 'State', 'PINGAVG', 'PINGMIN', 'PINGMAX', 'PINGSTDEV',
@@ -26,10 +27,11 @@ def read_trace_file():
                ]
     df = pd.read_csv(path)
     #print(df)
-    df = df.drop_duplicates(subset=['Timestamp'], keep='last', ignore_index=True)
+    # you may need to uncomment this for the production dataset
+    #df = df.drop_duplicates(subset=['Timestamp'], keep='last', ignore_index=True)
     #print(df['Timestamp'])
     #print(df)
-    df_subset = df[:950]
+    df_subset = df[:size]
     #print(df_subset)
     df_subset.to_csv('input/episode_parameters/radio_parameters_moving_clean.csv')
     return df_subset
@@ -91,4 +93,4 @@ if __name__ == '__main__':
     os.chdir(path_parent)
     df_subset = read_trace_file()
     #split_and_store_dataset(df_subset)
-    plot_radio_metrics(df_subset)
+    #plot_radio_metrics(df_subset)

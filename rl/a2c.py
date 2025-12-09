@@ -15,8 +15,8 @@ from utils.rl_utils import load_model_params
 from rl.ddqn import DDQNAgent
 
 class A2CAgent(DDQNAgent, nn.Module):
-    def __init__(self, scenario_params, n_states, n_actions, allowed_splits, num_nodes, flops_per_block):
-        DDQNAgent.__init__(self, scenario_params, n_states, n_actions, allowed_splits, num_nodes, flops_per_block)
+    def __init__(self, scenario_params, n_states, n_actions, allowed_splits, num_nodes, flops_per_block, split_indices):
+        DDQNAgent.__init__(self, scenario_params, n_states, n_actions, allowed_splits, num_nodes, flops_per_block, split_indices)
         nn.Module.__init__(self)
         self.actor = Actor(self.n_states, self.n_actions, self.scenario_params)
         self.critic = Critic(self.n_states, self.scenario_params)

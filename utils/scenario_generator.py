@@ -42,6 +42,7 @@ def pack_parameters(filename):
     time_interval = int(config['ALGORITHM']['TIME_INTERVAL'])
     start_episode = int(config['ALGORITHM']['START_EPISODE'])
     compression_rates = json.loads(config['ALGORITHM']['COMPRESSION_RATES'])
+    accuracy_decrease = int(config['ALGORITHM']['ACCURACY_DECREASE'])
 
     n_hidden_layer = int(config['DRL_HYPERPARAMETERS']['N_HIDDEN_LAYER'])
     batch_size = int(config['DRL_HYPERPARAMETERS']['BATCH_SIZE'])
@@ -72,6 +73,7 @@ def pack_parameters(filename):
         'time_interval': time_interval,
         'start_episode': start_episode,
         'compression_rates': compression_rates,
+        'accuracy_decrease': accuracy_decrease,
 
         'n_hidden_layer': n_hidden_layer,
         'batch_size': batch_size,

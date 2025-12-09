@@ -19,6 +19,7 @@ def plot_metrics_together(metric1, metric2, df1, df2, outfile, folder):
     ax2.set_ylabel('{}'.format(metric2))
     roll_mean_metric2 = df2[metric2].rolling(window=window).mean()
     ax2.plot(df2['episode'], roll_mean_metric2, color='#9ABCE4', label=metric2)
+    #ax2.yscale('log')
     ax1.grid()
     #ax1.legend()
     #ax2.legend()
@@ -65,18 +66,18 @@ def main():
 
     params = generate_scenario()
     # specify the number of episodes to be plotted
-    n_episodes = 407
+    n_episodes = 700
     order_to_convert = 1000
-    folder = 'rl/a2c'
-    #df_loss = generate_metric(params, n_episodes, order_to_convert, 'mean_loss')
+    folder = 'rl/ddqn'
+    df_loss = generate_metric(folder, n_episodes, order_to_convert, 'mean_loss')
     df_reward = generate_metric(folder, n_episodes, order_to_convert, 'mean_reward')
 
     # call this function to generate loss and reward charts separately
     #plot_metric('mean_loss', df_loss, 'mean_loss', folder)
-    plot_metric('mean_reward', df_reward, 'mean_reward', folder)
+    #plot_metric('mean_reward', df_reward, 'mean_reward', folder)
 
     # call this function to plot both loss and reward in the same chart
-    #plot_metrics_together('mean_loss', 'mean_reward', df_loss, df_reward, 'loss_reward', folder)
+    plot_metrics_together('mean_loss', 'mean_reward', df_loss, df_reward, 'loss_reward', folder)
 
 
 if __name__ == '__main__':

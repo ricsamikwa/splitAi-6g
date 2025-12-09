@@ -98,13 +98,13 @@ if __name__ == "__main__":
     for i, a in enumerate(all_actions):
         print(a)
         action_indices[i] = a
-    print(all_actions)
-    #print(action_indices)
+    print(all_actions[26])
+    print(action_indices)
     act = [(0, 0, 3), (1, 3, 3), (2, 3, 6), (3, 6, 18)]
     for k, v in action_indices.items():
         if v == act:
             print(k)
     action_space = extended_action_space(all_actions, compression_rate_list)
-    print(action_space)
-    print(len(action_space))
+    #print(action_space)
+    #print(len(action_space))
 
