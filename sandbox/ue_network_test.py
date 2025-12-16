@@ -21,6 +21,7 @@ DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 ALLOWED_SPLITS = [0, 3, 6, 10, 14, 18]
 COMPRESSION_RATES = [1.0, 0.875, 0.75, 0.625, 0.5, 0.375, 0.25]
+# COMPRESSION_RATES = [1.0, 0.875, 0.75, 0.625, 0.5, 0.375]
 
 INPUT_DIR = "input"
 NUM_IMAGES = 10
