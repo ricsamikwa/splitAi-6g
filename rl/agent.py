@@ -85,6 +85,18 @@ class Agent:
         action, action_idx, entropy, log_prob = self.agent.choose_action(self.action_space, state)
         inference_time, ue_en_comp, ue_en_comm = self.agent.perform_action(action, self.allowed_splits_blocks,
                                                                            dnn_model, episode_params, output)
+        # extract index of full action
+        for k, v in self.action_indices.items():
+            if v == self.agent.split_compression_action:
+                action_idx = k
+                break
+        # extract index of split config
+        for k, v in self.agent.split_indices.items():
+            if v == action['split']:
+                self.agent.split_idx = k
+                break
+        # log the selected compression rate
+        self.agent.selected_compression_rate.append({'time': time, 'compression': action['compression']})
         reward = self.agent.get_instant_reward(inference_time, ue_en_comp, ue_en_comm)
         # log the reward
         self.agent.reward.append({'time': time, 'reward': reward})

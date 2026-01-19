@@ -51,10 +51,10 @@ def write_logs(scenario_params, episode, data, model):
     writeToCsv(data['energy_credit'], filename, folder)
     filename = 'system/{}_{}'.format('flops_off', episode_count)
     writeToCsv(data['flops_off'], filename, folder)
-    # compression rate
-    filename = 'splits/compression_{}'.format(episode_count)
-    writeToCsv(model.agent.selected_compression_rate, filename, folder)
     if scenario_params['split_algorithm'] == 2:     # for rl algorithm
+        # compression rate
+        filename = 'splits/compression_{}'.format(episode_count)
+        writeToCsv(model.agent.selected_compression_rate, filename, folder)
         # success rate
         #filename = 'system/{}_{}'.format('success_rate', episode_count)
         #writeToCsv(data['success_rate'], filename, folder)

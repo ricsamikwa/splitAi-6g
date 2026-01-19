@@ -15,10 +15,12 @@ Note:
 """
 
 import numpy as np
-from utils.action_space import enumerate_action_space
+import torch
+import torch.nn.functional as F
+from utils.action_space import enumerate_action_space, extended_action_space
 from utils.inference_utils import compute_inference
 
-class Baseline():
+class Baseline:
     def __init__(self, scenario_params, allowed_splits, num_nodes, flops_per_block, allowed_splits_blocks):
         self.scenario_params = scenario_params
         self.allowed_splits = allowed_splits
@@ -31,6 +33,10 @@ class Baseline():
             self.split = [(0, 0, 6), (1, 6, 10), (2, 10, 14), (3, 14, 18)]
         else:
             self.split = [(0, 0, 18), (1, 18, 18), (2, 18, 18), (3, 18, 18)]
+        self.compression_rate = 1.0  # set default compression rate to 1.0
+        # full default action
+        self.split_compression_action = {'split': self.split, 'compression': self.compression_rate}
+        self.top1_accuracy_confidence = None  # set the top1 accuracy confidence to None
         self.flops_offloaded = 0.0  # the instantaneous flops offloaded to the network
         self.energy_credit_consumed = 0.0  # energy credit consumed initially is 0%
         self.total_flops_offloaded = 0  # captures the cumulative flops offloaded by the ue until now
@@ -49,42 +55,89 @@ class Baseline():
         Returns:
             list: A list of tuples (node_id, start_layer, end_layer) for each node.
         """
+        split_idx = None
+        # first determine the top1 accuracy confidence for the default split ONLY for the first instance
+        if self.top1_accuracy_confidence is None:
+            # compute the top1 accuracy confidence for the default action
+            inference_time, ue_en_comp, ue_en_comm, expected_output = compute_inference(self.split, dnn_model,
+                                                                                        episode_params,
+                                                                                        output, self.compression_rate)
+            self.top1_accuracy_confidence = self.return_top1_accuracy_confidence(expected_output)
         # Build full action space once
-        actions, _ = enumerate_action_space(allowed_splits, num_nodes, allow_empty_nodes)
+        feasible_splits, split_indices = enumerate_action_space(allowed_splits, num_nodes, allow_empty_nodes)
+        feasible_split_compression, action_indices_extended = extended_action_space(feasible_splits,
+                                                                                    self.scenario_params[
+                                                                                        'compression_rates'])
+        # Sample one action (split + compression) uniformly
+        idx = np.random.randint(len(feasible_split_compression))
 
-        # Sample one action uniformly
-        idx = np.random.randint(len(actions))
-
-        selected_split = actions[idx]
+        selected_split_compression = feasible_split_compression[idx]
         # compute the flops to be offloaded due to this selected split
+        selected_split = selected_split_compression['split']
+        selected_compression = selected_split_compression['compression']
         flops_offloaded, flops_on_ue = self.get_flops_offloaded(selected_split)
         # compute the inference due to this selected split
-        inference_time, ue_en_comp, ue_en_comm, _ = compute_inference(selected_split, dnn_model, episode_params, output)
+        inference_time, ue_en_comp, ue_en_comm, out = compute_inference(selected_split, dnn_model, episode_params,
+                                                                        output, selected_compression)
         energy_credit_criteria, energy_credit_consumed = self.check_energy_credit_budget(flops_offloaded)
         latency_criteria = self.check_latency_criteria(inference_time)
+        accuracy_criteria = self.check_accuracy_confidence_criteria(out)
         # if both criteria are satisfied, then selected_split is the final split, else do nothing
-        if energy_credit_criteria and latency_criteria:
+        if energy_credit_criteria and latency_criteria and accuracy_criteria:
             self.split = selected_split
+            self.compression_rate = selected_compression
             # update the flops offloaded, flops on ue and energy credit usage
             self.update_energy_credit_usage(flops_offloaded, flops_on_ue)
         else:
             self.flops_offloaded = 0.0
+        # extract index of split config
+        for k, v in split_indices.items():
+            if v == self.split:
+                split_idx = k
 
-        return self.split
+        return self.split, self.compression_rate, split_idx
 
-    def fixed_split(self):
+    def fixed_split(self, allowed_splits, num_nodes, allow_empty_nodes, dnn_model, episode_params, output):
+        split_idx = None
         self.split = [(0, 0, 6), (1, 6, 10), (2, 10, 14), (3, 14, 18)]
+        self.compression_rate = 1.0
+        feasible_splits, split_indices = enumerate_action_space(allowed_splits, num_nodes, allow_empty_nodes)
+        if self.top1_accuracy_confidence is None:
+            # compute the top1 accuracy confidence for the default action
+            inference_time, ue_en_comp, ue_en_comm, expected_output = compute_inference(self.split, dnn_model,
+                                                                                        episode_params,
+                                                                                        output, self.compression_rate)
+            # since the action remains the same (i.e. default value), updating this once is sufficient
+            self.top1_accuracy_confidence = self.return_top1_accuracy_confidence(expected_output)
         # compute the flops to be offloaded due to this selected split
         flops_offloaded, flops_on_ue = self.get_flops_offloaded(self.split)
         self.update_energy_credit_usage(flops_offloaded, flops_on_ue)
-        return self.split
+        # extract index of split config
+        for k, v in split_indices.items():
+            if v == self.split:
+                split_idx = k
+        return self.split, self.compression_rate, split_idx
 
-    def ue_computation_only(self):
+    def ue_computation_only(self, allowed_splits, num_nodes, allow_empty_nodes, dnn_model, episode_params, output):
+        split_idx = None
         self.split = [(0, 0, 18), (1, 18, 18), (2, 18, 18), (3, 18, 18)]
+        self.compression_rate = 1.0
+        feasible_splits, split_indices = enumerate_action_space(allowed_splits, num_nodes, allow_empty_nodes)
+        if self.top1_accuracy_confidence is None:
+            # compute the top1 accuracy confidence for the default action
+            inference_time, ue_en_comp, ue_en_comm, expected_output = compute_inference(self.split, dnn_model,
+                                                                                        episode_params,
+                                                                                        output, self.compression_rate)
+            # since the action remains the same (i.e. default value), updating this once is sufficient
+            self.top1_accuracy_confidence = self.return_top1_accuracy_confidence(expected_output)
         # compute the flops to be offloaded due to this selected split
         flops_offloaded, flops_on_ue = self.get_flops_offloaded(self.split)
         self.update_energy_credit_usage(flops_offloaded, flops_on_ue)
-        return self.split
+        # extract index of split config
+        for k, v in split_indices.items():
+            if v == self.split:
+                split_idx = k
+        return self.split, self.compression_rate, split_idx
 
     def update_energy_credit_usage(self, flops_offloaded, flops_on_ue):
         # update the energy credit usage
@@ -122,6 +175,25 @@ class Baseline():
             return True
         else:
             return False
+
+    def check_accuracy_confidence_criteria(self, out):
+        top1_acc_confidence = self.return_top1_accuracy_confidence(out)
+        # first check if the new accuracy confidence is less than the previous one
+        if top1_acc_confidence < self.top1_accuracy_confidence:
+            # then check if the difference is within the desired percentage decrease
+            if self.top1_accuracy_confidence - top1_acc_confidence <= self.scenario_params['accuracy_decrease']:
+                return True
+            else:
+                return False
+        else:
+            return True # new accuracy confidence is greater than the previous one
+
+    def return_top1_accuracy_confidence(self, out):
+        with torch.no_grad():
+            final_output = F.softmax(out, dim=1)
+            top1_prob, top1_idx = torch.topk(final_output, 1)
+        top1_accuracy_confidence = top1_prob.item()
+        return top1_accuracy_confidence
 
     def get_flops_offloaded(self, selected_split_config):
         """

@@ -56,11 +56,11 @@ class A2CAgent(DDQNAgent, nn.Module):
                 action_idx = torch.tensor(0)
             else:
                 action_idx = probs.argmax()
-        selected_split_config = playable_actions[action_idx]
+        selected_split_compression = playable_actions[action_idx]
         log_prob = self.dist.log_prob(action_idx)
         entropy = self.dist.entropy()
 
-        return selected_split_config, action_idx, entropy, log_prob
+        return selected_split_compression, action_idx, entropy, log_prob
 
 class Actor(nn.Module):
     def __init__(self, n_states, n_actions, scenario_params):
@@ -69,9 +69,9 @@ class Actor(nn.Module):
         #self.layer1 = nn.Linear(n_states, 128)
         #self.layer2 = nn.Linear(128, 128)
         #self.layer3 = nn.Linear(128, n_actions)
-        self.model = nn.Sequential(nn.Linear(n_states, 128), nn.Tanh(),
-                                   nn.Linear(128, 128), nn.Tanh(),
-                                   nn.Linear(128, n_actions),
+        self.model = nn.Sequential(nn.Linear(n_states, 256), nn.Tanh(),
+                                   nn.Linear(256, 256), nn.Tanh(),
+                                   nn.Linear(256, n_actions),
                                    )
     def forward(self, x):
         #y1 = F.tanh(self.layer1(x))
@@ -86,9 +86,9 @@ class Critic(nn.Module):
     def __init__(self, n_states, scenario_params):
         nn.Module.__init__(self)
         self.scenario_params = scenario_params
-        self.layer1 = nn.Linear(n_states, 128)
-        self.layer2 = nn.Linear(128, 128)
-        self.layer3 = nn.Linear(128, 1)
+        self.layer1 = nn.Linear(n_states, 256)
+        self.layer2 = nn.Linear(256, 256)
+        self.layer3 = nn.Linear(256, 1)
 
     def forward(self, x):
         x = F.relu(self.layer1(x))

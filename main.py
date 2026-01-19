@@ -29,7 +29,7 @@ agent = None
 opt = None
 baseline = None
 folder = None
-num_input_files = 9    # number of input files to read data from, 19 for production dataset
+num_input_files = 9    # number of input files to read data from, 19 for production dataset, 9 for ns-3
 file_number = 1   # counter to set the file number
 
 # Import the scenario params
@@ -196,7 +196,7 @@ for ep in range(start_episode, scenario_params['n_episodes'] + 1):
 
         if scenario_params['split_algorithm'] == 1:  # indicates random split
             folder = 'random'
-            split_config = baseline.generate_random_split(allowed_splits, num_nodes, True, model,
+            split_config, compression_rate, split_config_idx = baseline.generate_random_split(allowed_splits, num_nodes, True, model,
                                                           episode_params, current_output)
         elif scenario_params['split_algorithm'] == 2:   # rl agent
             # agent determines the split and compression rate every time_interval seconds
@@ -207,14 +207,16 @@ for ep in range(start_episode, scenario_params['n_episodes'] + 1):
                 folder = 'rl/a2c'
             #print('Energy credit consumed {} Split config {}'.format(agent.agent.energy_credit_consumed, split_config))
         elif scenario_params['split_algorithm'] == 3:   # optimal solution
-            split_config = opt.generate_optimal_split(k, ep, model, episode_params, current_output)
+            split_config, compression_rate, split_config_idx = opt.generate_optimal_split(k, ep, model, episode_params, current_output)
             folder = 'optimum'
             #print('Energy credit consumed {} Optimal split {}'.format(opt.energy_credit_consumed, split_config))
         elif scenario_params['split_algorithm'] == 4:   # fixed split
-            split_config = baseline.fixed_split()
+            split_config, compression_rate, split_config_idx = baseline.fixed_split(allowed_splits, num_nodes, True, model,
+                                                          episode_params, current_output)
             folder = 'fixed'
         else:   # ue only i.e. no split
-            split_config = baseline.ue_computation_only()
+            split_config, compression_rate, split_config_idx = baseline.ue_computation_only(allowed_splits, num_nodes, True, model,
+                                                          episode_params, current_output)
             folder = 'ue'
         # compute inference using the generated split configuration
         # Here add compression ratio inside compute_inference
