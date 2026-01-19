@@ -66,7 +66,7 @@ def main():
 
     params = generate_scenario()
     # specify the number of episodes to be plotted
-    n_episodes = 700
+    n_episodes = 1000
     order_to_convert = 1000
     folder = 'rl/ddqn'
     df_loss = generate_metric(folder, n_episodes, order_to_convert, 'mean_loss')

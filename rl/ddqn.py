@@ -233,7 +233,7 @@ class DDQNAgent(nn.Module):
         reward_1 = 1 / optimization
         reward_2 = math.pow(2, (1 / optimization))
         # original reward
-        #reward = math.pow(10, (1 / optimization))
+        reward = math.pow(10, (1 / optimization))
         #print('reward {}'.format(reward))
         return reward_1
 
