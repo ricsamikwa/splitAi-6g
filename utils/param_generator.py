@@ -40,7 +40,8 @@ def generate_params(num_nodes):
     #freqs = [5.0 for _ in range(num_nodes - 1)]
     flops_per_cycle = np.random.uniform(5.0, 9.0, num_nodes - 1)
     #flops_per_cycle = [7.0 for _ in range(num_nodes - 1)]
-    bandwidth = np.random.uniform(500, 2000, num_nodes - 1) # MB/s (net-to-net)
+    # 2000 MB/s is the default setting
+    bandwidth = np.random.uniform(500, 5000, num_nodes - 1) # MB/s (net-to-net), change the max value as needed
     #bandwidth = [500 for _ in range(num_nodes - 1)]
 
     return ue_freq, ue_flops_per_cycle, ue_bandwidth, freqs, flops_per_cycle, bandwidth
@@ -50,7 +51,7 @@ def write_params_to_file():
 
     num_nodes = 4
 
-    n_episodes = 19 # follows from the number of input files we want
+    n_episodes = 9 # follows from the number of input files we want
     # change this parameter manually
     episode_duration = params['episode_duration']
     start_episode = params['start_episode']
@@ -82,7 +83,7 @@ def write_params_to_file():
         # convert to dataframe
         df = pd.DataFrame(params_per_episode, columns=headers)
         # save to file
-        df.to_csv('input/episode_parameters/system_parameters_{}.csv'.format(ep))
+        df.to_csv('input/episode_parameters/max_throughputs/system_parameters_{}.csv'.format(ep))
 
 
 def read_params_from_file(episode, num_nodes):

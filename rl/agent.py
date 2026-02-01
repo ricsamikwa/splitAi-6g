@@ -82,7 +82,8 @@ class Agent:
     def train_a2c_agent(self, time, dnn_model, episode_params, output):
         # state is a vector, while log probs, rewards actions and entropies are scalars
         state = self.agent.get_agent_state(episode_params, self.flops_per_block)
-        action, action_idx, entropy, log_prob = self.agent.choose_action(self.action_space, state)
+        state_cloned = state.clone()
+        action, action_idx, _, _ = self.agent.choose_action(self.action_space, state_cloned)
         inference_time, ue_en_comp, ue_en_comm = self.agent.perform_action(action, self.allowed_splits_blocks,
                                                                            dnn_model, episode_params, output)
         # extract index of full action
@@ -105,19 +106,27 @@ class Agent:
         self.agent.cumulative_reward = reward / self.agent.reward_counter
         next_state = self.agent.get_agent_state(episode_params, self.flops_per_block)
         # print version
+        #print('Initial version {}'.format(state._version))
         self.agent.replay_buffer.push(Sample(
-            log_prob,
+            #log_prob.detach(),
             state,
             torch.tensor([reward]),
             next_state,
-            torch.tensor([entropy])
+            torch.tensor([action_idx])
+            #torch.tensor([entropy])
         ))
         # print version
+        #print('Version after replay buffer {}'.format(state._version))
         if self.agent.replay_buffer.check_provide_samples(self.agent.batch_size):
             #print('Inside batch block')
             samples = self.agent.replay_buffer.sample(self.agent.batch_size)
-            lp, s, r, s_prime, entropy = extract_tensors(samples, 'sample')
-
+            s, r, s_prime, act = extract_tensors(samples, 'sample')
+            #print(r.size())
+            probs = self.agent.actor(s)
+            probs = probs + + 1e-8
+            dist = torch.distributions.Categorical(probs=probs)
+            lp = dist.log_prob(act)
+            entropy = dist.entropy()
             target = r.unsqueeze(1) + self.agent.discount_factor * self.agent.critic(s_prime)
             current = self.agent.critic(s)
             advantage = target - current
@@ -126,13 +135,19 @@ class Agent:
 
             critic_loss = advantage.pow(2).mean()
             actor_loss = torch.mean(-lp * advantage.detach() - self.agent.entropy * (
-                    self.agent.entropy_factor * entropy))
+                    self.agent.entropy_factor * entropy.clone()))
+            #actor_loss = torch.mean(-lp.clone() * advantage.detach())
 
+            # ----- for debug ------
+            #print('Initial version {}'.format(actor_loss._version))
             self.actor_optimizer.zero_grad()
             self.critic_optimizer.zero_grad()
+            #print('Version before backward call {}'.format(actor_loss._version))
             #with torch.autograd.detect_anomaly():
             actor_loss.backward()
             critic_loss.backward()
+
+            #print(actor_loss._version)
 
             self.actor_optimizer.step()
             self.critic_optimizer.step()
@@ -142,7 +157,7 @@ class Agent:
             self.agent.actor_loss.append({'time': time, 'loss': actor_loss.item()})
             self.agent.critic_loss.append({'time': time, 'loss': critic_loss.item()})
             self.agent.advantages.append({'time': time, 'advantage': advantage.detach().mean().numpy()})
-
+            self.agent.entropies.append({'time': time, 'entropy': entropy.detach().mean().numpy()})
 
     def train_ddqn_agent(self, time, dnn_model, episode_params, output):
         """

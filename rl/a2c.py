@@ -3,6 +3,7 @@ a2c.py
 
 Defines the RL agent running the A2C algorithm and its associated parameters to train or infer the RL algorithm
 """
+
 import numpy as np
 import random
 import math
@@ -20,12 +21,12 @@ class A2CAgent(DDQNAgent, nn.Module):
         nn.Module.__init__(self)
         self.actor = Actor(self.n_states, self.n_actions, self.scenario_params)
         self.critic = Critic(self.n_states, self.scenario_params)
-        self.dist = None
         self.entropy = self.scenario_params['entropy']
         self.entropy_factor = self.scenario_params['entropy_factor']
         self.actor_loss = []
         self.critic_loss = []
         self.advantages = []
+        self.entropies = []
 
 
     def load_model_a2c(self, episode_count):
@@ -40,14 +41,17 @@ class A2CAgent(DDQNAgent, nn.Module):
 
 
     def choose_action(self, playable_actions, state):
+        #print('before forward call {}'.format(state._version))
         probs = self.actor(state)
         #print(probs.shape)
-        self.dist = torch.distributions.Categorical(probs=probs)
+        #print('after forward call {}'.format(state._version))
+        #self.dist = torch.distributions.Categorical(probs=probs)
+        dist = torch.distributions.Categorical(probs=probs)
         if not self.scenario_params['inference']:
             if len(playable_actions) == 1:
                 action_idx = torch.tensor(0)
             else:
-                action_idx = self.dist.sample()
+                action_idx = dist.sample()
             #log_prob = self.dist.log_prob(action_idx)
             #selected_split_config = playable_actions[action_idx]
             #entropy = self.dist.entropy()
@@ -57,8 +61,8 @@ class A2CAgent(DDQNAgent, nn.Module):
             else:
                 action_idx = probs.argmax()
         selected_split_compression = playable_actions[action_idx]
-        log_prob = self.dist.log_prob(action_idx)
-        entropy = self.dist.entropy()
+        log_prob = dist.log_prob(action_idx)
+        entropy = dist.entropy()
 
         return selected_split_compression, action_idx, entropy, log_prob
 

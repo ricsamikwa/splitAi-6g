@@ -100,7 +100,7 @@ class Baseline:
     def fixed_split(self, allowed_splits, num_nodes, allow_empty_nodes, dnn_model, episode_params, output):
         split_idx = None
         self.split = [(0, 0, 6), (1, 6, 10), (2, 10, 14), (3, 14, 18)]
-        self.compression_rate = 1.0
+        self.compression_rate = 0.5
         feasible_splits, split_indices = enumerate_action_space(allowed_splits, num_nodes, allow_empty_nodes)
         if self.top1_accuracy_confidence is None:
             # compute the top1 accuracy confidence for the default action
@@ -121,7 +121,7 @@ class Baseline:
     def ue_computation_only(self, allowed_splits, num_nodes, allow_empty_nodes, dnn_model, episode_params, output):
         split_idx = None
         self.split = [(0, 0, 18), (1, 18, 18), (2, 18, 18), (3, 18, 18)]
-        self.compression_rate = 1.0
+        self.compression_rate = 0.5
         feasible_splits, split_indices = enumerate_action_space(allowed_splits, num_nodes, allow_empty_nodes)
         if self.top1_accuracy_confidence is None:
             # compute the top1 accuracy confidence for the default action

@@ -85,6 +85,8 @@ def write_logs(scenario_params, episode, data, model):
             writeToCsv(model.agent.advantages, filename, folder)
             filename = 'reward/reward_ep{}'.format(episode_count)
             writeToCsv(model.agent.reward, filename, folder)
+            filename = 'entropy/entropy_ep{}'.format(episode_count)
+            writeToCsv(model.agent.entropies, filename, folder)
 
 
 def logKPIs(data, kpi_type, episode_count, folder):

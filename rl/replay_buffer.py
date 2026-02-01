@@ -29,7 +29,7 @@ class ReplayBuffer:
 
 Experience = namedtuple('Experience', ('state', 'action', 'next_state', 'reward'))
 
-Sample = namedtuple('Sample', ('log_prob', 'state_value', 'reward', 'next_state_value', 'entropy'))
+Sample = namedtuple('Sample', ('state_value', 'reward', 'next_state_value', 'action'))
 
 
 
@@ -43,12 +43,13 @@ def extract_tensors(data, type):
         return t1, t2, t3, t4
     else:
         batch = Sample(*zip(*data))
-        t1 = torch.stack(batch.log_prob, dim=0)
+        #t1 = torch.stack(batch.log_prob, dim=0)
         t2 = torch.stack(batch.state_value, dim=0)
         t3 = torch.cat(batch.reward)
         t4 = torch.stack(batch.next_state_value, dim=0)
-        t5 = torch.cat(batch.entropy)
-        return t1, t2, t3, t4, t5
+        #t5 = torch.cat(batch.entropy)
+        t6 = torch.cat(batch.action)
+        return t2, t3, t4, t6
 
 
 
