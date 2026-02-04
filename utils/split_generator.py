@@ -33,7 +33,7 @@ class Baseline:
             self.split = [(0, 0, 6), (1, 6, 10), (2, 10, 14), (3, 14, 18)]
         else:
             self.split = [(0, 0, 18), (1, 18, 18), (2, 18, 18), (3, 18, 18)]
-        self.compression_rate = 1.0  # set default compression rate to 1.0
+        self.compression_rate = 0.25  # set default compression rate to 1.0
         # full default action
         self.split_compression_action = {'split': self.split, 'compression': self.compression_rate}
         self.top1_accuracy_confidence = None  # set the top1 accuracy confidence to None
@@ -56,6 +56,7 @@ class Baseline:
             list: A list of tuples (node_id, start_layer, end_layer) for each node.
         """
         split_idx = None
+        #self.compression_rate = np.random.choice(self.scenario_params['compression_rates'])
         # first determine the top1 accuracy confidence for the default split ONLY for the first instance
         if self.top1_accuracy_confidence is None:
             # compute the top1 accuracy confidence for the default action
@@ -72,6 +73,7 @@ class Baseline:
         idx = np.random.randint(len(feasible_split_compression))
 
         selected_split_compression = feasible_split_compression[idx]
+        #print(selected_split_compression)
         # compute the flops to be offloaded due to this selected split
         selected_split = selected_split_compression['split']
         selected_compression = selected_split_compression['compression']
@@ -82,7 +84,7 @@ class Baseline:
         energy_credit_criteria, energy_credit_consumed = self.check_energy_credit_budget(flops_offloaded)
         latency_criteria = self.check_latency_criteria(inference_time)
         accuracy_criteria = self.check_accuracy_confidence_criteria(out)
-        # if both criteria are satisfied, then selected_split is the final split, else do nothing
+        # if both criteria are satisfied, then selected_split is the final split, else do nothing or continue with default split
         if energy_credit_criteria and latency_criteria and accuracy_criteria:
             self.split = selected_split
             self.compression_rate = selected_compression

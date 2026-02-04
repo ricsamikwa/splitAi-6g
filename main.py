@@ -85,6 +85,7 @@ for ep in range(start_episode, scenario_params['n_episodes'] + 1):
     energy_credit_consumed_per_episode = []
     split_config_per_episode = []
     split_config_idx_per_episode = []
+    compression_rate_per_episode = []
     top1_accuracy_per_episode = []
     top5_accuracy_per_episode = []
     # ------------------------------
@@ -241,6 +242,7 @@ for ep in range(start_episode, scenario_params['n_episodes'] + 1):
         ue_energy_comm_per_episode.append({'time_step': k, 'ue_energy_comm': ue_energy_comm})
         split_config_per_episode.append({'time_step': k, 'split': split_config})
         split_config_idx_per_episode.append({'time_step': k, 'split_idx': split_config_idx})
+        compression_rate_per_episode.append({'time_step': k, 'compression_rate': compression_rate})
         if scenario_params['split_algorithm'] == 3: # optimum case
             energy_credit_consumed_per_episode.append({'time_step': k, 'energy_credit': opt.energy_credit_consumed})
             flops_offloaded_per_episode.append({'time_step': k, 'flops_off': opt.flops_offloaded})
@@ -291,6 +293,7 @@ for ep in range(start_episode, scenario_params['n_episodes'] + 1):
             'y_net': total_flops_offloaded_per_episode, 'y_ue': total_flops_on_ue_per_episode,
             'energy_credit': energy_credit_consumed_per_episode, 'flops_off': flops_offloaded_per_episode,
             'split': split_config_per_episode, 'split_idx': split_config_idx_per_episode,
+            'compression': compression_rate_per_episode,
             'top1': top1_accuracy_per_episode, 'top5': top5_accuracy_per_episode}
     write_logs(scenario_params, ep, data, agent)
     # --------------------------------------

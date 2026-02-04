@@ -130,6 +130,7 @@ class Agent:
             target = r.unsqueeze(1) + self.agent.discount_factor * self.agent.critic(s_prime)
             current = self.agent.critic(s)
             advantage = target - current
+            #advantage = (advantage - advantage.mean()) / (advantage.std() + 1e-8)
             lp = lp.unsqueeze(1)
             entropy = entropy.unsqueeze(1)
 

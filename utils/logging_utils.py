@@ -40,6 +40,9 @@ def write_logs(scenario_params, episode, data, model):
     # split config idx
     filename = 'splits/{}_{}'.format('split_idx', episode_count)
     writeToCsv(data['split_idx'], filename, folder)
+    # compression rate
+    filename = 'splits/compression_{}'.format(episode_count)
+    writeToCsv(data['compression'], filename, folder)
     # top 1 accuracy
     filename = 'system/{}_{}'.format('top1', episode_count)
     writeToCsv(data['top1'], filename, folder)
@@ -52,9 +55,6 @@ def write_logs(scenario_params, episode, data, model):
     filename = 'system/{}_{}'.format('flops_off', episode_count)
     writeToCsv(data['flops_off'], filename, folder)
     if scenario_params['split_algorithm'] == 2:     # for rl algorithm
-        # compression rate
-        filename = 'splits/compression_{}'.format(episode_count)
-        writeToCsv(model.agent.selected_compression_rate, filename, folder)
         # success rate
         #filename = 'system/{}_{}'.format('success_rate', episode_count)
         #writeToCsv(data['success_rate'], filename, folder)
