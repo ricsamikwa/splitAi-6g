@@ -12,10 +12,8 @@ custom_state = custom_model.state_dict()
 # -----------------------
 # 2. Load pretrained torchvision VGG16
 # -----------------------
-# torchvision_model = torch.hub.load('pytorch/vision:v0.9.0', 'vgg16_bn', pretrained=True)
-
 torchvision_model = vgg16_bn(weights=VGG16_BN_Weights.DEFAULT)
-
+# torchvision_model = torch.hub.load('pytorch/vision:v0.9.0', 'vgg16_bn', pretrained=True)
 pretrained_state = torchvision_model.state_dict()
 
 # -----------------------
