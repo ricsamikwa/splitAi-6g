@@ -325,7 +325,7 @@ class DDQNAgent(nn.Module):
 
 
 class QValues:
-    device = torch.device('cuda0' if torch.cuda.is_available() else 'cpu')
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     @staticmethod
     def get_current(policy_net, states, actions):
