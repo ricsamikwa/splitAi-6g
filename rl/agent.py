@@ -123,7 +123,7 @@ class Agent:
             s, r, s_prime, act = extract_tensors(samples, 'sample')
             #print(r.size())
             probs = self.agent.actor(s)
-            probs = probs + + 1e-8
+            probs = probs + 1e-8
             dist = torch.distributions.Categorical(probs=probs)
             lp = dist.log_prob(act)
             entropy = dist.entropy()

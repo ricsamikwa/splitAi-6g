@@ -41,8 +41,8 @@ def generate_params(num_nodes):
     flops_per_cycle = np.random.uniform(5.0, 9.0, num_nodes - 1)
     #flops_per_cycle = [7.0 for _ in range(num_nodes - 1)]
     # 2000 MB/s is the default setting
-    bandwidth = np.random.uniform(500, 5000, num_nodes - 1) # MB/s (net-to-net), change the max value as needed
-    #bandwidth = [500 for _ in range(num_nodes - 1)]
+    #bandwidth = np.random.uniform(500, 5000, num_nodes - 1) # MB/s (net-to-net), change the max value as needed
+    bandwidth = [400 for _ in range(num_nodes - 1)]
 
     return ue_freq, ue_flops_per_cycle, ue_bandwidth, freqs, flops_per_cycle, bandwidth
 

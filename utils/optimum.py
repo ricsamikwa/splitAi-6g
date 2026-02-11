@@ -61,7 +61,9 @@ class Opt:
             # compute the inference due to this selected split and compression
             inference_time, ue_en_comp, ue_en_comm, out = compute_inference(split, dnn_model, episode_params, output,
                                                                             compression_rate)
-            optimization = (self.scenario_params['weight_inference_time'] * inference_time) + ((1 - self.scenario_params['weight_inference_time']) * (ue_en_comp + ue_en_comm))
+            optimization = ((self.scenario_params['weight_inference_time'] * inference_time) +
+                            ((1 - self.scenario_params['weight_inference_time']) * (ue_en_comp + ue_en_comm))
+                            - self.top1_accuracy_confidence)
             evaluations[i] = optimization
             # for each evaluated optimization, check if constraints are satisfied
             energy_credit_criteria, energy_credit_consumed = self.check_energy_credit_budget(flops_to_be_offloaded)
