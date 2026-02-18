@@ -38,8 +38,8 @@ class DDQNAgent(nn.Module):
             if v == self.split_config:
                 self.split_idx = k
                 break
-        # set default compression rate to 1.0
-        self.compression_rate = 1.0
+        # set default compression rate to 0.5
+        self.compression_rate = 0.5
         # full default action
         self.split_compression_action = {'split': self.split_config, 'compression': self.compression_rate}
         # set the top1 accuracy confidence to None
@@ -64,7 +64,6 @@ class DDQNAgent(nn.Module):
         self.reward = []
         self.reward_counter = 0 # to compute running average of the rewards
         self.cumulative_reward = 0
-        self.selected_compression_rate = []
         self.epsilon = None
         self.epsilon_ini = self.scenario_params['epsilon_ini']
         self.epsilon_step_percent = self.scenario_params['epsilon_step_percent']
@@ -141,7 +140,6 @@ class DDQNAgent(nn.Module):
             idx = idx + 1
         # finally, the energy credit consumed
         state[idx] = self.energy_credit_consumed
-        idx = idx + 1
         state = torch.Tensor(state)
         #print(state)
         return state
@@ -175,6 +173,8 @@ class DDQNAgent(nn.Module):
         # extract the selected split and compression
         selected_split_config = selected_split_config_compression['split']
         selected_compression = selected_split_config_compression['compression']
+        #print(self.split_config)
+        #print(self.compression_rate)
         # update the logging variable
         self.n_attempts_to_split += 1
         # for the selected split config (or action)
@@ -195,9 +195,11 @@ class DDQNAgent(nn.Module):
         # if no, then ue cannot offload any layers to the network, computes everything on its own,
         # mark it as "unsuccessful", recompute inference time and ue energy for the fallback option
         if energy_credit_criteria and latency_criteria and accuracy_criteria:
+            #print('here')
             # selected split config satisfies constraints
             self.split_config = selected_split_config
             self.compression_rate = selected_compression
+            self.split_compression_action = {'split': self.split_config, 'compression': self.compression_rate}
             self.success = 1
             self.n_success += 1
             self.flops_offloaded = flops_to_be_offloaded
@@ -213,23 +215,33 @@ class DDQNAgent(nn.Module):
             # selected_split_config = [(0, 0, 18), (1, 18, 18), (2, 18, 18), (3, 18, 18)]
             # recompute the inference due to the split config & compression rate from the previous iteration,
             # no need to update anything else
-            inference_time, ue_en_comp, ue_en_comm, _ = compute_inference(self.split_config, dnn_model,
+            #if self.compression_rate < selected_compression:
+            #    self.compression_rate = selected_compression
+            inference_time, ue_en_comp, ue_en_comm, expected_output = compute_inference(self.split_config, dnn_model,
                                                                           episode_params,
                                                                           output, self.compression_rate)
+            # update split compression action
+            self.split_compression_action = {'split': self.split_config, 'compression': self.compression_rate}
             # the flops on ue due to this selected split is the total flops
             #flops_on_ue = self.total_flops
         # # update the total flops on ue
         # self.total_flops_on_ue += flops_on_ue
         #print('flops on ue {}, total flops on ue {}'.format(flops_on_ue, self.total_flops_on_ue))
         #print('flops offloaded {} total flops offloaded {}'.format(flops_to_be_offloaded, self.total_flops_offloaded))
-        return inference_time, ue_en_comp, ue_en_comm
+        # extract the index of the final (performed) split
+        for k, v in self.split_indices.items():
+            if v == self.split_config:
+                self.split_idx = k
+                break
+        # update the top1 accuracy confidence
+        self.top1_accuracy_confidence = self.return_top1_accuracy_confidence(expected_output)
+        return inference_time, ue_en_comp, ue_en_comm, expected_output
 
 
-    def get_instant_reward(self, inference_time, ue_energy_comp, ue_energy_comm):
-        #optimization = inference_time + ue_energy_comp + ue_energy_comm
-        #optimization = inference_time + ue_energy_comm
+    def get_instant_reward(self, inference_time, ue_energy_comp, ue_energy_comm, out):
+        top1_accuracy_conf = self.return_top1_accuracy_confidence(out)
         optimization = (self.scenario_params['weight_inference_time'] * inference_time) + (
-                    (1 - self.scenario_params['weight_inference_time']) * (ue_energy_comp + ue_energy_comm))
+                    (1 - self.scenario_params['weight_inference_time']) * (ue_energy_comp + ue_energy_comm)) - (self.scenario_params['weight_accuracy'] * top1_accuracy_conf)
         reward_1 = 1 / optimization
         reward_2 = math.pow(2, (1 / optimization))
         # original reward
@@ -282,7 +294,7 @@ class DDQNAgent(nn.Module):
         # first check if the new accuracy confidence is less than the previous one
         if top1_acc_confidence < self.top1_accuracy_confidence:
             # then check if the difference is within the desired percentage decrease
-            if self.top1_accuracy_confidence - top1_acc_confidence <= self.scenario_params['accuracy_decrease']:
+            if abs(self.top1_accuracy_confidence - top1_acc_confidence) <= self.scenario_params['accuracy_decrease']:
                 return True
             else:
                 return False

@@ -50,6 +50,7 @@ class Opt:
         num_feasible_split_compression = len(feasible_split_compression)
         evaluations = [0 for _ in range(num_feasible_split_compression)]   # stores the optimization evaluation
         constraints_satisfied = [False for _ in range(num_feasible_split_compression)] # stores if constraints are satisfied
+        top1_acc_confidences = [0 for _ in range(num_feasible_split_compression)]   # stores the top1 acc confidence for each action
         # for each feasible split and compression combination, compute the optimization and store it in a list
         # and check if constraints are satisfied, store the result in a list
         for i, split_compression in enumerate(feasible_split_compression):
@@ -61,9 +62,11 @@ class Opt:
             # compute the inference due to this selected split and compression
             inference_time, ue_en_comp, ue_en_comm, out = compute_inference(split, dnn_model, episode_params, output,
                                                                             compression_rate)
+            top1_accuracy_conf = self.return_top1_accuracy_confidence(out)
+            top1_acc_confidences[i] = top1_accuracy_conf
             optimization = ((self.scenario_params['weight_inference_time'] * inference_time) +
                             ((1 - self.scenario_params['weight_inference_time']) * (ue_en_comp + ue_en_comm))
-                            - self.top1_accuracy_confidence)
+                            - (self.scenario_params['weight_accuracy'] * top1_accuracy_conf))
             evaluations[i] = optimization
             # for each evaluated optimization, check if constraints are satisfied
             energy_credit_criteria, energy_credit_consumed = self.check_energy_credit_budget(flops_to_be_offloaded)
@@ -101,26 +104,22 @@ class Opt:
             # also update the energy credit consumed
             energy_credit_criteria, energy_credit_consumed = self.check_energy_credit_budget(flops_offloaded)
             self.total_flops_on_ue += flops_on_ue
-            if energy_credit_criteria:  # update only when the offloading criteria is satisfied, else previous value remains
+            if energy_credit_criteria:  # update these system variables only when the offloading criteria is satisfied, else previous value remains
                 self.energy_credit_consumed = energy_credit_consumed
                 self.total_flops_offloaded += flops_offloaded
-                self.flops_offloaded =flops_offloaded
+                self.flops_offloaded = flops_offloaded
             else:
                 self.flops_offloaded = 0.0
-                #self.total_flops_on_ue += flops_on_ue
-            # however, if none of the feasible splits satisfies the constraints, go to fallback option
-            #if True not in constraints_satisfied:
-            #    best_split = [(0, 0, 18), (1, 18, 18), (2, 18, 18), (3, 18, 18)]
-            #    print('No feasible solution found - ue computes everything')
-            #    # the flops on ue due to this selected split is the total flops
-            #    flops_on_ue = self.total_flops
-            #    self.total_flops_on_ue += flops_on_ue
             self.opt_split = best_split_compression['split']
             self.compression_rate = best_split_compression['compression']
             # extract index of split config
             for k, v in split_indices.items():
                 if v == self.opt_split:
                     split_idx = k
+            # extract the top1 accuracy confidence for the best split
+            self.top1_accuracy_confidence = top1_acc_confidences[min_idx]
+            ## update the top1 accuracy confidence
+            #self.top1_accuracy_confidence = self.return_top1_accuracy_confidence(expected_output)
             return self.opt_split, self.compression_rate, split_idx
 
     def get_flops_offloaded(self, selected_split_config, allowed_splits_blocks):

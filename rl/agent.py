@@ -67,6 +67,8 @@ class Agent:
         Returns:
             The final split config to be used for inference.
         """
+        action = None
+        action_idx = None
         self.episode_count = episode_count
         # define the agent attributes
         self.define_agent_attributes()
@@ -74,31 +76,24 @@ class Agent:
         if not self.scenario_params['inference']:
             # train the agent based on the type of algorithm to run
             if self.agent_type == 'ddqn':
-                self.train_ddqn_agent(time, dnn_model, episode_params, output)
+                action, action_idx = self.train_ddqn_agent(time, dnn_model, episode_params, output)
             else:
-                self.train_a2c_agent(time, dnn_model, episode_params, output)
-        return self.agent.split_config, self.agent.compression_rate, self.agent.split_idx
+                action, action_idx = self.train_a2c_agent(time, dnn_model, episode_params, output)
+        return action['split'], action['compression'], action_idx
 
     def train_a2c_agent(self, time, dnn_model, episode_params, output):
         # state is a vector, while log probs, rewards actions and entropies are scalars
         state = self.agent.get_agent_state(episode_params, self.flops_per_block)
         state_cloned = state.clone()
         action, action_idx, _, _ = self.agent.choose_action(self.action_space, state_cloned)
-        inference_time, ue_en_comp, ue_en_comm = self.agent.perform_action(action, self.allowed_splits_blocks,
+        inference_time, ue_en_comp, ue_en_comm, out = self.agent.perform_action(action, self.allowed_splits_blocks,
                                                                            dnn_model, episode_params, output)
-        # extract index of full action
+        # extract index of full action that was SELECTED
         for k, v in self.action_indices.items():
-            if v == self.agent.split_compression_action:
+            if v == action:
                 action_idx = k
                 break
-        # extract index of split config
-        for k, v in self.agent.split_indices.items():
-            if v == action['split']:
-                self.agent.split_idx = k
-                break
-        # log the selected compression rate
-        self.agent.selected_compression_rate.append({'time': time, 'compression': action['compression']})
-        reward = self.agent.get_instant_reward(inference_time, ue_en_comp, ue_en_comm)
+        reward = self.agent.get_instant_reward(inference_time, ue_en_comp, ue_en_comm, out)
         # log the reward
         self.agent.reward.append({'time': time, 'reward': reward})
         # update reward counter and compute cumulative average
@@ -159,6 +154,7 @@ class Agent:
             self.agent.critic_loss.append({'time': time, 'loss': critic_loss.item()})
             self.agent.advantages.append({'time': time, 'advantage': advantage.detach().mean().numpy()})
             self.agent.entropies.append({'time': time, 'entropy': entropy.detach().mean().numpy()})
+        return action, action_idx
 
     def train_ddqn_agent(self, time, dnn_model, episode_params, output):
         """
@@ -175,24 +171,21 @@ class Agent:
         action_idx = None
         state = self.agent.get_agent_state(episode_params, self.flops_per_block)
         action = self.agent.choose_action(self.action_space, state)
+        # debug
+        #print('action selected {}'.format(action))
         # this function also checks and returns the feasible action
-        inference_time, ue_en_comp, ue_en_comm = self.agent.perform_action(action, self.allowed_splits_blocks,
+        inference_time, ue_en_comp, ue_en_comm, out = self.agent.perform_action(action, self.allowed_splits_blocks,
                                                                            dnn_model, episode_params, output)
-        # extract index of full action
+        # debug
+        #print('action performed {}'.format(self.agent.split_compression_action))
+        # extract index of full action that was SELECTED
         for k, v in self.action_indices.items():
-            if v == self.agent.split_compression_action:
+            if v == action:
                 action_idx = k
                 break
-        # extract index of split config
-        for k, v in self.agent.split_indices.items():
-            if v == action['split']:
-                self.agent.split_idx = k
-                break
-        # log the selected compression rate
-        self.agent.selected_compression_rate.append({'time': time, 'compression': action['compression']})
         #print('Split config {}, success {}, n_success {}'.format(action, self.agent.success, self.agent.n_success))
         #print()
-        reward = self.agent.get_instant_reward(inference_time, ue_en_comp, ue_en_comm)
+        reward = self.agent.get_instant_reward(inference_time, ue_en_comp, ue_en_comm, out)
         # log the reward
         self.agent.reward.append({'time': time, 'reward': reward})
         # update reward counter and compute cumulative average
@@ -235,6 +228,8 @@ class Agent:
             if not self.agent.loss_counter % 50:
                 print('Loss {}'.format(loss.item()))
             self.agent.loss.append({'time': time, 'loss': loss.item()})
+
+        return action, action_idx
 
     def define_agent_attributes(self):
         """

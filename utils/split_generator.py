@@ -33,7 +33,7 @@ class Baseline:
             self.split = [(0, 0, 6), (1, 6, 10), (2, 10, 14), (3, 14, 18)]
         else:
             self.split = [(0, 0, 18), (1, 18, 18), (2, 18, 18), (3, 18, 18)]
-        self.compression_rate = 0.25  # set default compression rate to 1.0
+        self.compression_rate = 0.25  # set default compression rate to 0.25
         # full default action
         self.split_compression_action = {'split': self.split, 'compression': self.compression_rate}
         self.top1_accuracy_confidence = None  # set the top1 accuracy confidence to None
