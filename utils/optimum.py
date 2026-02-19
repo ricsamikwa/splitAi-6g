@@ -186,7 +186,7 @@ class Opt:
         # first check if the new accuracy confidence is less than the previous one
         if top1_acc_confidence < self.top1_accuracy_confidence:
             # then check if the difference is within the desired percentage decrease
-            if self.top1_accuracy_confidence - top1_acc_confidence <= self.scenario_params['accuracy_decrease']:
+            if (self.top1_accuracy_confidence - top1_acc_confidence) <= (self.scenario_params['accuracy_decrease']/100):
                 return True
             else:
                 return False
