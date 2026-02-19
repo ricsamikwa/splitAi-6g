@@ -71,7 +71,7 @@ class Opt:
             # for each evaluated optimization, check if constraints are satisfied
             energy_credit_criteria, energy_credit_consumed = self.check_energy_credit_budget(flops_to_be_offloaded)
             latency_criteria = self.check_latency_criteria(inference_time)
-            accuracy_criteria = self.check_accuracy_confidence_criteria(out)
+            accuracy_criteria = self.check_accuracy_confidence_criteria(top1_accuracy_conf)
             if energy_credit_criteria and latency_criteria and accuracy_criteria:
                 constraints_satisfied[i] = True
             else:
@@ -182,8 +182,7 @@ class Opt:
         else:
             return False
 
-    def check_accuracy_confidence_criteria(self, out):
-        top1_acc_confidence = self.return_top1_accuracy_confidence(out)
+    def check_accuracy_confidence_criteria(self, top1_acc_confidence):
         # first check if the new accuracy confidence is less than the previous one
         if top1_acc_confidence < self.top1_accuracy_confidence:
             # then check if the difference is within the desired percentage decrease
