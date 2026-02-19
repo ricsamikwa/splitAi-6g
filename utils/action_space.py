@@ -1,6 +1,7 @@
 from itertools import product, combinations
 from utils.scenario_generator import generate_scenario
 import numpy as np
+import os
 
 def enumerate_action_space(allowed_splits, num_nodes, allow_empty_nodes=True):
     """
@@ -75,11 +76,16 @@ def extended_action_space(splits, compression_rates):
     """
     full_action_space = []
     action_indices_full = {}
+    ue_only_split = [(0, 0, 18), (1, 18, 18), (2, 18, 18), (3, 18, 18)]
     # extended action space, where each action is in the format:
     # action = {'split': selected_split_config, 'compression': compression_rate}
     for selected_split_config in splits:
         for compression in compression_rates:
-            full_action_space.append({'split': selected_split_config, 'compression': compression})
+            # in case of ue only computation, select only 1.0 for the value of rho
+            if selected_split_config == ue_only_split and compression < 1.0:
+                continue
+            else:
+                full_action_space.append({'split': selected_split_config, 'compression': compression})
 
     for idx, action in enumerate(full_action_space):
         #print(a)
@@ -89,22 +95,24 @@ def extended_action_space(splits, compression_rates):
 
 #Sample usage:
 if __name__ == "__main__":
+    path_parent = os.path.dirname(os.getcwd())
+    os.chdir(path_parent)
     params = generate_scenario()
     compression_rate_list = params['compression_rates']
     allowed_splits = [0, 3, 6, 10, 14, 18]
     num_nodes = 4
     all_actions, action_indices = enumerate_action_space(allowed_splits, num_nodes, allow_empty_nodes=True)
-    print(f"Total actions: {len(all_actions)}")
+    #print(f"Total actions: {len(all_actions)}")
     for i, a in enumerate(all_actions):
         print(a)
         action_indices[i] = a
-    print(all_actions[26])
-    print(action_indices)
+    #print(all_actions[26])
+    #print(action_indices)
     act = [(0, 0, 3), (1, 3, 3), (2, 3, 6), (3, 6, 18)]
     for k, v in action_indices.items():
         if v == act:
             print(k)
-    action_space = extended_action_space(all_actions, compression_rate_list)
-    #print(action_space)
-    #print(len(action_space))
+    action_space, _ = extended_action_space(all_actions, compression_rate_list)
+    print(action_space)
+    print(len(action_space))
 

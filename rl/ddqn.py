@@ -38,8 +38,8 @@ class DDQNAgent(nn.Module):
             if v == self.split_config:
                 self.split_idx = k
                 break
-        # set default compression rate to 0.5
-        self.compression_rate = 0.5
+        # set default compression rate to 1.0 (as everything is computed by the ue)
+        self.compression_rate = 1.0
         # full default action
         self.split_compression_action = {'split': self.split_config, 'compression': self.compression_rate}
         # set the top1 accuracy confidence to None
@@ -199,7 +199,6 @@ class DDQNAgent(nn.Module):
             # selected split config satisfies constraints
             self.split_config = selected_split_config
             self.compression_rate = selected_compression
-            self.split_compression_action = {'split': self.split_config, 'compression': self.compression_rate}
             self.success = 1
             self.n_success += 1
             self.flops_offloaded = flops_to_be_offloaded
@@ -220,8 +219,8 @@ class DDQNAgent(nn.Module):
             inference_time, ue_en_comp, ue_en_comm, expected_output = compute_inference(self.split_config, dnn_model,
                                                                           episode_params,
                                                                           output, self.compression_rate)
-            # update split compression action
-            self.split_compression_action = {'split': self.split_config, 'compression': self.compression_rate}
+        # update split compression action
+        self.split_compression_action = {'split': self.split_config, 'compression': self.compression_rate}
             # the flops on ue due to this selected split is the total flops
             #flops_on_ue = self.total_flops
         # # update the total flops on ue
@@ -235,11 +234,10 @@ class DDQNAgent(nn.Module):
                 break
         # update the top1 accuracy confidence
         self.top1_accuracy_confidence = self.return_top1_accuracy_confidence(expected_output)
-        return inference_time, ue_en_comp, ue_en_comm, expected_output
+        return inference_time, ue_en_comp, ue_en_comm, self.top1_accuracy_confidence
 
 
-    def get_instant_reward(self, inference_time, ue_energy_comp, ue_energy_comm, out):
-        top1_accuracy_conf = self.return_top1_accuracy_confidence(out)
+    def get_instant_reward(self, inference_time, ue_energy_comp, ue_energy_comm, top1_accuracy_conf):
         optimization = (self.scenario_params['weight_inference_time'] * inference_time) + (
                     (1 - self.scenario_params['weight_inference_time']) * (ue_energy_comp + ue_energy_comm)) - (self.scenario_params['weight_accuracy'] * top1_accuracy_conf)
         reward_1 = 1 / optimization

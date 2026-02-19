@@ -86,14 +86,14 @@ class Agent:
         state = self.agent.get_agent_state(episode_params, self.flops_per_block)
         state_cloned = state.clone()
         action, action_idx, _, _ = self.agent.choose_action(self.action_space, state_cloned)
-        inference_time, ue_en_comp, ue_en_comm, out = self.agent.perform_action(action, self.allowed_splits_blocks,
+        inference_time, ue_en_comp, ue_en_comm, top1_acc_conf = self.agent.perform_action(action, self.allowed_splits_blocks,
                                                                            dnn_model, episode_params, output)
         # extract index of full action that was SELECTED
         for k, v in self.action_indices.items():
             if v == action:
                 action_idx = k
                 break
-        reward = self.agent.get_instant_reward(inference_time, ue_en_comp, ue_en_comm, out)
+        reward = self.agent.get_instant_reward(inference_time, ue_en_comp, ue_en_comm, top1_acc_conf)
         # log the reward
         self.agent.reward.append({'time': time, 'reward': reward})
         # update reward counter and compute cumulative average
@@ -174,7 +174,7 @@ class Agent:
         # debug
         #print('action selected {}'.format(action))
         # this function also checks and returns the feasible action
-        inference_time, ue_en_comp, ue_en_comm, out = self.agent.perform_action(action, self.allowed_splits_blocks,
+        inference_time, ue_en_comp, ue_en_comm, top1_acc_conf = self.agent.perform_action(action, self.allowed_splits_blocks,
                                                                            dnn_model, episode_params, output)
         # debug
         #print('action performed {}'.format(self.agent.split_compression_action))
@@ -185,7 +185,7 @@ class Agent:
                 break
         #print('Split config {}, success {}, n_success {}'.format(action, self.agent.success, self.agent.n_success))
         #print()
-        reward = self.agent.get_instant_reward(inference_time, ue_en_comp, ue_en_comm, out)
+        reward = self.agent.get_instant_reward(inference_time, ue_en_comp, ue_en_comm, top1_acc_conf)
         # log the reward
         self.agent.reward.append({'time': time, 'reward': reward})
         # update reward counter and compute cumulative average
