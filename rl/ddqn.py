@@ -165,7 +165,7 @@ class DDQNAgent(nn.Module):
     def perform_action(self, selected_split_config_compression, allowed_splits_blocks, dnn_model, episode_params, output):
         # first determine the top1 accuracy confidence for the default split ONLY for the first instance
         if self.top1_accuracy_confidence is None:
-            # compute the top1 accuracy confidence for the default action
+            # compute the top1 accuracy confidence for the default (first) action
             inference_time, ue_en_comp, ue_en_comm, expected_output = compute_inference(self.split_config, dnn_model,
                                                                                         episode_params,
                                                                                         output, self.compression_rate)
@@ -185,12 +185,14 @@ class DDQNAgent(nn.Module):
         inference_time, ue_en_comp, ue_en_comm, expected_output = compute_inference(selected_split_config, dnn_model,
                                                                                     episode_params,
                                                                       output, selected_compression)
+        # compute the top1 accuracy confidence only once
+        top1_acc_confidence = self.return_top1_accuracy_confidence(expected_output)
         # check 1) if the energy credit budget is satisfied based on the flops to be offloaded,
         # then check 2) if inference latency is below the allowed limit,
         # finally, check 3) if accuracy confidence does not decrease below accuracy_decrease %
         energy_credit_criteria, energy_credit_consumed = self.check_energy_credit_budget(flops_to_be_offloaded)
         latency_criteria = self.check_latency_criteria(inference_time)
-        accuracy_criteria = self.check_accuracy_confidence_criteria(expected_output)
+        accuracy_criteria = self.check_accuracy_confidence_criteria(top1_acc_confidence)
         # if yes, then "perform" the split, mark it as a "successful" split, update the flops offloaded
         # if no, then ue cannot offload any layers to the network, computes everything on its own,
         # mark it as "unsuccessful", recompute inference time and ue energy for the fallback option
@@ -207,18 +209,20 @@ class DDQNAgent(nn.Module):
             self.total_flops_on_ue += flops_on_ue
             # energy credit consumed needs to be updated only when the ue offloads some layers to the network
             self.energy_credit_consumed = energy_credit_consumed
+            # update the top1 accuracy confidence
+            self.top1_accuracy_confidence = top1_acc_confidence
         else:
             self.success = -1   # do nothing, retain previous split
             self.flops_offloaded = 0.0    # as previous split is retained, flops offloaded is zero
             # goto fallback option for agent, ue computes everything, no layers offloaded to network
             # selected_split_config = [(0, 0, 18), (1, 18, 18), (2, 18, 18), (3, 18, 18)]
             # recompute the inference due to the split config & compression rate from the previous iteration,
-            # no need to update anything else
-            #if self.compression_rate < selected_compression:
-            #    self.compression_rate = selected_compression
-            inference_time, ue_en_comp, ue_en_comm, expected_output = compute_inference(self.split_config, dnn_model,
+            # no need to update anything else (previous top1 accuracy confidence value remains)
+            inference_time, ue_en_comp, ue_en_comm, _ = compute_inference(self.split_config, dnn_model,
                                                                           episode_params,
                                                                           output, self.compression_rate)
+            # update the top1 accuracy confidence for the unchanged split
+            #self.top1_accuracy_confidence = self.return_top1_accuracy_confidence(expected_output)
         # update split compression action
         self.split_compression_action = {'split': self.split_config, 'compression': self.compression_rate}
             # the flops on ue due to this selected split is the total flops
@@ -232,8 +236,6 @@ class DDQNAgent(nn.Module):
             if v == self.split_config:
                 self.split_idx = k
                 break
-        # update the top1 accuracy confidence
-        self.top1_accuracy_confidence = self.return_top1_accuracy_confidence(expected_output)
         return inference_time, ue_en_comp, ue_en_comm, self.top1_accuracy_confidence
 
 
@@ -242,6 +244,7 @@ class DDQNAgent(nn.Module):
                     (1 - self.scenario_params['weight_inference_time']) * (ue_energy_comp + ue_energy_comm)) - (self.scenario_params['weight_accuracy'] * top1_accuracy_conf)
         reward_1 = 1 / optimization
         reward_2 = math.pow(2, (1 / optimization))
+        reward_3 = 1 / (optimization ** 2)
         # original reward
         reward = math.pow(10, (1 / optimization))
         #print('reward {}'.format(reward))
@@ -287,12 +290,11 @@ class DDQNAgent(nn.Module):
         else:
             return False
 
-    def check_accuracy_confidence_criteria(self, out):
-        top1_acc_confidence = self.return_top1_accuracy_confidence(out)
+    def check_accuracy_confidence_criteria(self, top1_acc_confidence):
         # first check if the new accuracy confidence is less than the previous one
         if top1_acc_confidence < self.top1_accuracy_confidence:
             # then check if the difference is within the desired percentage decrease
-            if abs(self.top1_accuracy_confidence - top1_acc_confidence) <= self.scenario_params['accuracy_decrease']:
+            if (self.top1_accuracy_confidence - top1_acc_confidence) <= (self.scenario_params['accuracy_decrease']/100):
                 return True
             else:
                 return False

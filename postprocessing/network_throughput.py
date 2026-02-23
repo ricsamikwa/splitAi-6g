@@ -196,7 +196,7 @@ def plot_kpis_vs_max_throughput(df_all_inference_time, df_all_ue_energy_comp, df
     #print(sum_ue_energy_per_deadline_opt)
 
     # sum energy
-    ax.plot(max_throughput_list, sum_ue_energy_per_deadline_opt, color='#072140', marker='o', label='opt')
+    #ax.plot(max_throughput_list, sum_ue_energy_per_deadline_opt, color='#072140', marker='o', label='opt')
     #ax.plot(max_throughput_list, sum_ue_energy_per_deadline_ddqn, color='#165DB1', marker='o', label='ddqn')
     #ax.plot(max_throughput_list, sum_ue_energy_per_deadline_random, color='#9ABCE4', marker='o', label='random')
     #ax.plot(max_throughput_list, sum_ue_energy_per_deadline_fixed, color='#8F81EA', marker='o', label='fixed')
@@ -210,7 +210,7 @@ def plot_kpis_vs_max_throughput(df_all_inference_time, df_all_ue_energy_comp, df
     #print(ue_energy_comm_mean_per_deadline_opt)
     #print(ue_energy_comm_mean_per_deadline_fixed)
     # comm energy
-    #ax.plot(max_throughput_list, ue_energy_comm_mean_per_deadline_opt, color='#072140', marker='o', label='opt')
+    ax.plot(max_throughput_list, ue_energy_comm_mean_per_deadline_opt, color='#072140', marker='o', label='opt')
     #ax.plot(max_throughput_list, ue_energy_comm_mean_per_deadline_ddqn, color='#165DB1', marker='o', label='ddqn')
     #ax.plot(max_throughput_list, ue_energy_comm_mean_per_deadline_random, color='#9ABCE4', marker='o', label='random')
     #ax.plot(max_throughput_list, ue_energy_comm_mean_per_deadline_fixed, color='#8F81EA', marker='o', label='fixed')
@@ -221,9 +221,11 @@ def plot_kpis_vs_max_throughput(df_all_inference_time, df_all_ue_energy_comp, df
     #ax.plot(max_throughput_list, inference_time_mean_per_deadline_ddqn, color='#165DB1', marker='o', label='ddqn')
     #ax.plot(max_throughput_list, inference_time_mean_per_deadline_random, color='#9ABCE4', marker='o', label='random')
     #ax.plot(max_throughput_list, inference_time_mean_per_deadline_fixed, color='#8F81EA', marker='o', label='fixed')
-    ax.set_xlabel('Max network throughput (MB/s)')
+    ax.set_xlabel('Network throughput (MB/s)')
     #ax.set_ylabel('Inference time (s)')
     #ax.set_ylabel('UE energy comp (J)')
+    ax.set_ylabel('UE energy comm (J)')
+    #ax.set_ylabel('UE energy sum (J)')
     #plt.yscale('log')
     plt.grid()
     plt.legend()
@@ -237,7 +239,7 @@ def main():
     path_parent = os.path.dirname(os.getcwd())
     os.chdir(path_parent)
 
-    max_network_throughput_list = [100, 200, 300, 400, 500]   # in MB/s
+    max_network_throughput_list = [100, 150, 200, 250, 300, 350, 400, 450, 500]   # in MB/s
     # specifies the episodes of convergence of ddqn
     n_episodes_to_train = 950
     total_episodes_train = 1000

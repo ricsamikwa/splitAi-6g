@@ -172,8 +172,9 @@ class Agent:
         state = self.agent.get_agent_state(episode_params, self.flops_per_block)
         action = self.agent.choose_action(self.action_space, state)
         # debug
+        #print('state {}'.format(state))
         #print('action selected {}'.format(action))
-        # this function also checks and returns the feasible action
+        # this function also checks if the action selected is feasible or not
         inference_time, ue_en_comp, ue_en_comm, top1_acc_conf = self.agent.perform_action(action, self.allowed_splits_blocks,
                                                                            dnn_model, episode_params, output)
         # debug
@@ -192,6 +193,7 @@ class Agent:
         self.agent.reward_counter += 1
         self.agent.cumulative_reward = reward / self.agent.reward_counter
         next_state = self.agent.get_agent_state(episode_params, self.flops_per_block)
+        #print('next state {}'.format(next_state))
         # collect the experience in the replay buffer
         self.agent.replay_buffer.push(Experience(
             state.clone().detach(), torch.tensor([action_idx]),next_state.clone().detach(), torch.tensor([reward])
@@ -202,13 +204,14 @@ class Agent:
             s, a, s_prime, r = extract_tensors(experiences, 'experience')
             # training mode
             current_q_values = QValues.get_current(self.agent, s, a)
+            #print('predicted {}'.format(current_q_values))
             next_q_values = QValues.get_next_ddqn(self.agent, self.target_agent, s_prime)
             # normalize reward
             signed = torch.sign(r)
             r = signed * torch.log(1 + torch.abs(r))
             target_q_values = (next_q_values * self.agent.discount_factor) + r
             #print(current_q_values)
-            #print(target_q_values.unsqueeze(1))
+            #print('target {}'.format(target_q_values.unsqueeze(1)))
             criterion = torch.nn.SmoothL1Loss()
             #criterion = torch.nn.MSELoss()
             loss = criterion(current_q_values.float(), target_q_values.unsqueeze(1).float())

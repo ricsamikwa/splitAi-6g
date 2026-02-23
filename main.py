@@ -162,14 +162,14 @@ for ep in range(start_episode, scenario_params['n_episodes'] + 1):
         rsrq = None
         snr = df_radio_params['SINR'][k-1]
         # additional context in ns-3 dataset
-        tb_size = df_radio_params['TBSize'][k-1]
+        tb_size = df_radio_params['TBSize'][k-1] / 1000
         delay = df_radio_params['Delay'][k-1]
         tbler = df_radio_params['TBLER'][k-1]
         ccqi = df_radio_params['CCQI'][k-1]
         ndi = df_radio_params['NDI'][k-1]
         csinr = df_radio_params['CSINR'][k-1]
-        cthr = df_radio_params['CTHR'][k-1]
-        thr = df_radio_params['THR'][k-1]
+        cthr = df_radio_params['CTHR'][k-1] / 8000 # convert kbps to megabytes/s
+        thr = df_radio_params['THR'][k-1] / 8000 # convert kbps to megabytes/s
         episode_params = {'ue': ue,
                           'network_nodes': network_nodes,
                           'bandwidth': bandwidth,
@@ -181,7 +181,7 @@ for ep in range(start_episode, scenario_params['n_episodes'] + 1):
                           'energy_cost': energy_cost,
                           'power': power,
                           'speed': speed,
-                          'rsrp': df_radio_params['RSRP'][k-1],
+                          'rsrp': df_radio_params['RSRP'][k-1] / 1000,
                           'rsrq': rsrq,
                           'snr': snr,
                           'cqi': df_radio_params['CQI'][k-1],
@@ -264,17 +264,17 @@ for ep in range(start_episode, scenario_params['n_episodes'] + 1):
 
             top1_prob, top1_idx = torch.topk(final_output, 1)
             # log top3 here
-            top3_prob, top3_idx = torch.topk(final_output, 3)
-            top5_prob, top5_idx = torch.topk(final_output, 5)
+            #top3_prob, top3_idx = torch.topk(final_output, 3)
+            #top5_prob, top5_idx = torch.topk(final_output, 5)
 
             #print(f"Top-1 Accuracy Confidence: {top1_idx.item()} (prob: {top1_prob.item():.4f})")
 
             # Display top-5 predictions with their probabilities
             # This provides insight into the model's confidence spread across multiple classes
             #print("Top-5 Predictions:")
-            for i in range(top5_idx.size(1)):
-                prob = top5_prob[0, i].item()
-                idx = top5_idx[0, i].item()
+            #for i in range(top5_idx.size(1)):
+            #    prob = top5_prob[0, i].item()
+            #    idx = top5_idx[0, i].item()
 
             # Optional: sum of top-5 probabilities (should be ≤ 1)
             #print(f"Top-5 Accuracy Confidence: {top5_prob.sum().item():.4f}")

@@ -72,7 +72,7 @@ def main():
 
     params = generate_scenario()
     # specify the number of episodes to be plotted
-    n_episodes = 1097
+    n_episodes = 1038
     order_to_convert = 1000
 
     # ---- for DDQN -----

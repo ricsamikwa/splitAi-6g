@@ -42,20 +42,19 @@ def generate_params(num_nodes):
     #flops_per_cycle = [7.0 for _ in range(num_nodes - 1)]
     # 2000 MB/s is the default setting
     #bandwidth = np.random.uniform(500, 5000, num_nodes - 1) # MB/s (net-to-net), change the max value as needed
-    bandwidth = [400 for _ in range(num_nodes - 1)]
+    bandwidth = [450 for _ in range(num_nodes - 1)]
 
     return ue_freq, ue_flops_per_cycle, ue_bandwidth, freqs, flops_per_cycle, bandwidth
 
 def write_params_to_file():
-    params = generate_scenario()
 
     num_nodes = 4
 
     n_episodes = 9 # follows from the number of input files we want
     # change this parameter manually
-    episode_duration = params['episode_duration']
-    start_episode = params['start_episode']
-    time_interval = params['time_interval']
+    episode_duration = 50
+    start_episode = 1
+    time_interval = 1
 
     # save headers in a list
     headers = ['ue_freq', 'ue_flops_per_cycle', 'ue_bandwidth']

@@ -32,7 +32,7 @@ model = Model(n_states, n_actions)
 
 ##--------------- uncomment for DDQN ----------------
 # specify the file location
-outfile = 'initial_models/main_params_ddqn_original_compr.pt'
+outfile = 'initial_models/main_params_ddqn.pt'
 
 # save the model state dict
 torch.save(model.state_dict(), outfile)
