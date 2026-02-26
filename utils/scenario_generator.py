@@ -44,6 +44,8 @@ def pack_parameters(filename):
     compression_rates = json.loads(config['ALGORITHM']['COMPRESSION_RATES'])
     accuracy_decrease = int(config['ALGORITHM']['ACCURACY_DECREASE'])
     weight_accuracy = float(config['ALGORITHM']['WEIGHT_ACCURACY'])
+    top1_flag = int(config['ALGORITHM']['TOP1_FLAG'])
+    top1_bins = json.loads(config['ALGORITHM']['TOP1_BINS'])
 
     n_hidden_layer = int(config['DRL_HYPERPARAMETERS']['N_HIDDEN_LAYER'])
     batch_size = int(config['DRL_HYPERPARAMETERS']['BATCH_SIZE'])
@@ -76,6 +78,8 @@ def pack_parameters(filename):
         'compression_rates': compression_rates,
         'accuracy_decrease': accuracy_decrease,
         'weight_accuracy': weight_accuracy,
+        'top1_flag': top1_flag,
+        'top1_bins': top1_bins,
 
         'n_hidden_layer': n_hidden_layer,
         'batch_size': batch_size,

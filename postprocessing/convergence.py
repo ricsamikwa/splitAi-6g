@@ -29,7 +29,7 @@ def plot_metrics_together(metric1, metric2, df1, df2, outfile, folder):
 
 
 def plot_metric(metric, df, outfile, folder):
-    window = 50
+    window = 1
     fig, ax = plt.subplots()
     roll_mean_metric = df[metric].rolling(window=window).mean()
     plt.plot(df['episode'], roll_mean_metric, label='{}'.format(folder))
@@ -72,7 +72,7 @@ def main():
 
     params = generate_scenario()
     # specify the number of episodes to be plotted
-    n_episodes = 1038
+    n_episodes = 20
     order_to_convert = 1000
 
     # ---- for DDQN -----

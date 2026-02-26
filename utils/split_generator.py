@@ -33,7 +33,7 @@ class Baseline:
             self.split = [(0, 0, 6), (1, 6, 10), (2, 10, 14), (3, 14, 18)]
         else:
             self.split = [(0, 0, 18), (1, 18, 18), (2, 18, 18), (3, 18, 18)]
-        self.compression_rate = 0.25  # set default compression rate to 0.25
+        self.compression_rate = 1.0  # set default compression rate to 1.0
         # full default action
         self.split_compression_action = {'split': self.split, 'compression': self.compression_rate}
         self.top1_accuracy_confidence = None  # set the top1 accuracy confidence to None
@@ -45,7 +45,40 @@ class Baseline:
         for key, value in self.flops_per_block.items():
             self.total_flops += value
 
-    def generate_random_split(self, allowed_splits, num_nodes, allow_empty_nodes, dnn_model, episode_params, output):
+    def random(self, allowed_splits, num_nodes, allow_empty_nodes, dnn_model, episode_params, output):
+        split_idx = None
+        # first determine the top1 accuracy confidence for the default split ONLY for the first instance
+        if self.top1_accuracy_confidence is None:
+            # compute the top1 accuracy confidence for the default action
+            inference_time, ue_en_comp, ue_en_comm, expected_output = compute_inference(self.split, dnn_model,
+                                                                                        episode_params,
+                                                                                        output, self.compression_rate)
+            self.top1_accuracy_confidence = self.return_top1_accuracy_confidence(expected_output)
+        # Build full action space
+        feasible_splits, split_indices = enumerate_action_space(allowed_splits, num_nodes, allow_empty_nodes)
+        feasible_split_compression, action_indices_extended = extended_action_space(feasible_splits,
+                                                                                    self.scenario_params[
+                                                                                        'compression_rates'])
+        # Sample one action (split + compression) uniformly
+        idx = np.random.randint(len(feasible_split_compression))
+
+        selected_split_compression = feasible_split_compression[idx]
+        # print(selected_split_compression)
+        selected_split = selected_split_compression['split']
+        selected_compression = selected_split_compression['compression']
+        # extract index of split config
+        for k, v in split_indices.items():
+            if v == self.split:
+                split_idx = k
+        # compute the inference due to this selected split
+        inference_time, ue_en_comp, ue_en_comm, out = compute_inference(selected_split, dnn_model,
+                                                                                episode_params,
+                                                                                output, selected_compression)
+        # compute top1 accuracy confidence due to this split
+        self.top1_accuracy_confidence = self.return_top1_accuracy_confidence(out)
+        return selected_split, selected_compression, split_idx, self.top1_accuracy_confidence
+
+    def heuristic(self, allowed_splits, num_nodes, allow_empty_nodes, dnn_model, episode_params, output):
         """
         Args:
             allowed_splits (list): Layer indices where splitting is safe without model refactoring
@@ -81,9 +114,11 @@ class Baseline:
         # compute the inference due to this selected split
         inference_time, ue_en_comp, ue_en_comm, out = compute_inference(selected_split, dnn_model, episode_params,
                                                                         output, selected_compression)
+        # compute top1 accuracy confidence due to this split
+        self.top1_accuracy_confidence = self.return_top1_accuracy_confidence(out)
         energy_credit_criteria, energy_credit_consumed = self.check_energy_credit_budget(flops_offloaded)
         latency_criteria = self.check_latency_criteria(inference_time)
-        accuracy_criteria = self.check_accuracy_confidence_criteria(out)
+        accuracy_criteria = self.check_accuracy_confidence_criteria(self.top1_accuracy_confidence)
         # if both criteria are satisfied, then selected_split is the final split, else do nothing or continue with default split
         if energy_credit_criteria and latency_criteria and accuracy_criteria:
             self.split = selected_split
@@ -97,7 +132,7 @@ class Baseline:
             if v == self.split:
                 split_idx = k
 
-        return self.split, self.compression_rate, split_idx
+        return self.split, self.compression_rate, split_idx, self.top1_accuracy_confidence
 
     def fixed_split(self, allowed_splits, num_nodes, allow_empty_nodes, dnn_model, episode_params, output):
         split_idx = None
@@ -118,12 +153,12 @@ class Baseline:
         for k, v in split_indices.items():
             if v == self.split:
                 split_idx = k
-        return self.split, self.compression_rate, split_idx
+        return self.split, self.compression_rate, split_idx, self.top1_accuracy_confidence
 
     def ue_computation_only(self, allowed_splits, num_nodes, allow_empty_nodes, dnn_model, episode_params, output):
         split_idx = None
         self.split = [(0, 0, 18), (1, 18, 18), (2, 18, 18), (3, 18, 18)]
-        self.compression_rate = 0.5
+        self.compression_rate = 1.0
         feasible_splits, split_indices = enumerate_action_space(allowed_splits, num_nodes, allow_empty_nodes)
         if self.top1_accuracy_confidence is None:
             # compute the top1 accuracy confidence for the default action
@@ -139,7 +174,7 @@ class Baseline:
         for k, v in split_indices.items():
             if v == self.split:
                 split_idx = k
-        return self.split, self.compression_rate, split_idx
+        return self.split, self.compression_rate, split_idx, self.top1_accuracy_confidence
 
     def update_energy_credit_usage(self, flops_offloaded, flops_on_ue):
         # update the energy credit usage
@@ -178,12 +213,11 @@ class Baseline:
         else:
             return False
 
-    def check_accuracy_confidence_criteria(self, out):
-        top1_acc_confidence = self.return_top1_accuracy_confidence(out)
+    def check_accuracy_confidence_criteria(self, top1_acc_confidence):
         # first check if the new accuracy confidence is less than the previous one
         if top1_acc_confidence < self.top1_accuracy_confidence:
             # then check if the difference is within the desired percentage decrease
-            if self.top1_accuracy_confidence - top1_acc_confidence <= self.scenario_params['accuracy_decrease']:
+            if (self.top1_accuracy_confidence - top1_acc_confidence) <= (self.scenario_params['accuracy_decrease'] / 100):
                 return True
             else:
                 return False

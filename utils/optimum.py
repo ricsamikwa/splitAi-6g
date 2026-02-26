@@ -120,7 +120,7 @@ class Opt:
             self.top1_accuracy_confidence = top1_acc_confidences[min_idx]
             ## update the top1 accuracy confidence
             #self.top1_accuracy_confidence = self.return_top1_accuracy_confidence(expected_output)
-            return self.opt_split, self.compression_rate, split_idx
+            return self.opt_split, self.compression_rate, split_idx, self.top1_accuracy_confidence
 
     def get_flops_offloaded(self, selected_split_config, allowed_splits_blocks):
         """

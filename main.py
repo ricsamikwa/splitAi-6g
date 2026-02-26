@@ -87,7 +87,6 @@ for ep in range(start_episode, scenario_params['n_episodes'] + 1):
     split_config_idx_per_episode = []
     compression_rate_per_episode = []
     top1_accuracy_per_episode = []
-    top5_accuracy_per_episode = []
     # ------------------------------
     if scenario_params['split_algorithm'] == 2:
         # initialize agent
@@ -197,26 +196,26 @@ for ep in range(start_episode, scenario_params['n_episodes'] + 1):
 
         if scenario_params['split_algorithm'] == 1:  # indicates random split
             folder = 'random'
-            split_config, compression_rate, split_config_idx = baseline.generate_random_split(allowed_splits, num_nodes, True, model,
+            split_config, compression_rate, split_config_idx, top_1 = baseline.random(allowed_splits, num_nodes, True, model,
                                                           episode_params, current_output)
         elif scenario_params['split_algorithm'] == 2:   # rl agent
             # agent determines the split and compression rate every time_interval seconds
-            split_config, compression_rate, split_config_idx = agent.execute(k, ep, model, episode_params, current_output)
+            split_config, compression_rate, split_config_idx, top_1 = agent.execute(k, ep, model, episode_params, current_output)
             if scenario_params['rl_algorithm'] == 1:
                 folder = 'rl/ddqn'
             else:
                 folder = 'rl/a2c'
             #print('Energy credit consumed {} Split config {}'.format(agent.agent.energy_credit_consumed, split_config))
         elif scenario_params['split_algorithm'] == 3:   # optimal solution
-            split_config, compression_rate, split_config_idx = opt.generate_optimal_split(k, ep, model, episode_params, current_output)
+            split_config, compression_rate, split_config_idx, top_1 = opt.generate_optimal_split(k, ep, model, episode_params, current_output)
             folder = 'optimum'
             #print('Energy credit consumed {} Optimal split {}'.format(opt.energy_credit_consumed, split_config))
         elif scenario_params['split_algorithm'] == 4:   # fixed split
-            split_config, compression_rate, split_config_idx = baseline.fixed_split(allowed_splits, num_nodes, True, model,
+            split_config, compression_rate, split_config_idx, top_1 = baseline.fixed_split(allowed_splits, num_nodes, True, model,
                                                           episode_params, current_output)
             folder = 'fixed'
         else:   # ue only i.e. no split
-            split_config, compression_rate, split_config_idx = baseline.ue_computation_only(allowed_splits, num_nodes, True, model,
+            split_config, compression_rate, split_config_idx, top_1 = baseline.ue_computation_only(allowed_splits, num_nodes, True, model,
                                                           episode_params, current_output)
             folder = 'ue'
         # compute inference using the generated split configuration
@@ -243,6 +242,7 @@ for ep in range(start_episode, scenario_params['n_episodes'] + 1):
         split_config_per_episode.append({'time_step': k, 'split': split_config})
         split_config_idx_per_episode.append({'time_step': k, 'split_idx': split_config_idx})
         compression_rate_per_episode.append({'time_step': k, 'compression_rate': compression_rate})
+        top1_accuracy_per_episode.append({'time_step': k, 'top1': top_1})
         if scenario_params['split_algorithm'] == 3: # optimum case
             energy_credit_consumed_per_episode.append({'time_step': k, 'energy_credit': opt.energy_credit_consumed})
             flops_offloaded_per_episode.append({'time_step': k, 'flops_off': opt.flops_offloaded})
@@ -259,10 +259,10 @@ for ep in range(start_episode, scenario_params['n_episodes'] + 1):
         # -----------------------
         # Final Classification Output
         # -----------------------
-        with torch.no_grad():
-            final_output = F.softmax(current_output, dim=1)
+        #with torch.no_grad():
+        #    final_output = F.softmax(current_output, dim=1)
 
-            top1_prob, top1_idx = torch.topk(final_output, 1)
+        #    top1_prob, top1_idx = torch.topk(final_output, 1)
             # log top3 here
             #top3_prob, top3_idx = torch.topk(final_output, 3)
             #top5_prob, top5_idx = torch.topk(final_output, 5)
@@ -278,8 +278,6 @@ for ep in range(start_episode, scenario_params['n_episodes'] + 1):
 
             # Optional: sum of top-5 probabilities (should be ≤ 1)
             #print(f"Top-5 Accuracy Confidence: {top5_prob.sum().item():.4f}")
-        top1_accuracy_per_episode.append({'time_step': k, 'top1': top1_prob.item()})
-
 
     # --------------------------------------
     # Save logging variables in this episode
@@ -294,7 +292,7 @@ for ep in range(start_episode, scenario_params['n_episodes'] + 1):
             'energy_credit': energy_credit_consumed_per_episode, 'flops_off': flops_offloaded_per_episode,
             'split': split_config_per_episode, 'split_idx': split_config_idx_per_episode,
             'compression': compression_rate_per_episode,
-            'top1': top1_accuracy_per_episode, 'top5': top5_accuracy_per_episode}
+            'top1': top1_accuracy_per_episode}
     write_logs(scenario_params, ep, data, agent)
     # --------------------------------------
     # Display variables in this episode

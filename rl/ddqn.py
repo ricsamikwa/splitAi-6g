@@ -10,6 +10,7 @@ import csv
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from scipy.constants import value
 
 from utils.rl_utils import load_model_params
 from utils.inference_utils import compute_inference
@@ -240,15 +241,32 @@ class DDQNAgent(nn.Module):
 
 
     def get_instant_reward(self, inference_time, ue_energy_comp, ue_energy_comm, top1_accuracy_conf):
-        optimization = (self.scenario_params['weight_inference_time'] * inference_time) + (
-                    (1 - self.scenario_params['weight_inference_time']) * (ue_energy_comp + ue_energy_comm)) - (self.scenario_params['weight_accuracy'] * top1_accuracy_conf)
+        # check if discretization is required
+        if self.scenario_params['top1_flag']:
+            top1_for_reward = self.discretize(top1_accuracy_conf)
+        else:
+            top1_for_reward = top1_accuracy_conf
+        optimization = ((self.scenario_params['weight_inference_time'] * inference_time) + (
+                    (1 - self.scenario_params['weight_inference_time']) * (ue_energy_comp + ue_energy_comm)) -
+                        (self.scenario_params['weight_accuracy'] * top1_for_reward))
         reward_1 = 1 / optimization
-        reward_2 = math.pow(2, (1 / optimization))
-        reward_3 = 1 / (optimization ** 2)
+        #reward_2 = math.pow(2, (1 / optimization))
+        #reward_3 = 1 / (optimization ** 2)
         # original reward
-        reward = math.pow(10, (1 / optimization))
+        #reward = math.pow(10, (1 / optimization))
         #print('reward {}'.format(reward))
         return reward_1
+
+    def discretize(self, top1_accuracy_conf):
+        bins = self.scenario_params['top1_bins']
+        # first range
+        if 0.0 <= top1_accuracy_conf < 0.33:
+            top1_for_reward = bins[0]
+        elif 0.33 <= top1_accuracy_conf < 0.66:
+            top1_for_reward = bins[1]
+        else:
+            top1_for_reward = bins[2]
+        return top1_for_reward
 
     def get_flops_offloaded(self, selected_split_config, allowed_splits_blocks):
         flops_on_ue = 0.0

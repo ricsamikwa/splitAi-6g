@@ -65,10 +65,11 @@ class Agent:
             output (tensor): The pytorch tensor capturing the input image after transformation.
 
         Returns:
-            The final split config to be used for inference.
+            The final split config and the top1 acc confidence to be used for inference.
         """
         action = None
         action_idx = None
+        top1_acc_conf = None
         self.episode_count = episode_count
         # define the agent attributes
         self.define_agent_attributes()
@@ -76,10 +77,10 @@ class Agent:
         if not self.scenario_params['inference']:
             # train the agent based on the type of algorithm to run
             if self.agent_type == 'ddqn':
-                action, action_idx = self.train_ddqn_agent(time, dnn_model, episode_params, output)
+                action, action_idx, top1_acc_conf = self.train_ddqn_agent(time, dnn_model, episode_params, output)
             else:
-                action, action_idx = self.train_a2c_agent(time, dnn_model, episode_params, output)
-        return action['split'], action['compression'], action_idx
+                action, action_idx, top1_acc_conf = self.train_a2c_agent(time, dnn_model, episode_params, output)
+        return action['split'], action['compression'], action_idx, top1_acc_conf
 
     def train_a2c_agent(self, time, dnn_model, episode_params, output):
         # state is a vector, while log probs, rewards actions and entropies are scalars
@@ -154,7 +155,7 @@ class Agent:
             self.agent.critic_loss.append({'time': time, 'loss': critic_loss.item()})
             self.agent.advantages.append({'time': time, 'advantage': advantage.detach().mean().numpy()})
             self.agent.entropies.append({'time': time, 'entropy': entropy.detach().mean().numpy()})
-        return action, action_idx
+        return action, action_idx, top1_acc_conf
 
     def train_ddqn_agent(self, time, dnn_model, episode_params, output):
         """
@@ -232,7 +233,7 @@ class Agent:
                 print('Loss {}'.format(loss.item()))
             self.agent.loss.append({'time': time, 'loss': loss.item()})
 
-        return action, action_idx
+        return action, action_idx, top1_acc_conf
 
     def define_agent_attributes(self):
         """
