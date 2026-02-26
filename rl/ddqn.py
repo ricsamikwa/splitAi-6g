@@ -241,21 +241,27 @@ class DDQNAgent(nn.Module):
 
 
     def get_instant_reward(self, inference_time, ue_energy_comp, ue_energy_comm, top1_accuracy_conf):
+        w_1 = self.scenario_params['weight_inference_time']
+        w_2 = self.scenario_params['weight_accuracy']
         # check if discretization is required
         if self.scenario_params['top1_flag']:
             top1_for_reward = self.discretize(top1_accuracy_conf)
         else:
             top1_for_reward = top1_accuracy_conf
-        optimization = ((self.scenario_params['weight_inference_time'] * inference_time) + (
-                    (1 - self.scenario_params['weight_inference_time']) * (ue_energy_comp + ue_energy_comm)) -
-                        (self.scenario_params['weight_accuracy'] * top1_for_reward))
-        reward_1 = 1 / optimization
+        inference_time_norm = (inference_time - 0.1) / 1.9
+        ue_energy_sum = ue_energy_comp + ue_energy_comm
+        ue_energy_sum_norm = ue_energy_sum / 7.0
+        reward = (w_1 * (1 - inference_time_norm)) + ((1 - w_1) * (1 - ue_energy_sum_norm)) + w_2 * top1_for_reward
+        # optimization = ((self.scenario_params['weight_inference_time'] * inference_time) + (
+        #             (1 - self.scenario_params['weight_inference_time']) * (ue_energy_comp + ue_energy_comm)) -
+        #                 (self.scenario_params['weight_accuracy'] * top1_for_reward))
+        # reward_1 = 1 / optimization
         #reward_2 = math.pow(2, (1 / optimization))
         #reward_3 = 1 / (optimization ** 2)
         # original reward
         #reward = math.pow(10, (1 / optimization))
         #print('reward {}'.format(reward))
-        return reward_1
+        return reward
 
     def discretize(self, top1_accuracy_conf):
         bins = self.scenario_params['top1_bins']

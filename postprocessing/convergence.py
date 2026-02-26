@@ -37,6 +37,8 @@ def plot_metric(metric, df, outfile, folder):
     ax.set_ylabel('{}, window {}'.format(metric, window))
     ax.legend()
     ax.grid()
+    #if metric == 'reward':
+    #    plt.yscale('log')
     plt.savefig('results/{}/{}.png'.format(folder, outfile))
     plt.savefig('results/{}/{}.svg'.format(folder, outfile))
     plt.show()
@@ -72,7 +74,7 @@ def main():
 
     params = generate_scenario()
     # specify the number of episodes to be plotted
-    n_episodes = 20
+    n_episodes = 2000
     order_to_convert = 1000
 
     # ---- for DDQN -----

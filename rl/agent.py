@@ -208,8 +208,8 @@ class Agent:
             #print('predicted {}'.format(current_q_values))
             next_q_values = QValues.get_next_ddqn(self.agent, self.target_agent, s_prime)
             # normalize reward
-            signed = torch.sign(r)
-            r = signed * torch.log(1 + torch.abs(r))
+            #signed = torch.sign(r)
+            #r = signed * torch.log(1 + torch.abs(r))
             target_q_values = (next_q_values * self.agent.discount_factor) + r
             #print(current_q_values)
             #print('target {}'.format(target_q_values.unsqueeze(1)))
