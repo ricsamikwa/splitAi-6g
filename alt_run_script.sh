@@ -19,15 +19,28 @@ set_ini_value () {
   local section="$1"
   local key="$2"
   local value="$3"
+  local tmp
+  tmp="$(mktemp)"
 
-  SECTION="$section" KEY="$key" VALUE="$value" \
-  perl -0777 -i -pe '
-    my $sec = $ENV{SECTION};
-    my $key = $ENV{KEY};
-    my $val = $ENV{VALUE};
-    s/(\[\Q$sec\E\][^\[]*?\n\s*\Q$key\E\s*=\s*).*?(\s*(?:\r?\n))/$1$val$2/s
-      or die "Failed to set $key in section [$sec]\n";
-  ' "$CONFIG_FILE"
+  awk -v section="$section" -v key="$key" -v value="$value" '
+    BEGIN { in_section=0; changed=0 }
+    /^\[/ {
+      in_section = ($0 == "[" section "]")
+    }
+    in_section && $0 ~ "^[[:space:]]*" key "[[:space:]]*=" {
+      sub(/=.*/, "= " value)
+      changed=1
+    }
+    { print }
+    END {
+      if (changed == 0) {
+        # exit non-zero so bash (set -e) stops with a clear error
+        exit 2
+      }
+    }
+  ' "$CONFIG_FILE" > "$tmp"
+
+  mv "$tmp" "$CONFIG_FILE"
 }
 
 make_ddqn_dirs () {
