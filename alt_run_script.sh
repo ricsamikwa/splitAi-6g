@@ -24,20 +24,13 @@ set_ini_value () {
 
   awk -v section="$section" -v key="$key" -v value="$value" '
     BEGIN { in_section=0; changed=0 }
-    /^\[/ {
-      in_section = ($0 == "[" section "]")
-    }
+    /^\[/ { in_section = ($0 == "[" section "]") }
     in_section && $0 ~ "^[[:space:]]*" key "[[:space:]]*=" {
       sub(/=.*/, "= " value)
       changed=1
     }
     { print }
-    END {
-      if (changed == 0) {
-        # exit non-zero so bash (set -e) stops with a clear error
-        exit 2
-      }
-    }
+    END { if (changed == 0) exit 2 }
   ' "$CONFIG_FILE" > "$tmp"
 
   mv "$tmp" "$CONFIG_FILE"
@@ -60,6 +53,7 @@ for rid in "${RUN_IDS[@]}"; do
 
   # Update config for this run
   set_ini_value "ALGORITHM" "PARAM_PATH" "$rid"
+  echo "PARAM_PATH now: $(grep -m1 '^PARAM_PATH' "$CONFIG_FILE")"
 
   # Save the exact config used for reproducibility
   cp "$CONFIG_FILE" "logs/config_${rid}.ini"
