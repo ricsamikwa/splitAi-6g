@@ -85,7 +85,7 @@ def write_params_to_file():
         df.to_csv('input/episode_parameters/max_throughputs/system_parameters_{}.csv'.format(ep))
 
 
-def read_params_from_file(episode, num_nodes):
+def read_params_from_file(episode, num_nodes, scenario_params):
     # save headers in a list
     headers = ['ue_freq', 'ue_flops_per_cycle', 'ue_bandwidth']
     for k in range(1, num_nodes):
@@ -93,6 +93,8 @@ def read_params_from_file(episode, num_nodes):
         headers.append('flops_per_cycle{}'.format(k))
         headers.append('bandwidth{}'.format(k))
     path = 'input/episode_parameters/system_parameters_{}.csv'.format(episode)
+    path = f"input/episode_parameters/{scenario_params['param_path']}/system_parameters_{episode}.csv"
+
     df = pd.read_csv(path)
     #print(df['ue_freq'][0])
     return df

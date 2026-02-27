@@ -112,7 +112,7 @@ for ep in range(start_episode, scenario_params['n_episodes'] + 1):
         path = 'input/episode_parameters/radio_parameters_moving_{}.csv'.format(file_number)
         df_radio_params = pd.read_csv(path)
         # then read other params
-        df = read_params_from_file(episode=file_number, num_nodes=num_nodes)
+        df = read_params_from_file(episode=file_number, num_nodes=num_nodes, scenario_params = scenario_params)
         ue_freq = df['ue_freq'][k-1]
         ue_flops_cycle = df['ue_flops_per_cycle'][k-1]
         # uncomment this for production dataset
