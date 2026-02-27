@@ -92,7 +92,7 @@ def read_params_from_file(episode, num_nodes, scenario_params):
         headers.append('freqs{}'.format(k))
         headers.append('flops_per_cycle{}'.format(k))
         headers.append('bandwidth{}'.format(k))
-    path = 'input/episode_parameters/system_parameters_{}.csv'.format(episode)
+    # path = 'input/episode_parameters/system_parameters_{}.csv'.format(episode)
     path = f"input/episode_parameters/{scenario_params['param_path']}/system_parameters_{episode}.csv"
 
     df = pd.read_csv(path)
