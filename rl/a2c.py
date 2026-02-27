@@ -61,10 +61,8 @@ class A2CAgent(DDQNAgent, nn.Module):
             else:
                 action_idx = probs.argmax()
         selected_split_compression = playable_actions[action_idx]
-        log_prob = dist.log_prob(action_idx)
-        entropy = dist.entropy()
 
-        return selected_split_compression, action_idx, entropy, log_prob
+        return selected_split_compression, action_idx
 
 class Actor(nn.Module):
     def __init__(self, n_states, n_actions, scenario_params):

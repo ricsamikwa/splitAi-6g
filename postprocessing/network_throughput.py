@@ -118,9 +118,9 @@ def plot_kpis_vs_max_throughput(df_all_inference_time, df_all_ue_energy_comp, df
     df_inference_time_opt_list = df_all_inference_time[1]   # opt
     df_ue_energy_comp_opt_list = df_all_ue_energy_comp[1]   # opt
     df_ue_energy_comm_opt_list = df_all_ue_energy_comm[1]   # opt
-    # df_inference_time_random_list = df_all_inference_time[2]    # random
-    # df_ue_energy_comp_random_list = df_all_ue_energy_comp[2]    # random
-    # df_ue_energy_comm_random_list = df_all_ue_energy_comm[2]    # random
+    df_inference_time_random_list = df_all_inference_time[2]    # random
+    df_ue_energy_comp_random_list = df_all_ue_energy_comp[2]    # random
+    df_ue_energy_comm_random_list = df_all_ue_energy_comm[2]    # random
     # df_inference_time_fixed_list = df_all_inference_time[3]     # fixed
     # df_ue_energy_comp_fixed_list = df_all_ue_energy_comp[3]     # fixed
     # df_ue_energy_comm_fixed_list = df_all_ue_energy_comm[3]     # fixed
@@ -134,9 +134,9 @@ def plot_kpis_vs_max_throughput(df_all_inference_time, df_all_ue_energy_comp, df
     inference_time_mean_per_deadline_opt = []
     ue_energy_comp_mean_per_deadline_opt = []
     ue_energy_comm_mean_per_deadline_opt = []
-    # inference_time_mean_per_deadline_random = []
-    # ue_energy_comp_mean_per_deadline_random = []
-    # ue_energy_comm_mean_per_deadline_random = []
+    inference_time_mean_per_deadline_random = []
+    ue_energy_comp_mean_per_deadline_random = []
+    ue_energy_comm_mean_per_deadline_random = []
     # inference_time_mean_per_deadline_fixed = []
     # ue_energy_comp_mean_per_deadline_fixed = []
     # ue_energy_comm_mean_per_deadline_fixed = []
@@ -166,15 +166,15 @@ def plot_kpis_vs_max_throughput(df_all_inference_time, df_all_ue_energy_comp, df
         ue_energy_comm_mean_per_deadline_opt.append(df_ue_energy_comm_opt['mean'].mean())
 
         # then random
-        # df_inference_time_random = df_inference_time_random_list[i]
-        # df_ue_energy_comp_random = df_ue_energy_comp_random_list[i]
-        # df_ue_energy_comm_random = df_ue_energy_comm_random_list[i]
-        # df_inference_time_random['mean'] = df_inference_time_random.mean(axis=1)
-        # inference_time_mean_per_deadline_random.append(df_inference_time_random['mean'].mean())
-        # df_ue_energy_comp_random['mean'] = df_ue_energy_comp_random.mean(axis=1)
-        # ue_energy_comp_mean_per_deadline_random.append(df_ue_energy_comp_random['mean'].mean())
-        # df_ue_energy_comm_random['mean'] = df_ue_energy_comm_random.mean(axis=1)
-        # ue_energy_comm_mean_per_deadline_random.append(df_ue_energy_comm_random['mean'].mean())
+        df_inference_time_random = df_inference_time_random_list[i]
+        df_ue_energy_comp_random = df_ue_energy_comp_random_list[i]
+        df_ue_energy_comm_random = df_ue_energy_comm_random_list[i]
+        df_inference_time_random['mean'] = df_inference_time_random.mean(axis=1)
+        inference_time_mean_per_deadline_random.append(df_inference_time_random['mean'].mean())
+        df_ue_energy_comp_random['mean'] = df_ue_energy_comp_random.mean(axis=1)
+        ue_energy_comp_mean_per_deadline_random.append(df_ue_energy_comp_random['mean'].mean())
+        df_ue_energy_comm_random['mean'] = df_ue_energy_comm_random.mean(axis=1)
+        ue_energy_comm_mean_per_deadline_random.append(df_ue_energy_comm_random['mean'].mean())
 
         # then fixed
         # df_inference_time_fixed = df_inference_time_fixed_list[i]
@@ -210,21 +210,21 @@ def plot_kpis_vs_max_throughput(df_all_inference_time, df_all_ue_energy_comp, df
     #print(ue_energy_comm_mean_per_deadline_opt)
     #print(ue_energy_comm_mean_per_deadline_fixed)
     # comm energy
-    ax.plot(max_throughput_list, ue_energy_comm_mean_per_deadline_opt, color='#072140', marker='o', label='opt')
+    #ax.plot(max_throughput_list, ue_energy_comm_mean_per_deadline_opt, color='#072140', marker='o', label='opt')
     #ax.plot(max_throughput_list, ue_energy_comm_mean_per_deadline_ddqn, color='#165DB1', marker='o', label='ddqn')
     #ax.plot(max_throughput_list, ue_energy_comm_mean_per_deadline_random, color='#9ABCE4', marker='o', label='random')
     #ax.plot(max_throughput_list, ue_energy_comm_mean_per_deadline_fixed, color='#8F81EA', marker='o', label='fixed')
     #ax.plot(inference_deadline_list, sum_ue_energy_per_deadline_opt, marker='o', label='optimum')
 
     # inference time
-    #ax.plot(max_throughput_list, inference_time_mean_per_deadline_opt, color='#072140', marker='o', label='opt')
+    ax.plot(max_throughput_list, inference_time_mean_per_deadline_opt, color='#072140', marker='o', label='opt')
     #ax.plot(max_throughput_list, inference_time_mean_per_deadline_ddqn, color='#165DB1', marker='o', label='ddqn')
-    #ax.plot(max_throughput_list, inference_time_mean_per_deadline_random, color='#9ABCE4', marker='o', label='random')
+    ax.plot(max_throughput_list, inference_time_mean_per_deadline_random, color='#9ABCE4', marker='o', label='random')
     #ax.plot(max_throughput_list, inference_time_mean_per_deadline_fixed, color='#8F81EA', marker='o', label='fixed')
     ax.set_xlabel('Network throughput (MB/s)')
-    #ax.set_ylabel('Inference time (s)')
+    ax.set_ylabel('Inference time (s)')
     #ax.set_ylabel('UE energy comp (J)')
-    ax.set_ylabel('UE energy comm (J)')
+    #ax.set_ylabel('UE energy comm (J)')
     #ax.set_ylabel('UE energy sum (J)')
     #plt.yscale('log')
     plt.grid()
@@ -268,10 +268,10 @@ def main():
         df_ue_energy_comp_list_opt.append(df_ue_energy_comp)
         df_ue_energy_comm_list_opt.append(df_ue_energy_comm)
 
-        # df_inference_time, df_ue_energy_comp, df_ue_energy_comm, _, _ = parse_kpis('random', 9, max_throughput)
-        # df_inference_time_list_random.append(df_inference_time)
-        # df_ue_energy_comp_list_random.append(df_ue_energy_comp)
-        # df_ue_energy_comm_list_random.append(df_ue_energy_comm)
+        df_inference_time, df_ue_energy_comp, df_ue_energy_comm, _, _ = parse_kpis('random', 300, max_throughput)
+        df_inference_time_list_random.append(df_inference_time)
+        df_ue_energy_comp_list_random.append(df_ue_energy_comp)
+        df_ue_energy_comm_list_random.append(df_ue_energy_comm)
         #
         # df_inference_time, df_ue_energy_comp, df_ue_energy_comm, _, _ = parse_kpis('fixed', 9, max_throughput)
         # df_inference_time_list_fixed.append(df_inference_time)

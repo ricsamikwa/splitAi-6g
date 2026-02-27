@@ -29,7 +29,7 @@ def plot_metrics_together(metric1, metric2, df1, df2, outfile, folder):
 
 
 def plot_metric(metric, df, outfile, folder):
-    window = 1
+    window = 100
     fig, ax = plt.subplots()
     roll_mean_metric = df[metric].rolling(window=window).mean()
     plt.plot(df['episode'], roll_mean_metric, label='{}'.format(folder))
@@ -39,8 +39,8 @@ def plot_metric(metric, df, outfile, folder):
     ax.grid()
     #if metric == 'reward':
     #    plt.yscale('log')
-    plt.savefig('results/{}/{}.png'.format(folder, outfile))
-    plt.savefig('results/{}/{}.svg'.format(folder, outfile))
+    #plt.savefig('results/{}/{}.png'.format(folder, outfile))
+    #plt.savefig('results/{}/{}.svg'.format(folder, outfile))
     plt.show()
 
 def generate_metric(folder, n_episodes, order_to_convert, metric):
@@ -58,6 +58,9 @@ def generate_metric(folder, n_episodes, order_to_convert, metric):
         elif metric == 'advantage':
             file = 'logs/{}/advantage/advantage_ep{}'.format(folder, ep_str)
             _, data = read_single_col_data(file, 'time', 'advantage', float, float)
+        elif metric == 'top1':
+            file = 'logs/{}/system/top1_{}'.format(folder, ep_str)
+            _, data = read_single_col_data(file, 'time_step', 'top1', float, float)
         else:
             file = 'logs/{}/entropy/entropy_ep{}'.format(folder, ep_str)
             _, data = read_single_col_data(file, 'time', 'entropy', float, float)
@@ -74,13 +77,15 @@ def main():
 
     params = generate_scenario()
     # specify the number of episodes to be plotted
-    n_episodes = 2000
+    n_episodes = 5000
     order_to_convert = 1000
 
     # ---- for DDQN -----
     folder = 'rl/ddqn'
     df_loss = generate_metric(folder, n_episodes, order_to_convert, 'loss')
     df_reward = generate_metric(folder, n_episodes, order_to_convert, 'reward')
+    # for debug
+    #df_accuracy = generate_metric(folder, n_episodes, order_to_convert, 'top1')
 
     # ---- for A2C -----
     #folder = 'rl/a2c'
@@ -93,6 +98,7 @@ def main():
     # ---- for DDQN -----
     plot_metric('loss', df_loss, 'loss', folder)
     plot_metric('reward', df_reward, 'reward', folder)
+    #plot_metric('top1', df_accuracy, 'top1', folder)
 
     # call this function to generate loss and reward charts separately for A2C
     #plot_metric('actor_loss', df_actor_loss, 'actor_loss', folder)

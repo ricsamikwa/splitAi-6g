@@ -86,7 +86,7 @@ class Agent:
         # state is a vector, while log probs, rewards actions and entropies are scalars
         state = self.agent.get_agent_state(episode_params, self.flops_per_block)
         state_cloned = state.clone()
-        action, action_idx, _, _ = self.agent.choose_action(self.action_space, state_cloned)
+        action, action_idx = self.agent.choose_action(self.action_space, state_cloned)
         inference_time, ue_en_comp, ue_en_comm, top1_acc_conf = self.agent.perform_action(action, self.allowed_splits_blocks,
                                                                            dnn_model, episode_params, output)
         # extract index of full action that was SELECTED
