@@ -47,9 +47,7 @@ for rid in "${RUN_IDS[@]}"; do
   # 1) change parameters for this run
   # مثال: set N_EPISODES based on rid, or change epsilon schedule, etc.
   # Replace these with what you actually want to sweep.
-  set_ini_value "ALGORITHM" "N_EPISODES" "9"
-  set_ini_value "DRL_HYPERPARAMETERS" "EPSILON_INI" "0.9"
-  set_ini_value "DRL_HYPERPARAMETERS" "EPSILON_FIN" "0.00001"
+  set_ini_value "PARAM_PATH" $rid
 
   # If you want something to depend on rid, do it like:
   # set_ini_value "DRL_HYPERPARAMETERS" "LR" "$(python - <<PY
