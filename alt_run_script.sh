@@ -36,7 +36,7 @@ make_ddqn_dirs () {
   mkdir -p logs/rl/ddqn/{epsilon,loss,models,reward,splits,system}
 }
 
-mkdir -p logs
+# mkdir -p logs
 make_ddqn_dirs
 
 for rid in "${RUN_IDS[@]}"; do
@@ -47,7 +47,7 @@ for rid in "${RUN_IDS[@]}"; do
   # 1) change parameters for this run
   # مثال: set N_EPISODES based on rid, or change epsilon schedule, etc.
   # Replace these with what you actually want to sweep.
-  set_ini_value "PARAM_PATH" $rid
+  set_ini_value "ALGORITHM" "PARAM_PATH" "$rid"
 
   # If you want something to depend on rid, do it like:
   # set_ini_value "DRL_HYPERPARAMETERS" "LR" "$(python - <<PY

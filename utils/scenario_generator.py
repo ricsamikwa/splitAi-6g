@@ -46,6 +46,7 @@ def pack_parameters(filename):
     weight_accuracy = float(config['ALGORITHM']['WEIGHT_ACCURACY'])
     top1_flag = int(config['ALGORITHM']['TOP1_FLAG'])
     top1_bins = json.loads(config['ALGORITHM']['TOP1_BINS'])
+    param_path = config['ALGORITHM']['PARAM_PATH']
 
     n_hidden_layer = int(config['DRL_HYPERPARAMETERS']['N_HIDDEN_LAYER'])
     batch_size = int(config['DRL_HYPERPARAMETERS']['BATCH_SIZE'])
@@ -80,6 +81,7 @@ def pack_parameters(filename):
         'weight_accuracy': weight_accuracy,
         'top1_flag': top1_flag,
         'top1_bins': top1_bins,
+        'param_path': param_path,
 
         'n_hidden_layer': n_hidden_layer,
         'batch_size': batch_size,
