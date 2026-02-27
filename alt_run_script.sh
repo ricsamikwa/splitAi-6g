@@ -1,14 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Run from project root (where this script lives)
 cd "$(dirname "$0")"
 
 GPU_ID=0
-CONFIG_FILE="config.ini"   # <-- change if your config is named differently
-
-# The run IDs you want: 100, 150, ..., 500
+CONFIG_FILE="config.ini"
 RUN_IDS=(100 150 200 250 300 350 400 450 500)
+
+ts() { date "+%Y-%m-%d %H:%M:%S"; }
 
 echo "Running in: $(pwd)"
 echo "Using python: $(which python)"
@@ -16,55 +15,49 @@ echo "CUDA_VISIBLE_DEVICES=$GPU_ID"
 echo "Config file: $CONFIG_FILE"
 echo
 
-# --- helper: set a key=value inside an INI section ---
-# usage: set_ini_value "SECTION" "KEY" "VALUE"
 set_ini_value () {
   local section="$1"
   local key="$2"
   local value="$3"
 
-  # This replaces lines like KEY = something within the [SECTION] block.
+  SECTION="$section" KEY="$key" VALUE="$value" \
   perl -0777 -i -pe '
-    my ($sec,$key,$val) = @ARGV;
-    s/(\['"$section"'\][^\[]*?\n\s*'"$key"'\s*=\s*).*?(\s*(?:\n|\r\n))/\1'"$value"'\2/s
-      or die "Failed to set '"$key"' in section ['"$section"']\n";
-  ' "$section" "$key" "$value" "$CONFIG_FILE"
+    my $sec = $ENV{SECTION};
+    my $key = $ENV{KEY};
+    my $val = $ENV{VALUE};
+    s/(\[\Q$sec\E\][^\[]*?\n\s*\Q$key\E\s*=\s*).*?(\s*(?:\r?\n))/$1$val$2/s
+      or die "Failed to set $key in section [$sec]\n";
+  ' "$CONFIG_FILE"
 }
 
-# --- helper: (re)create ddqn subdirs ---
 make_ddqn_dirs () {
   mkdir -p logs/rl/ddqn/{epsilon,loss,models,reward,splits,system}
 }
 
-# mkdir -p logs
-make_ddqn_dirs
+mkdir -p logs logs/rl
 
 for rid in "${RUN_IDS[@]}"; do
   echo "=============================="
-  echo "Run ID: $rid"
+  echo "[$(ts)] Run ID: $rid"
   echo "=============================="
 
-  # 1) change parameters for this run
-  # مثال: set N_EPISODES based on rid, or change epsilon schedule, etc.
-  # Replace these with what you actually want to sweep.
+  # Ensure clean per-run folder
+  rm -rf logs/rl/ddqn
+  make_ddqn_dirs
+
+  # Update config for this run
   set_ini_value "ALGORITHM" "PARAM_PATH" "$rid"
 
-  # If you want something to depend on rid, do it like:
-  # set_ini_value "DRL_HYPERPARAMETERS" "LR" "$(python - <<PY
-  # rid=$rid
-  # print(1e-5)  # compute per rid if needed
-  # PY
-  # )"
+  # Save the exact config used for reproducibility
+  cp "$CONFIG_FILE" "logs/config_${rid}.ini"
 
-  # 2) run main.py (blocking). Use tee to keep per-run stdout log.
   run_log="logs/output_${rid}.log"
-  echo "Starting run $rid (log: $run_log)"
+  echo "[$(ts)] Starting python (log: $run_log)"
   CUDA_VISIBLE_DEVICES="$GPU_ID" python main.py 2>&1 | tee "$run_log"
 
-  # 3) archive ddqn folder
+  # Archive outputs
   if [[ -d "logs/rl/ddqn" ]]; then
     dest="logs/rl/ddqn${rid}"
-    # If destination exists, don’t overwrite accidentally
     if [[ -e "$dest" ]]; then
       echo "ERROR: destination already exists: $dest"
       exit 1
@@ -74,11 +67,8 @@ for rid in "${RUN_IDS[@]}"; do
     echo "WARNING: logs/rl/ddqn not found after run $rid"
   fi
 
-  # 4) recreate fresh ddqn folder structure for next run
-  make_ddqn_dirs
-
-  echo "Finished run $rid"
+  echo "[$(ts)] Finished run $rid"
   echo
 done
 
-echo "All runs completed."
+echo "[$(ts)] All runs completed."
