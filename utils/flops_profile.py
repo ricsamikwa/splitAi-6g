@@ -13,8 +13,8 @@ def compute_flops_per_layer(model, input_size=(3, 224, 224)):
         dict: Mapping of layer indices and FC layer names to FLOPs.
     """
     flops_per_layer = {}
-    x = torch.randn(1, *input_size)
-    #x = torch.randn(1, *input_size).to(next(model.parameters()).device)  # <-- minimal line fix to GPU
+    #x = torch.randn(1, *input_size)
+    x = torch.randn(1, *input_size).to(next(model.parameters()).device)  # <-- minimal line fix to GPU
 
     # Fully flatten the conv layers
     def flatten_layers(module):
