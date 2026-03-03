@@ -84,7 +84,6 @@ class Opt:
             for k, v in split_indices.items():
                 if v == self.opt_split:
                     split_idx = k
-            return self.opt_split, self.compression_rate, split_idx
         else:
             # start with the first split + compression as the default
             best_split_compression_evaluation = evaluations[min_idx]
@@ -117,10 +116,8 @@ class Opt:
                 if v == self.opt_split:
                     split_idx = k
             # extract the top1 accuracy confidence for the best split
-            self.top1_accuracy_confidence = top1_acc_confidences[min_idx]
-            ## update the top1 accuracy confidence
-            #self.top1_accuracy_confidence = self.return_top1_accuracy_confidence(expected_output)
-            return self.opt_split, self.compression_rate, split_idx, self.top1_accuracy_confidence
+        self.top1_accuracy_confidence = top1_acc_confidences[min_idx]
+        return self.opt_split, self.compression_rate, split_idx, self.top1_accuracy_confidence
 
     def get_flops_offloaded(self, selected_split_config, allowed_splits_blocks):
         """

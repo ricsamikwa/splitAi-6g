@@ -112,9 +112,9 @@ def plot_kpis_vs_max_throughput(df_all_inference_time, df_all_ue_energy_comp, df
     #r = np.arange(len(algorithms))  # the label locations
     #width = 0.25  # the width of the bars
     #multiplier = 0
-    # df_inference_time_ddqn_list = df_all_inference_time[0]   # ddqn
-    # df_ue_energy_comp_ddqn_list = df_all_ue_energy_comp[0]   # ddqn
-    # df_ue_energy_comm_ddqn_list = df_all_ue_energy_comm[0]   # ddqn
+    df_inference_time_ddqn_list = df_all_inference_time[0]   # ddqn
+    df_ue_energy_comp_ddqn_list = df_all_ue_energy_comp[0]   # ddqn
+    df_ue_energy_comm_ddqn_list = df_all_ue_energy_comm[0]   # ddqn
     df_inference_time_opt_list = df_all_inference_time[1]   # opt
     df_ue_energy_comp_opt_list = df_all_ue_energy_comp[1]   # opt
     df_ue_energy_comm_opt_list = df_all_ue_energy_comm[1]   # opt
@@ -128,9 +128,9 @@ def plot_kpis_vs_max_throughput(df_all_inference_time, df_all_ue_energy_comp, df
     n_episodes_bef_train = n_episodes_to_train
     n_episodes_aft_train = total_episodes_train - n_episodes_bef_train
     fig, ax = plt.subplots()
-    # inference_time_mean_per_deadline_ddqn = []
-    # ue_energy_comp_mean_per_deadline_ddqn = []
-    # ue_energy_comm_mean_per_deadline_ddqn = []
+    inference_time_mean_per_deadline_ddqn = []
+    ue_energy_comp_mean_per_deadline_ddqn = []
+    ue_energy_comm_mean_per_deadline_ddqn = []
     inference_time_mean_per_deadline_opt = []
     ue_energy_comp_mean_per_deadline_opt = []
     ue_energy_comm_mean_per_deadline_opt = []
@@ -142,16 +142,16 @@ def plot_kpis_vs_max_throughput(df_all_inference_time, df_all_ue_energy_comp, df
     # ue_energy_comm_mean_per_deadline_fixed = []
     # extract data and store means
     for i, max_throughput in enumerate(max_throughput_list):
-        # df_inference_time_ddqn = df_inference_time_ddqn_list[i]
-        # df_ue_energy_comp_ddqn = df_ue_energy_comp_ddqn_list[i]
-        # df_ue_energy_comm_ddqn = df_ue_energy_comm_ddqn_list[i]
-        # # then calculate the means
-        # df_inference_time_ddqn['mean'] = df_inference_time_ddqn.mean(axis=1)
-        # inference_time_mean_per_deadline_ddqn.append(df_inference_time_ddqn['mean'].iloc[n_episodes_bef_train:total_episodes_train].mean())
-        # df_ue_energy_comp_ddqn['mean'] = df_ue_energy_comp_ddqn.mean(axis=1)
-        # ue_energy_comp_mean_per_deadline_ddqn.append(df_ue_energy_comp_ddqn['mean'].iloc[n_episodes_bef_train:total_episodes_train].mean())
-        # df_ue_energy_comm_ddqn['mean'] = df_ue_energy_comm_ddqn.mean(axis=1)
-        # ue_energy_comm_mean_per_deadline_ddqn.append(df_ue_energy_comm_ddqn['mean'].iloc[n_episodes_bef_train:total_episodes_train].mean())
+        df_inference_time_ddqn = df_inference_time_ddqn_list[i]
+        df_ue_energy_comp_ddqn = df_ue_energy_comp_ddqn_list[i]
+        df_ue_energy_comm_ddqn = df_ue_energy_comm_ddqn_list[i]
+        # then calculate the means
+        df_inference_time_ddqn['mean'] = df_inference_time_ddqn.mean(axis=1)
+        inference_time_mean_per_deadline_ddqn.append(df_inference_time_ddqn['mean'].iloc[n_episodes_aft_train:total_episodes_train].mean())
+        df_ue_energy_comp_ddqn['mean'] = df_ue_energy_comp_ddqn.mean(axis=1)
+        ue_energy_comp_mean_per_deadline_ddqn.append(df_ue_energy_comp_ddqn['mean'].iloc[n_episodes_aft_train:total_episodes_train].mean())
+        df_ue_energy_comm_ddqn['mean'] = df_ue_energy_comm_ddqn.mean(axis=1)
+        ue_energy_comm_mean_per_deadline_ddqn.append(df_ue_energy_comm_ddqn['mean'].iloc[n_episodes_aft_train:total_episodes_train].mean())
         # sum_ue_energy_per_deadline.append(df_ue_energy_comp_ddqn['mean'][n_episodes_bef_train:].mean() +
         #                                   df_ue_energy_comm_ddqn['mean'][n_episodes_bef_train:])
         # then optimum
@@ -218,7 +218,7 @@ def plot_kpis_vs_max_throughput(df_all_inference_time, df_all_ue_energy_comp, df
 
     # inference time
     ax.plot(max_throughput_list, inference_time_mean_per_deadline_opt, color='#072140', marker='o', label='opt')
-    #ax.plot(max_throughput_list, inference_time_mean_per_deadline_ddqn, color='#165DB1', marker='o', label='ddqn')
+    ax.plot(max_throughput_list, inference_time_mean_per_deadline_ddqn, color='#165DB1', marker='o', label='ddqn')
     ax.plot(max_throughput_list, inference_time_mean_per_deadline_random, color='#9ABCE4', marker='o', label='random')
     #ax.plot(max_throughput_list, inference_time_mean_per_deadline_fixed, color='#8F81EA', marker='o', label='fixed')
     ax.set_xlabel('Network throughput (MB/s)')
@@ -241,8 +241,8 @@ def main():
 
     max_network_throughput_list = [100, 150, 200, 250, 300, 350, 400, 450, 500]   # in MB/s
     # specifies the episodes of convergence of ddqn
-    n_episodes_to_train = 950
-    total_episodes_train = 1000
+    n_episodes_to_train = 2000
+    total_episodes_train = 5000
     df_inference_time_list_ddqn = []  # for each specified max throughput in 'max_network_throughput_list'
     df_ue_energy_comp_list_ddqn = []  # for each specified max throughput in 'max_network_throughput_list'
     df_ue_energy_comm_list_ddqn = []  # for each specified max throughput in 'max_network_throughput_list'
@@ -257,11 +257,12 @@ def main():
     df_ue_energy_comm_list_fixed = []  # for each specified max throughput in 'max_network_throughput_list'
 
     for max_throughput in max_network_throughput_list:
-        # df_inference_time, df_ue_energy_comp, df_ue_energy_comm, _, _ = parse_kpis('rl/ddqn', total_episodes_train,
-        #                                                                      max_throughput)
-        # df_inference_time_list_ddqn.append(df_inference_time)
-        # df_ue_energy_comp_list_ddqn.append(df_ue_energy_comp)
-        # df_ue_energy_comm_list_ddqn.append(df_ue_energy_comm)
+        df_inference_time, df_ue_energy_comp, df_ue_energy_comm, _, _ = parse_kpis('rl/ddqn', total_episodes_train,
+                                                                             max_throughput)
+        df_inference_time_list_ddqn.append(df_inference_time)
+        df_ue_energy_comp_list_ddqn.append(df_ue_energy_comp)
+        df_ue_energy_comm_list_ddqn.append(df_ue_energy_comm)
+        print('ddqn done')
 
         df_inference_time, df_ue_energy_comp, df_ue_energy_comm, _, _ = parse_kpis('optimum', 9, max_throughput)
         df_inference_time_list_opt.append(df_inference_time)

@@ -104,11 +104,11 @@ def plot_kpis_tradeoff_optimum(df_inference_time_list, df_ue_energy_comp_list, d
     #plt.show()
 
 def plot_kpis_all_episodes(df_inference_time_list, df_ue_energy_comp_list, df_ue_energy_comm_list,
-                           df_energy_credit_list, df_y_net_list, df_flops_off_list, algorithms, n_episodes_to_train,
-                           total_episodes_train, barplot):
+                           df_energy_credit_list, df_top1_list, df_y_net_list, df_flops_off_list, algorithms,
+                           n_episodes_to_train, total_episodes_train, barplot):
     fig, ax = plt.subplots(layout='constrained')
     r = np.arange(len(algorithms))  # the label locations
-    width = 0.25  # the width of the bars
+    width = 0.15  # the width of the bars
     multiplier = 0
     bar_colors = ['#072140', '#114584', '#9ABCE4']
     # save episode means in a separate df
@@ -118,6 +118,7 @@ def plot_kpis_all_episodes(df_inference_time_list, df_ue_energy_comp_list, df_ue
     df_optimum_ue_energy_comp = df_ue_energy_comp_list[alg_idx]
     df_optimum_ue_energy_comm = df_ue_energy_comm_list[alg_idx]
     df_optimum_energy_credit = df_energy_credit_list[alg_idx]
+    df_optimum_top1 = df_top1_list[alg_idx]
     # then calculate the means
     df_optimum_inference_time['mean'] = df_optimum_inference_time.mean(axis=1)  # row-wise mean
     mean_inference_time_optimum = df_optimum_inference_time['mean'].mean()
@@ -128,6 +129,8 @@ def plot_kpis_all_episodes(df_inference_time_list, df_ue_energy_comp_list, df_ue
     mean_ue_energy_optimum = mean_ue_energy_comp_optimum + mean_ue_energy_comm_optimum
     df_optimum_energy_credit['mean'] = df_optimum_energy_credit.mean(axis=1)
     mean_energy_credit_optimum = df_optimum_energy_credit['mean'].mean()
+    df_optimum_top1['mean'] = df_optimum_top1.mean(axis=1)
+    mean_top1_optimum = df_optimum_top1['mean'].mean()
     # then rl
     alg_idx = 1
     n_episodes_bef_train = n_episodes_to_train
@@ -136,6 +139,7 @@ def plot_kpis_all_episodes(df_inference_time_list, df_ue_energy_comp_list, df_ue
     df_ddqn_ue_energy_comp = df_ue_energy_comp_list[alg_idx]
     df_ddqn_ue_energy_comm = df_ue_energy_comm_list[alg_idx]
     df_ddqn_energy_credit = df_energy_credit_list[alg_idx]
+    df_ddqn_top1 = df_top1_list[alg_idx]
     df_ddqn_y_net = df_y_net_list[alg_idx]
     #df_ddqn_flops_off = df_flops_off_list[alg_idx]
     # then calculate the means
@@ -148,6 +152,8 @@ def plot_kpis_all_episodes(df_inference_time_list, df_ue_energy_comp_list, df_ue
     mean_ue_energy_ddqn = mean_ue_energy_comp_ddqn + mean_ue_energy_comm_ddqn
     df_ddqn_energy_credit['mean'] = df_ddqn_energy_credit.mean(axis=1)
     mean_energy_credit_ddqn = df_ddqn_energy_credit['mean'][n_episodes_aft_train:total_episodes_train].mean()
+    df_ddqn_top1['mean'] = df_ddqn_top1.mean(axis=1)
+    mean_top1_ddqn = df_ddqn_top1['mean'][n_episodes_aft_train:total_episodes_train].mean()
     df_ddqn_y_net['mean'] = df_ddqn_y_net.mean(axis=1)
     #df_ddqn_flops_off['mean'] = df_ddqn_flops_off.mean(axis=1)
 
@@ -157,6 +163,7 @@ def plot_kpis_all_episodes(df_inference_time_list, df_ue_energy_comp_list, df_ue
     df_random_ue_energy_comp = df_ue_energy_comp_list[alg_idx]
     df_random_ue_energy_comm = df_ue_energy_comm_list[alg_idx]
     df_random_energy_credit = df_energy_credit_list[alg_idx]
+    df_random_top1 = df_top1_list[alg_idx]
     # then calculate the means
     df_random_inference_time['mean'] = df_random_inference_time.mean(axis=1)
     mean_inference_time_random = df_random_inference_time['mean'].mean()
@@ -164,8 +171,12 @@ def plot_kpis_all_episodes(df_inference_time_list, df_ue_energy_comp_list, df_ue
     mean_ue_energy_comp_random = df_random_ue_energy_comp['mean'].mean()
     df_random_ue_energy_comm['mean'] = df_random_ue_energy_comm.mean(axis=1)
     mean_ue_energy_comm_random = df_random_ue_energy_comm['mean'].mean()
+    mean_ue_energy_random = mean_ue_energy_comp_random + mean_ue_energy_comm_random
     df_random_energy_credit['mean'] = df_random_energy_credit.mean(axis=1)
     mean_energy_credit_random = df_random_energy_credit['mean'].mean()
+    df_random_top1['mean'] = df_random_top1.mean(axis=1)
+    mean_top1_random = df_random_top1['mean'].mean()
+
 
     # then fixed split
     alg_idx = 3
@@ -173,6 +184,7 @@ def plot_kpis_all_episodes(df_inference_time_list, df_ue_energy_comp_list, df_ue
     df_fixed_ue_energy_comp = df_ue_energy_comp_list[alg_idx]
     df_fixed_ue_energy_comm = df_ue_energy_comm_list[alg_idx]
     df_fixed_energy_credit = df_energy_credit_list[alg_idx]
+    df_fixed_top1 = df_top1_list[alg_idx]
     # then calculate the means
     df_fixed_inference_time['mean'] = df_fixed_inference_time.mean(axis=1)
     mean_inference_time_fixed = df_fixed_inference_time['mean'].mean()
@@ -180,8 +192,11 @@ def plot_kpis_all_episodes(df_inference_time_list, df_ue_energy_comp_list, df_ue
     mean_ue_energy_comp_fixed = df_fixed_ue_energy_comp['mean'].mean()
     df_fixed_ue_energy_comm['mean'] = df_fixed_ue_energy_comm.mean(axis=1)
     mean_ue_energy_comm_fixed = df_fixed_ue_energy_comm['mean'].mean()
+    mean_ue_energy_fixed = mean_ue_energy_comp_fixed + mean_ue_energy_comm_fixed
     df_fixed_energy_credit['mean'] = df_fixed_energy_credit.mean(axis=1)
     mean_energy_credit_fixed = df_fixed_energy_credit['mean'].mean()
+    df_fixed_top1['mean'] = df_fixed_top1.mean(axis=1)
+    mean_top1_fixed = df_fixed_top1['mean'].mean()
     #print(df_fixed_inference_time['mean'])
     # then ue only i.e. local computation
     alg_idx = 4
@@ -189,6 +204,7 @@ def plot_kpis_all_episodes(df_inference_time_list, df_ue_energy_comp_list, df_ue
     df_local_ue_energy_comp = df_ue_energy_comp_list[alg_idx]
     df_local_ue_energy_comm = df_ue_energy_comm_list[alg_idx]
     df_local_energy_credit = df_energy_credit_list[alg_idx]
+    df_local_top1 = df_top1_list[alg_idx]
     # then calculate the means
     df_local_inference_time['mean'] = df_local_inference_time.mean(axis=1)
     mean_inference_time_local = df_local_inference_time['mean'].mean()
@@ -196,8 +212,11 @@ def plot_kpis_all_episodes(df_inference_time_list, df_ue_energy_comp_list, df_ue
     mean_ue_energy_comp_local = df_local_ue_energy_comp['mean'].mean()
     df_local_ue_energy_comm['mean'] = df_local_ue_energy_comm.mean(axis=1)
     mean_ue_energy_comm_local = df_local_ue_energy_comm['mean'].mean()
+    mean_ue_energy_local = mean_ue_energy_comp_local + mean_ue_energy_comm_local
     df_local_energy_credit['mean'] = df_local_energy_credit.mean(axis=1)
     mean_energy_credit_local = df_local_energy_credit['mean'].mean()
+    df_local_top1['mean'] = df_local_top1.mean(axis=1)
+    mean_top1_local = df_local_top1['mean'].mean()
     data = {}
     # gather in a dict
     data = {'inference_latency': (mean_inference_time_optimum, mean_inference_time_ddqn, mean_inference_time_random,
@@ -205,25 +224,38 @@ def plot_kpis_all_episodes(df_inference_time_list, df_ue_energy_comp_list, df_ue
             'ue_energy_comp': (mean_ue_energy_comp_optimum, mean_ue_energy_comp_ddqn, mean_ue_energy_comp_random,
                                mean_ue_energy_comp_fixed, mean_ue_energy_comp_local),
             'ue_energy_comm': (mean_ue_energy_comm_optimum, mean_ue_energy_comm_ddqn, mean_ue_energy_comm_random,
-                               mean_ue_energy_comm_fixed, mean_ue_energy_comm_local)}
+                               mean_ue_energy_comm_fixed, mean_ue_energy_comm_local),
+            'mean_ue_energy': (mean_ue_energy_optimum, mean_ue_energy_ddqn, mean_ue_energy_random,
+                               mean_ue_energy_fixed, mean_ue_energy_local),
+            'top1': (mean_top1_optimum, mean_top1_ddqn, mean_top1_random, mean_top1_fixed, mean_top1_local)}
 
     # check if the plot to generate is a barplot, otherwise generate a usual line/scatter plot
     if barplot:
         offset = width * multiplier
-        rects = ax.bar(r + offset, data['inference_latency'], width=width, color='#072140', label='inference_latency')
+        rects = ax.bar(r + offset, data['inference_latency'], width=width, color='black', label='inference_latency')
         ax.bar_label(rects, padding=3, fontsize=8)
         #print('Mean Inference latency {}'.format(rects))
         multiplier += 1
         offset = width * multiplier
-        rects = ax.bar(r + offset, data['ue_energy_comp'], width=width, color='#165DB1', label='ue_energy_comp')
+        rects = ax.bar(r + offset, data['ue_energy_comp'], width=width, color='#072140', label='ue_energy_comp')
         ax.bar_label(rects, padding=3, fontsize=8)
         #print('Mean UE energy comp {}'.format(rects))
         multiplier += 1
         offset = width * multiplier
-        rects = ax.bar(r + offset, data['ue_energy_comm'], width=width, color='#9ABCE4', label='ue_energy_comm')
+        rects = ax.bar(r + offset, data['ue_energy_comm'], width=width, color='#165DB1', label='ue_energy_comm')
         ax.bar_label(rects, padding=3, fontsize=8)
         #print('Mean UE energy comm {}'.format(rects))
-        ax.set_ylabel('Value')
+        multiplier += 1
+        offset = width * multiplier
+        rects = ax.bar(r + offset, data['mean_ue_energy'], width=width, color='#9ABCE4', label='sum_ue_energy')
+        ax.bar_label(rects, padding=3, fontsize=8)
+
+        multiplier += 1
+        offset = width * multiplier
+        rects = ax.bar(r + offset, data['top1'], width=width, color='blue', label='top1')
+        ax.bar_label(rects, padding=3, fontsize=8)
+
+        ax.set_ylabel('Log value')
         ax.set_xticks(r + width, algorithms)
         ax.legend(loc='upper left', ncols=1)
         ax.grid()
@@ -352,6 +384,7 @@ def parse_kpis(folder, n_episodes, inference_deadline):
     ue_energy_comp_all_episodes = []
     ue_energy_comm_all_episodes = []
     energy_credit_all_episodes = []
+    top1_all_episodes = []
     y_net_all_episodes = []
     flops_off_all_episodes = []
     time_steps = []
@@ -370,6 +403,9 @@ def parse_kpis(folder, n_episodes, inference_deadline):
         kpi_type = 'energy_credit'
         #time_steps, energy_credit_per_episode = read_kpis_from_files(folder, kpi_type, episode_count, inference_deadline)
         #energy_credit_all_episodes.append(energy_credit_per_episode)
+        kpi_type = 'top1'
+        time_steps, top1_per_episode = read_kpis_from_files(folder, kpi_type, episode_count, inference_deadline)
+        top1_all_episodes.append(top1_per_episode)
         if folder == 'rl/ddqn':
             kpi_type = 'y_net'
             time_steps, y_net_per_episode = read_kpis_from_files(folder, kpi_type, episode_count, inference_deadline)
@@ -387,12 +423,14 @@ def parse_kpis(folder, n_episodes, inference_deadline):
                                      index=[ep for ep in range(1, n_episodes + 1)])
     df_energy_credit = pd.DataFrame(energy_credit_all_episodes, columns=time_steps,
                                      index=[ep for ep in range(1, n_episodes + 1)])
+    df_top1 = pd.DataFrame(top1_all_episodes, columns=time_steps,
+                                     index=[ep for ep in range(1, n_episodes + 1)])
     df_y_net = pd.DataFrame(y_net_all_episodes, columns=time_steps,
                                     index=[ep for ep in range(1, n_episodes + 1)])
     df_flops_off = pd.DataFrame(flops_off_all_episodes, columns=time_steps,
                                     index=[ep for ep in range(1, n_episodes + 1)])
 
-    return df_inference_time, df_ue_energy_comp, df_ue_energy_comm, df_energy_credit, df_y_net, df_flops_off
+    return df_inference_time, df_ue_energy_comp, df_ue_energy_comm, df_energy_credit, df_top1, df_y_net, df_flops_off
 
 def parse_kpis_optimum(n_episodes, omega):
     """
@@ -444,8 +482,8 @@ def main():
     os.chdir(path_parent)
 
     n_episodes_to_plot = 1500
-    #n_episodes = {'optimum': 1, 'random': 999, 'rl/ddqn': 999}
-    n_episodes = {'optimum': 19, 'rl/ddqn': 869, 'random': 19, 'fixed': 19, 'ue': 19}
+    #n_episodes = {'optimum': 9, 'random': 200, 'rl/ddqn': 5000}
+    n_episodes = {'optimum': 9, 'rl/ddqn': 5000, 'random': 200, 'fixed': 9, 'ue': 1}
     #n_episodes = {'optimum': 1, 'rl/ddqn': 1500, 'random': 15, 'fixed': 1}
     algorithms = ['optimum', 'rl/ddqn', 'random', 'fixed', 'ue']
     #algorithms = ['optimum', 'rl/ddqn', 'random', 'fixed']
@@ -455,20 +493,22 @@ def main():
     df_ue_energy_comp_list = [] # for each specified algorithm in 'algorithms'
     df_ue_energy_comm_list = [] # for each specified algorithm in 'algorithms'
     df_energy_credit_list = []  # for each specified algorithm in 'algorithms'
+    df_top1_list = []   # for each specified algorithm in 'algorithms'
     df_y_net_list = []  # for each specified algorithm in 'algorithms'
     df_flops_off_list = []  # for each specified algorithm in 'algorithms'
 
     # specifies the episodes of convergence of ddqn
     n_episodes_to_train = 900   # mean inference latency & ue energy of different methods
-    n_episodes_to_train = 400  # for inference latency vs energy plots
-    total_episodes_train = 869 # mean inference latency & ue energy of different methods
+    n_episodes_to_train = 2000  # for inference latency vs energy plots
+    total_episodes_train = 5000 # mean inference latency & ue energy of different methods
     for alg in algorithms:
-        df_inference_time, df_ue_energy_comp, df_ue_energy_comm, df_energy_credit, df_y_net, df_flops_off = (
+        df_inference_time, df_ue_energy_comp, df_ue_energy_comm, df_energy_credit, df_top1, df_y_net, df_flops_off = (
             parse_kpis(alg, n_episodes[alg], None))
         df_inference_time_list.append(df_inference_time)
         df_ue_energy_comp_list.append(df_ue_energy_comp)
         df_ue_energy_comm_list.append(df_ue_energy_comm)
         df_energy_credit_list.append(df_energy_credit)
+        df_top1_list.append(df_top1)
         df_y_net_list.append(df_y_net)
         df_flops_off_list.append(df_flops_off)
     # plot the required kpis across episodes
@@ -477,9 +517,11 @@ def main():
     #plot_kpis(df_ue_energy_comm_list, n_episodes, n_episodes_to_plot, algorithms, 'ue_energy_comm')
     #plot_kpis(df_energy_credit_list, n_episodes, n_episodes_to_plot, algorithms, 'energy_credit')
 
+    # debug
+
     # barplot=False implies plotting one kpi vs another e.g. energy credit vs ue energy
     plot_kpis_all_episodes(df_inference_time_list, df_ue_energy_comp_list, df_ue_energy_comm_list,
-    df_energy_credit_list, df_y_net_list, df_flops_off_list, algorithms, n_episodes_to_train, total_episodes_train,
+    df_energy_credit_list, df_top1_list, df_y_net_list, df_flops_off_list, algorithms, n_episodes_to_train, total_episodes_train,
                            barplot=True)
 
     # -------------------------- Only for optimum ---------------------------
