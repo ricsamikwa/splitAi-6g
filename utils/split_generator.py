@@ -44,6 +44,7 @@ class Baseline:
         self.total_flops_on_ue = 0  # captures the cumulative flops computed on the ue until now
         for key, value in self.flops_per_block.items():
             self.total_flops += value
+        self.objective = None   # this variable is only for the heuristic
 
     def random(self, allowed_splits, num_nodes, allow_empty_nodes, dnn_model, episode_params, output):
         split_idx = None
@@ -90,13 +91,16 @@ class Baseline:
         """
         split_idx = None
         #self.compression_rate = np.random.choice(self.scenario_params['compression_rates'])
-        # first determine the top1 accuracy confidence for the default split ONLY for the first instance
+        # first determine the top1 accuracy confidence & objective value for the default split ONLY for the first instance
         if self.top1_accuracy_confidence is None:
             # compute the top1 accuracy confidence for the default action
             inference_time, ue_en_comp, ue_en_comm, expected_output = compute_inference(self.split, dnn_model,
                                                                                         episode_params,
                                                                                         output, self.compression_rate)
             self.top1_accuracy_confidence = self.return_top1_accuracy_confidence(expected_output)
+            self.objective = ((self.scenario_params['weight_inference_time'] * inference_time) +
+                            ((1 - self.scenario_params['weight_inference_time']) * (ue_en_comp + ue_en_comm))
+                            - (self.scenario_params['weight_accuracy'] * self.top1_accuracy_confidence))
         # Build full action space once
         feasible_splits, split_indices = enumerate_action_space(allowed_splits, num_nodes, allow_empty_nodes)
         feasible_split_compression, action_indices_extended = extended_action_space(feasible_splits,

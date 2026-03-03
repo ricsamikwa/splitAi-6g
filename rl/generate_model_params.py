@@ -35,7 +35,7 @@ model = Model(n_states, n_actions)
 outfile = 'initial_models/main_params_ddqn.pt'
 
 # save the model state dict
-torch.save(model.state_dict(), outfile)
+#torch.save(model.state_dict(), outfile)
 ##--------------- uncomment for DDQN ----------------
 
 class Actor(nn.Module):
@@ -71,5 +71,5 @@ actor = Actor(n_states, n_actions)
 critic = Critic(n_states)
 outfile_actor = 'initial_models/actor_params_a2c.pt'
 outfile_critic = 'initial_models/critic_params_a2c.pt'
-#torch.save(actor.state_dict(), outfile_actor)
-#torch.save(critic.state_dict(), outfile_critic)
+torch.save(actor.state_dict(), outfile_actor)
+torch.save(critic.state_dict(), outfile_critic)
