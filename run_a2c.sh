@@ -57,8 +57,8 @@ set_ini_value "ALGORITHM" "PARAM_PATH" "$RUN_ID"     # read params from input/ep
 # If you have something like SYSTEM_PARAMS_MBPS in config, set it here too.
 # set_ini_value "ALGORITHM" "SYSTEM_PARAMS_MBPS" "2000"
 
-set_ini_value "DRL_HYPERPARAMETERS" "LR_ACTOR" "0.0001"       # 1e-4
-set_ini_value "DRL_HYPERPARAMETERS" "LR_CRITIC" "0.0005"      # 5e-4
+set_ini_value "DRL_HYPERPARAMETERS" "LR_ACTOR" "0.0003"       # 3e-4
+set_ini_value "DRL_HYPERPARAMETERS" "LR_CRITIC" "0.001"      # 1e-3
 set_ini_value "DRL_HYPERPARAMETERS" "ENTROPY_FACTOR" "0.005"  # 5e-3
 
 echo "[$(ts)] Config check:"
