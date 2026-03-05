@@ -156,7 +156,6 @@ def plot_kpis_all_episodes(df_inference_time_list, df_ue_energy_comp_list, df_ue
     mean_top1_ddqn = df_ddqn_top1['mean'][n_episodes_aft_train:total_episodes_train].mean()
     df_ddqn_y_net['mean'] = df_ddqn_y_net.mean(axis=1)
     #df_ddqn_flops_off['mean'] = df_ddqn_flops_off.mean(axis=1)
-
     # then random
     alg_idx = 2
     df_random_inference_time = df_inference_time_list[alg_idx]
@@ -176,8 +175,6 @@ def plot_kpis_all_episodes(df_inference_time_list, df_ue_energy_comp_list, df_ue
     mean_energy_credit_random = df_random_energy_credit['mean'].mean()
     df_random_top1['mean'] = df_random_top1.mean(axis=1)
     mean_top1_random = df_random_top1['mean'].mean()
-
-
     # then fixed split
     alg_idx = 3
     df_fixed_inference_time = df_inference_time_list[alg_idx]
@@ -217,17 +214,38 @@ def plot_kpis_all_episodes(df_inference_time_list, df_ue_energy_comp_list, df_ue
     mean_energy_credit_local = df_local_energy_credit['mean'].mean()
     df_local_top1['mean'] = df_local_top1.mean(axis=1)
     mean_top1_local = df_local_top1['mean'].mean()
-    data = {}
+
+    # then a2c
+    alg_idx = 5
+    df_a2c_inference_time = df_inference_time_list[alg_idx]
+    df_a2c_ue_energy_comp = df_ue_energy_comp_list[alg_idx]
+    df_a2c_ue_energy_comm = df_ue_energy_comm_list[alg_idx]
+    df_a2c_energy_credit = df_energy_credit_list[alg_idx]
+    df_a2c_top1 = df_top1_list[alg_idx]
+    df_a2c_y_net = df_y_net_list[alg_idx]
+    # then calculate the means
+    df_a2c_inference_time['mean'] = df_a2c_inference_time.mean(axis=1)
+    mean_inference_time_a2c = df_a2c_inference_time['mean'][n_episodes_aft_train:total_episodes_train].mean()
+    df_a2c_ue_energy_comp['mean'] = df_a2c_ue_energy_comp.mean(axis=1)
+    mean_ue_energy_comp_a2c = df_a2c_ue_energy_comp['mean'][n_episodes_aft_train:total_episodes_train].mean()
+    df_a2c_ue_energy_comm['mean'] = df_a2c_ue_energy_comm.mean(axis=1)
+    mean_ue_energy_comm_a2c = df_a2c_ue_energy_comm['mean'][n_episodes_aft_train:total_episodes_train].mean()
+    mean_ue_energy_a2c = mean_ue_energy_comp_a2c + mean_ue_energy_comm_a2c
+    df_a2c_energy_credit['mean'] = df_a2c_energy_credit.mean(axis=1)
+    mean_energy_credit_a2c = df_a2c_energy_credit['mean'][n_episodes_aft_train:total_episodes_train].mean()
+    df_a2c_top1['mean'] = df_a2c_top1.mean(axis=1)
+    mean_top1_a2c = df_a2c_top1['mean'][n_episodes_aft_train:total_episodes_train].mean()
+    df_a2c_y_net['mean'] = df_a2c_y_net.mean(axis=1)
     # gather in a dict
-    data = {'inference_latency': (mean_inference_time_optimum, mean_inference_time_ddqn, mean_inference_time_random,
-                                  mean_inference_time_fixed, mean_inference_time_local),
-            'ue_energy_comp': (mean_ue_energy_comp_optimum, mean_ue_energy_comp_ddqn, mean_ue_energy_comp_random,
-                               mean_ue_energy_comp_fixed, mean_ue_energy_comp_local),
-            'ue_energy_comm': (mean_ue_energy_comm_optimum, mean_ue_energy_comm_ddqn, mean_ue_energy_comm_random,
-                               mean_ue_energy_comm_fixed, mean_ue_energy_comm_local),
-            'mean_ue_energy': (mean_ue_energy_optimum, mean_ue_energy_ddqn, mean_ue_energy_random,
+    data = {'inference_latency': (mean_inference_time_optimum, mean_inference_time_ddqn, mean_inference_time_a2c,
+                                  mean_inference_time_random, mean_inference_time_fixed, mean_inference_time_local),
+            'ue_energy_comp': (mean_ue_energy_comp_optimum, mean_ue_energy_comp_ddqn, mean_ue_energy_comp_a2c,
+                               mean_ue_energy_comp_random, mean_ue_energy_comp_fixed, mean_ue_energy_comp_local),
+            'ue_energy_comm': (mean_ue_energy_comm_optimum, mean_ue_energy_comm_ddqn, mean_ue_energy_comm_a2c,
+                               mean_ue_energy_comm_random, mean_ue_energy_comm_fixed, mean_ue_energy_comm_local),
+            'mean_ue_energy': (mean_ue_energy_optimum, mean_ue_energy_ddqn, mean_ue_energy_a2c, mean_ue_energy_random,
                                mean_ue_energy_fixed, mean_ue_energy_local),
-            'top1': (mean_top1_optimum, mean_top1_ddqn, mean_top1_random, mean_top1_fixed, mean_top1_local)}
+            'top1': (mean_top1_optimum, mean_top1_ddqn, mean_top1_a2c, mean_top1_random, mean_top1_fixed, mean_top1_local)}
 
     # check if the plot to generate is a barplot, otherwise generate a usual line/scatter plot
     if barplot:
@@ -376,7 +394,7 @@ def parse_kpis(folder, n_episodes, inference_deadline):
     Returns:
         Tuple: (dataframes containing inference time, ue computation and communication energy and energy credit)
     """
-    if folder != 'rl/ddqn':
+    if folder != 'rl/ddqn' or folder != 'rl/a2c':
         order = return_order(n_episodes)
     else:
         order = return_order(n_episodes=1000)
@@ -483,9 +501,9 @@ def main():
 
     n_episodes_to_plot = 1500
     #n_episodes = {'optimum': 9, 'random': 200, 'rl/ddqn': 5000}
-    n_episodes = {'optimum': 9, 'rl/ddqn': 5000, 'random': 200, 'fixed': 9, 'ue': 1}
+    n_episodes = {'optimum': 9, 'rl/ddqn': 5000, 'rl/a2c': 5000, 'random': 200, 'fixed': 9, 'ue': 1}
     #n_episodes = {'optimum': 1, 'rl/ddqn': 1500, 'random': 15, 'fixed': 1}
-    algorithms = ['optimum', 'rl/ddqn', 'random', 'fixed', 'ue']
+    algorithms = ['optimum', 'rl/ddqn', 'random', 'fixed', 'ue', 'rl/a2c']
     #algorithms = ['optimum', 'rl/ddqn', 'random', 'fixed']
     #algorithms = ['optimum', 'rl/ddqn', 'random']
     #algorithms = ['rl/ddqn']

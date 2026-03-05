@@ -29,7 +29,7 @@ def plot_metrics_together(metric1, metric2, df1, df2, outfile, folder):
 
 
 def plot_metric(metric, df, outfile, folder):
-    window = 10
+    window = 200
     fig, ax = plt.subplots()
     roll_mean_metric = df[metric].rolling(window=window).mean()
     plt.plot(df['episode'], roll_mean_metric, label='{}'.format(folder))

@@ -24,7 +24,10 @@ def read_kpis_from_files(folder, kpi_type, episode_count):
     return data_timestep, data_kpi
 
 def parse_kpis(alg, n_episodes):
-    order = return_order(n_episodes=1000)
+    if alg != 'rl/ddqn':
+        order = return_order(n_episodes)
+    else:
+        order = return_order(n_episodes=1000)
     time_steps = []
     compression_all_episodes = []
     top1_accuracy_all_episodes = []
@@ -68,7 +71,6 @@ def plot_compression_vs_accuracy(df_compression_list, df_top1_accuracy_list, df_
                                  n_episodes_to_train, total_episodes_train):
     # the methodology to follow is to first check which split config is being selected by the agent the most
     # check 26
-    split_idx_to_plot = 81
     fig, ax = plt.subplots(layout='constrained')
     # data extraction for the different mechanisms
     # for optimum
@@ -86,25 +88,34 @@ def plot_compression_vs_accuracy(df_compression_list, df_top1_accuracy_list, df_
     alg_idx = 1
     df_ddqn_compression = df_compression_list[alg_idx]
     df_ddqn_compression_list = []
-    #print(df_ddqn_compression.iloc[0])
     df_ddqn_top1_accuracy = df_top1_accuracy_list[alg_idx]
     df_ddqn_top1_accuracy_list = []
     df_ddqn_split_idx = df_split_idx_list[alg_idx]
     df_ddqn_split_idx_list = []
     df_ddqn_ue_energy_comm = df_ue_energy_comm_list[alg_idx]
     df_ddqn_ue_energy_comm_list = []
-    n_episodes_aft_train = total_episodes_train - n_episodes_to_train
+
+    # for rl/a2c
+    alg_idx = 2
+    df_a2c_compression = df_compression_list[alg_idx]
+    df_a2c_compression_list = []
+    df_a2c_top1_accuracy = df_top1_accuracy_list[alg_idx]
+    df_a2c_top1_accuracy_list = []
+    df_a2c_split_idx = df_split_idx_list[alg_idx]
+    df_a2c_split_idx_list = []
+    df_a2c_ue_energy_comm = df_ue_energy_comm_list[alg_idx]
+    df_a2c_ue_energy_comm_list = []
 
     # for random
-    alg_idx = 2
-    df_random_compression = df_compression_list[alg_idx]
-    df_random_compression_list = []
-    df_random_top1_accuracy = df_top1_accuracy_list[alg_idx]
-    df_random_top1_accuracy_list = []
-    df_random_split_idx = df_split_idx_list[alg_idx]
-    df_random_split_idx_list = []
-    df_random_ue_energy_comm = df_ue_energy_comm_list[alg_idx]
-    df_random_ue_energy_comm_list = []
+    alg_idx = 3
+    # df_random_compression = df_compression_list[alg_idx]
+    # df_random_compression_list = []
+    # df_random_top1_accuracy = df_top1_accuracy_list[alg_idx]
+    # df_random_top1_accuracy_list = []
+    # df_random_split_idx = df_split_idx_list[alg_idx]
+    # df_random_split_idx_list = []
+    # df_random_ue_energy_comm = df_ue_energy_comm_list[alg_idx]
+    # df_random_ue_energy_comm_list = []
 
     # for optimum
     for i in range(0, 9):
@@ -115,47 +126,75 @@ def plot_compression_vs_accuracy(df_compression_list, df_top1_accuracy_list, df_
         df_opt_split_idx_list.extend(z)
         df_opt_ue_energy_comm_list.extend(w)
     # for ddqn
-    for i in range(n_episodes_to_train-1, total_episodes_train):
+    for i in range(n_episodes_to_train['rl/ddqn']-1, total_episodes_train['rl/ddqn']):
         x, y, z, w = return_metrics_list_per_episode(i, df_ddqn_compression, df_ddqn_top1_accuracy, df_ddqn_split_idx,
                                                   df_ddqn_ue_energy_comm)
         df_ddqn_compression_list.extend(x)
         df_ddqn_top1_accuracy_list.extend(y)
         df_ddqn_split_idx_list.extend(z)
         df_ddqn_ue_energy_comm_list.extend(w)
-    #print(x)
+    # for a2c
+    for i in range(n_episodes_to_train['rl/a2c'] - 1, total_episodes_train['rl/a2c']):
+        x, y, z, w = return_metrics_list_per_episode(i, df_a2c_compression, df_a2c_top1_accuracy, df_a2c_split_idx,
+                                                     df_a2c_ue_energy_comm)
+        df_a2c_compression_list.extend(x)
+        df_a2c_top1_accuracy_list.extend(y)
+        df_a2c_split_idx_list.extend(z)
+        df_a2c_ue_energy_comm_list.extend(w)
     # for random
-    for i in range(0, 200):
-        x, y, z, w = return_metrics_list_per_episode(i, df_random_compression, df_random_top1_accuracy, df_random_split_idx,
-                                                     df_random_ue_energy_comm)
-        df_random_compression_list.extend(x)
-        df_random_top1_accuracy_list.extend(y)
-        df_random_split_idx_list.extend(z)
-        df_random_ue_energy_comm_list.extend(w)
+    # for i in range(0, 200):
+    #     x, y, z, w = return_metrics_list_per_episode(i, df_random_compression, df_random_top1_accuracy, df_random_split_idx,
+    #                                                  df_random_ue_energy_comm)
+    #     df_random_compression_list.extend(x)
+    #     df_random_top1_accuracy_list.extend(y)
+    #     df_random_split_idx_list.extend(z)
+    #     df_random_ue_energy_comm_list.extend(w)
 
     df_opt = pd.DataFrame({'compression': df_opt_compression_list, 'top1': df_opt_top1_accuracy_list,
                            'split_idx': df_opt_split_idx_list, 'ue_energy_comm': df_opt_ue_energy_comm_list})
     df_ddqn = pd.DataFrame({'compression': df_ddqn_compression_list, 'top1': df_ddqn_top1_accuracy_list,
                        'split_idx': df_ddqn_split_idx_list, 'ue_energy_comm': df_ddqn_ue_energy_comm_list})
-    df_random = pd.DataFrame({'compression': df_random_compression_list, 'top1': df_random_top1_accuracy_list,
-                              'split_idx': df_random_split_idx_list, 'ue_energy_comm': df_random_ue_energy_comm_list})
-    new_df = pd.concat([df_opt, df_ddqn, df_random])
-    mdf = pd.melt(new_df)
-    ax = sns.boxplot(x='')
-    # select rows from df that correspond to split_idx = split_idx_to_plot
-    #df_subset = df.loc[df['split_idx'] == split_idx_to_plot]
-    #df = pd.concat([x, y], axis=1)
-    #print(df)
-    #print(df_subset)
-    #df_subset = df_subset.drop('split_idx', axis=1)
-    df_ddqn = df_ddqn.drop('split_idx', axis=1)
-    df_ddqn = df_ddqn.drop('top1', axis=1)
-    #df_subset.boxplot(by='compression')
-    df_ddqn.boxplot(by='compression')
-    #df.rename(columns={1: 'compression', 1: 'top1'})
-    #ax.scatter(x, y, marker='^', color='#072140', label='ddqn')
-    #ax.grid()
-    #ax.set_xlabel('ratio of original data to compressed data (rho)')
-    #ax.set_ylabel('top1 accuracy confidence (%)')
+    df_a2c = pd.DataFrame({'compression': df_a2c_compression_list, 'top1': df_a2c_top1_accuracy_list,
+                           'split_idx': df_a2c_split_idx_list, 'ue_energy_comm': df_a2c_ue_energy_comm_list})
+    # df_random = pd.DataFrame({'compression': df_random_compression_list, 'top1': df_random_top1_accuracy_list,
+    #                           'split_idx': df_random_split_idx_list, 'ue_energy_comm': df_random_ue_energy_comm_list})
+
+    df_opt['algorithm'] = 'opt'
+    df_ddqn['algorithm'] = 'ddqn'
+    df_a2c['algorithm'] = 'a2c'
+    df_all = pd.concat([df_opt, df_ddqn, df_a2c], ignore_index=True)
+    palette = {'opt': '#9ABCE4', 'ddqn': '#072140', 'a2c': '#165DB1', 'random': '#9ABCE4'}
+    #df_all.boxplot(column='ue_energy_comm', by=['compression', 'algorithm'])
+    # sns.boxplot(
+    #     data=df_all,
+    #     x="compression",
+    #     y="ue_energy_comm",
+    #     hue="algorithm"
+    # )
+    ax = sns.boxenplot(
+        data=df_all,
+        x="compression",
+        y="ue_energy_comm",
+        hue="algorithm",
+        palette=palette,
+        width=0.7,
+        k_depth="proportion"
+    )
+    sns.stripplot(
+        data=df_all,
+        x="compression",
+        y="ue_energy_comm",
+        hue="algorithm",
+        palette=palette,
+        dodge=True,
+        alpha=0.35,
+        size=3
+    )
+    handles, labels = ax.get_legend_handles_labels()
+    ax.legend(handles[:3], labels[:3], title="Algorithm")
+    #plt.xticks(rotation=45)
+    #plt.suptitle('')
+    plt.grid()
     plt.show()
 
 
@@ -170,15 +209,17 @@ def main():
     path_parent = os.path.dirname(os.getcwd())
     os.chdir(path_parent)
 
-    algorithms = ['optimum', 'rl/ddqn', 'random']
-    n_episodes = {'optimum': 9, 'rl/ddqn': 2000, 'random': 200}
+    #algorithms = ['optimum', 'rl/ddqn', 'random']
+    algorithms = ['optimum', 'rl/ddqn', 'rl/a2c']
+    #n_episodes = {'optimum': 9, 'rl/ddqn': 2000, 'random': 200}
+    n_episodes = {'optimum': 9, 'rl/ddqn': 5000, 'rl/a2c': 5000}
     df_compression_list = []    # for each specified algorithm in 'algorithms'
     df_top1_accuracy_list = []  # for each specified algorithm in 'algorithms'
     df_split_idx_list = []      # for each specified algorithm in 'algorithms'
     df_ue_energy_comm_list = [] # for each specified algorithm in 'algorithms'
 
-    n_episodes_to_train = 1000
-    total_episodes_train = 2000
+    n_episodes_to_train = {'rl/ddqn': 1500, 'rl/a2c': 3000}
+    total_episodes_train = {'rl/ddqn': 5000, 'rl/a2c': 5000}
 
     for alg in algorithms:
         df_compression, df_top1_accuracy, df_split_idx, df_ue_energy_comm = parse_kpis(alg, n_episodes[alg])
