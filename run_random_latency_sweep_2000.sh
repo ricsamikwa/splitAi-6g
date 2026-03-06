@@ -18,9 +18,6 @@ echo "Config file: $CONFIG_FILE"
 echo "PARAM_FOLDER: $PARAM_FOLDER"
 echo
 
-echo "[$(ts)] Pulling latest commit..."
-git pull
-
 set_ini_value () {
   local section="$1"
   local key="$2"
