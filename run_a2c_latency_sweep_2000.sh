@@ -40,7 +40,7 @@ set_ini_value () {
 }
 
 make_a2c_dirs () {
-  mkdir -p logs/rl/a2c/{epsilon,loss,models,reward,splits,system}
+  mkdir -p logs/rl/a2c/{advantage,entropy,loss,models,reward,splits,system}
 }
 
 mkdir -p logs logs/rl
