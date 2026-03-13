@@ -95,5 +95,4 @@ for w in "${WEIGHTS[@]}"; do
   echo "[$(ts)] Finished DDQN run for WEIGHT_INFERENCE_TIME=$w"
   echo
 done
-
 echo "[$(ts)] All DDQN weight runs completed."
