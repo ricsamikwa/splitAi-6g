@@ -44,7 +44,7 @@ class Baseline:
         self.total_flops_on_ue = 0  # captures the cumulative flops computed on the ue until now
         for key, value in self.flops_per_block.items():
             self.total_flops += value
-        self.objective = None   # this variable is only for the heuristic
+        self.objective = None   # this variable is only for the greedy heuristic
 
     def random(self, allowed_splits, num_nodes, allow_empty_nodes, dnn_model, episode_params, output):
         split_idx = None
@@ -115,20 +115,29 @@ class Baseline:
         selected_split = selected_split_compression['split']
         selected_compression = selected_split_compression['compression']
         flops_offloaded, flops_on_ue = self.get_flops_offloaded(selected_split)
-        # compute the inference due to this selected split
+        # compute the inference due to this selected split + compression
         inference_time, ue_en_comp, ue_en_comm, out = compute_inference(selected_split, dnn_model, episode_params,
                                                                         output, selected_compression)
-        # compute top1 accuracy confidence due to this split
-        self.top1_accuracy_confidence = self.return_top1_accuracy_confidence(out)
+        # compute top1 accuracy confidence due to this split + compression
+        top1_accuracy_confidence = self.return_top1_accuracy_confidence(out)
+        # compute the objective due to this split + compression
+        objective = ((self.scenario_params['weight_inference_time'] * inference_time) +
+                            ((1 - self.scenario_params['weight_inference_time']) * (ue_en_comp + ue_en_comm))
+                            - (self.scenario_params['weight_accuracy'] * self.top1_accuracy_confidence))
+        # compute and check constraints
         energy_credit_criteria, energy_credit_consumed = self.check_energy_credit_budget(flops_offloaded)
         latency_criteria = self.check_latency_criteria(inference_time)
-        accuracy_criteria = self.check_accuracy_confidence_criteria(self.top1_accuracy_confidence)
+        accuracy_criteria = self.check_accuracy_confidence_criteria(top1_accuracy_confidence)
         # if both criteria are satisfied, then selected_split is the final split, else do nothing or continue with default split
         if energy_credit_criteria and latency_criteria and accuracy_criteria:
-            self.split = selected_split
-            self.compression_rate = selected_compression
-            # update the flops offloaded, flops on ue and energy credit usage
-            self.update_energy_credit_usage(flops_offloaded, flops_on_ue)
+        # constraints satisfied, now check new objective is less than previous
+            if objective < self.objective:
+                self.split = selected_split
+                self.compression_rate = selected_compression
+                # update the flops offloaded, flops on ue and energy credit usage
+                self.update_energy_credit_usage(flops_offloaded, flops_on_ue)
+                # update the top1 accuracy confidence
+                self.top1_accuracy_confidence = top1_accuracy_confidence
         else:
             self.flops_offloaded = 0.0
         # extract index of split config

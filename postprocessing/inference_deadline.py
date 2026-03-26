@@ -3,6 +3,8 @@ import os
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+
+from postprocessing.network_throughput import return_ci_95, return_ci_90
 from postprocessing.plot_system_kpis import return_order, read_kpis_from_files, parse_episode_number
 
 
@@ -100,59 +102,119 @@ def plot_kpis_vs_inference_deadline(df_all_inference_time, df_all_ue_energy_comp
     #r = np.arange(len(algorithms))  # the label locations
     #width = 0.25  # the width of the bars
     #multiplier = 0
-    # df_inference_time_ddqn_list = df_all_inference_time[0]   # ddqn
-    # df_ue_energy_comp_ddqn_list = df_all_ue_energy_comp[0]   # ddqn
-    # df_ue_energy_comm_ddqn_list = df_all_ue_energy_comm[0]   # ddqn
-    # df_top1_ddqn_list = df_all_top1[0]                       # ddqn
-    df_inference_time_opt_list = df_all_inference_time[1]   # opt
-    df_ue_energy_comp_opt_list = df_all_ue_energy_comp[1]   # opt
-    df_ue_energy_comm_opt_list = df_all_ue_energy_comm[1]   # opt
-    df_top1_opt_list = df_all_top1[1]                       # opt
-    # df_inference_time_random_list = df_all_inference_time[2]    # random
-    # df_ue_energy_comp_random_list = df_all_ue_energy_comp[2]    # random
-    # df_ue_energy_comm_random_list = df_all_ue_energy_comm[2]    # random
-    # df_top1_random_list = df_all_top1[2]                        # random
-    # df_inference_time_fixed_list = df_all_inference_time[3]     # fixed
-    # df_ue_energy_comp_fixed_list = df_all_ue_energy_comp[3]     # fixed
-    # df_ue_energy_comm_fixed_list = df_all_ue_energy_comm[3]     # fixed
-    # df_top1_fixed_list = df_all_top1[3]                         # fixed
+    df_inference_time_ddqn_list = df_all_inference_time[0]   # ddqn
+    df_ue_energy_comp_ddqn_list = df_all_ue_energy_comp[0]   # ddqn
+    df_ue_energy_comm_ddqn_list = df_all_ue_energy_comm[0]   # ddqn
+    df_top1_ddqn_list = df_all_top1[0]                       # ddqn
+    df_inference_time_a2c_list = df_all_inference_time[1]   # a2c
+    df_ue_energy_comp_a2c_list = df_all_ue_energy_comp[1]   # a2c
+    df_ue_energy_comm_a2c_list = df_all_ue_energy_comm[1]   # a2c
+    df_top1_a2c_list = df_all_top1[1]                       # a2c
+    df_inference_time_opt_list = df_all_inference_time[2]   # opt
+    df_ue_energy_comp_opt_list = df_all_ue_energy_comp[2]   # opt
+    df_ue_energy_comm_opt_list = df_all_ue_energy_comm[2]   # opt
+    df_top1_opt_list = df_all_top1[2]                       # opt
+    df_inference_time_random_list = df_all_inference_time[3]    # random
+    df_ue_energy_comp_random_list = df_all_ue_energy_comp[3]    # random
+    df_ue_energy_comm_random_list = df_all_ue_energy_comm[3]    # random
+    df_top1_random_list = df_all_top1[3]                        # random
+    df_inference_time_fixed_list = df_all_inference_time[4]     # fixed
+    df_ue_energy_comp_fixed_list = df_all_ue_energy_comp[4]     # fixed
+    df_ue_energy_comm_fixed_list = df_all_ue_energy_comm[4]     # fixed
+    df_top1_fixed_list = df_all_top1[4]                         # fixed
+    df_inference_time_hr_list = df_all_inference_time[5]  # heuristic
+    df_ue_energy_comp_hr_list = df_all_ue_energy_comp[5]  # heuristic
+    df_ue_energy_comm_hr_list = df_all_ue_energy_comm[5]  # heuristic
+    df_top1_hr_list = df_all_top1[5]  # heuristic
 
-    n_episodes_bef_train = n_episodes_to_train
-    n_episodes_aft_train = total_episodes_train - n_episodes_bef_train
+    n_episodes_aft_train_ddqn = total_episodes_train['rl/ddqn'] - n_episodes_to_train['rl/ddqn']
+    n_episodes_aft_train_a2c = total_episodes_train['rl/a2c'] - n_episodes_to_train['rl/a2c']
     fig, ax = plt.subplots()
-    # inference_time_mean_per_deadline_ddqn = []
-    # ue_energy_comp_mean_per_deadline_ddqn = []
-    # ue_energy_comm_mean_per_deadline_ddqn = []
-    # top1_mean_per_deadline_ddqn = []
+    inference_time_mean_per_deadline_ddqn = []
+    ue_energy_comp_mean_per_deadline_ddqn = []
+    ue_energy_comp_sd_per_deadline_ddqn = []
+    ue_energy_comp_ci_per_deadline_ddqn = []
+    ue_energy_comm_mean_per_deadline_ddqn = []
+    top1_mean_per_deadline_ddqn = []
+
+    inference_time_mean_per_deadline_a2c = []
+    ue_energy_comp_mean_per_deadline_a2c = []
+    ue_energy_comp_sd_per_deadline_a2c = []
+    ue_energy_comp_ci_per_deadline_a2c = []
+    ue_energy_comm_mean_per_deadline_a2c = []
+    top1_mean_per_deadline_a2c = []
+
     inference_time_mean_per_deadline_opt = []
     ue_energy_comp_mean_per_deadline_opt = []
+    ue_energy_comp_sd_per_deadline_opt = []
+    ue_energy_comp_ci_per_deadline_opt = []
     ue_energy_comm_mean_per_deadline_opt = []
     top1_mean_per_deadline_opt = []
-    # inference_time_mean_per_deadline_random = []
-    # ue_energy_comp_mean_per_deadline_random = []
-    # ue_energy_comm_mean_per_deadline_random = []
-    # top1_mean_per_deadline_random = []
-    # inference_time_mean_per_deadline_fixed = []
-    # ue_energy_comp_mean_per_deadline_fixed = []
-    # ue_energy_comm_mean_per_deadline_fixed = []
-    # top1_mean_per_deadline_fixed = []
+
+    inference_time_mean_per_deadline_random = []
+    ue_energy_comp_mean_per_deadline_random = []
+    ue_energy_comp_sd_per_deadline_random = []
+    ue_energy_comp_ci_per_deadline_random = []
+    ue_energy_comm_mean_per_deadline_random = []
+    top1_mean_per_deadline_random = []
+
+    inference_time_mean_per_deadline_fixed = []
+    ue_energy_comp_mean_per_deadline_fixed = []
+    ue_energy_comp_sd_per_deadline_fixed = []
+    ue_energy_comp_ci_per_deadline_fixed = []
+    ue_energy_comm_mean_per_deadline_fixed = []
+    top1_mean_per_deadline_fixed = []
+
+    inference_time_mean_per_deadline_hr = []
+    ue_energy_comp_mean_per_deadline_hr = []
+    ue_energy_comp_sd_per_deadline_hr = []
+    ue_energy_comp_ci_per_deadline_hr = []
+    ue_energy_comm_mean_per_deadline_hr = []
+    top1_mean_per_deadline_hr = []
     # extract data and store means
     for i, deadline in enumerate(inference_deadline_list):
-        # df_inference_time_ddqn = df_inference_time_ddqn_list[i]
-        # df_ue_energy_comp_ddqn = df_ue_energy_comp_ddqn_list[i]
-        # df_ue_energy_comm_ddqn = df_ue_energy_comm_ddqn_list[i]
-        # df_top1_ddqn = df_top1_ddqn_list[i]
+        df_inference_time_ddqn = df_inference_time_ddqn_list[i]
+        df_ue_energy_comp_ddqn = df_ue_energy_comp_ddqn_list[i]
+        df_ue_energy_comm_ddqn = df_ue_energy_comm_ddqn_list[i]
+        df_top1_ddqn = df_top1_ddqn_list[i]
         # then calculate the means
-        # df_inference_time_ddqn['mean'] = df_inference_time_ddqn.mean(axis=1)
-        # inference_time_mean_per_deadline_ddqn.append(df_inference_time_ddqn['mean'].iloc[n_episodes_bef_train:total_episodes_train].mean())
-        # df_ue_energy_comp_ddqn['mean'] = df_ue_energy_comp_ddqn.mean(axis=1)
-        # ue_energy_comp_mean_per_deadline_ddqn.append(df_ue_energy_comp_ddqn['mean'].iloc[n_episodes_bef_train:total_episodes_train].mean())
-        # df_ue_energy_comm_ddqn['mean'] = df_ue_energy_comm_ddqn.mean(axis=1)
-        # ue_energy_comm_mean_per_deadline_ddqn.append(df_ue_energy_comm_ddqn['mean'].iloc[n_episodes_bef_train:total_episodes_train].mean())
-        # # sum_ue_energy_per_deadline.append(df_ue_energy_comp_ddqn['mean'][n_episodes_bef_train:].mean() +
-        # #                                   df_ue_energy_comm_ddqn['mean'][n_episodes_bef_train:])
-        # df_top1_ddqn['mean'] = df_top1_ddqn.mean(axis=1)
-        # top1_mean_per_deadline_ddqn.append(df_top1_ddqn['mean'].iloc[n_episodes_bef_train:total_episodes_train].mean())
+        df_inference_time_ddqn['mean'] = df_inference_time_ddqn.mean(axis=1)
+        inference_time_mean_per_deadline_ddqn.append(df_inference_time_ddqn['mean'].iloc[n_episodes_aft_train_ddqn:total_episodes_train['rl/ddqn']].mean())
+        df_ue_energy_comp_ddqn['mean'] = df_ue_energy_comp_ddqn.mean(axis=1)
+        ue_energy_comp_mean_per_deadline_ddqn.append(df_ue_energy_comp_ddqn['mean'].iloc[n_episodes_aft_train_ddqn:total_episodes_train['rl/ddqn']].mean())
+        ue_energy_comp_ddqn_sd = df_ue_energy_comp_ddqn['mean'].std()
+        ue_energy_comp_ddqn_ci = return_ci_90(ue_energy_comp_ddqn_sd)
+        ue_energy_comp_sd_per_deadline_ddqn.append(ue_energy_comp_ddqn_sd)
+        ue_energy_comp_ci_per_deadline_ddqn.append(ue_energy_comp_ddqn_ci)
+        df_ue_energy_comm_ddqn['mean'] = df_ue_energy_comm_ddqn.mean(axis=1)
+        ue_energy_comm_mean_per_deadline_ddqn.append(df_ue_energy_comm_ddqn['mean'].iloc[n_episodes_aft_train_ddqn:total_episodes_train['rl/ddqn']].mean())
+        #sum_ue_energy_per_deadline.append(df_ue_energy_comp_ddqn['mean'][n_episodes_bef_train:].mean() +
+        #                                  df_ue_energy_comm_ddqn['mean'][n_episodes_bef_train:])
+        df_top1_ddqn['mean'] = df_top1_ddqn.mean(axis=1)
+        top1_mean_per_deadline_ddqn.append(df_top1_ddqn['mean'].iloc[n_episodes_aft_train_ddqn:total_episodes_train['rl/ddqn']].mean())
+
+        # then a2c
+        df_inference_time_a2c = df_inference_time_a2c_list[i]
+        df_ue_energy_comp_a2c = df_ue_energy_comp_a2c_list[i]
+        df_ue_energy_comm_a2c = df_ue_energy_comm_a2c_list[i]
+        df_top1_a2c = df_top1_a2c_list[i]
+        df_inference_time_a2c['mean'] = df_inference_time_a2c.mean(axis=1)
+        inference_time_mean_per_deadline_a2c.append(
+            df_inference_time_a2c['mean'].iloc[n_episodes_aft_train_a2c:total_episodes_train['rl/a2c']].mean())
+        df_ue_energy_comp_a2c['mean'] = df_ue_energy_comp_a2c.mean(axis=1)
+        ue_energy_comp_mean_per_deadline_a2c.append(
+            df_ue_energy_comp_a2c['mean'].iloc[n_episodes_aft_train_a2c:total_episodes_train['rl/a2c']].mean())
+        ue_energy_comp_a2c_sd = df_ue_energy_comp_a2c['mean'].std()
+        ue_energy_comp_a2c_ci = return_ci_90(ue_energy_comp_a2c_sd)
+        ue_energy_comp_sd_per_deadline_a2c.append(ue_energy_comp_a2c_sd)
+        ue_energy_comp_ci_per_deadline_a2c.append(ue_energy_comp_a2c_ci)
+        df_ue_energy_comm_a2c['mean'] = df_ue_energy_comm_a2c.mean(axis=1)
+        ue_energy_comm_mean_per_deadline_a2c.append(
+            df_ue_energy_comm_a2c['mean'].iloc[n_episodes_aft_train_a2c:total_episodes_train['rl/a2c']].mean())
+        # sum_ue_energy_per_deadline.append(df_ue_energy_comp_ddqn['mean'][n_episodes_bef_train:].mean() +
+        #                                  df_ue_energy_comm_ddqn['mean'][n_episodes_bef_train:])
+        df_top1_a2c['mean'] = df_top1_a2c.mean(axis=1)
+        top1_mean_per_deadline_a2c.append(df_top1_a2c['mean'].iloc[n_episodes_aft_train_a2c:total_episodes_train['rl/a2c']].mean())
 
         # then optimum
         df_inference_time_opt = df_inference_time_opt_list[i]
@@ -163,40 +225,68 @@ def plot_kpis_vs_inference_deadline(df_all_inference_time, df_all_ue_energy_comp
         inference_time_mean_per_deadline_opt.append(df_inference_time_opt['mean'].mean())
         df_ue_energy_comp_opt['mean'] = df_ue_energy_comp_opt.mean(axis=1)
         ue_energy_comp_mean_per_deadline_opt.append(df_ue_energy_comp_opt['mean'].mean())
+        ue_energy_comp_opt_sd = df_ue_energy_comp_opt['mean'].std()
+        ue_energy_comp_opt_ci = return_ci_90(ue_energy_comp_opt_sd)
+        ue_energy_comp_sd_per_deadline_opt.append(ue_energy_comp_opt_sd)
+        ue_energy_comp_ci_per_deadline_opt.append(ue_energy_comp_opt_ci)
         df_ue_energy_comm_opt['mean'] = df_ue_energy_comm_opt.mean(axis=1)
         ue_energy_comm_mean_per_deadline_opt.append(df_ue_energy_comm_opt['mean'].mean())
         df_top1_opt['mean'] = df_top1_opt.mean(axis=1)
         top1_mean_per_deadline_opt.append(df_top1_opt['mean'].mean())
 
         # then random
-        # df_inference_time_random = df_inference_time_random_list[i]
-        # df_ue_energy_comp_random = df_ue_energy_comp_random_list[i]
-        # df_ue_energy_comm_random = df_ue_energy_comm_random_list[i]
-        # df_top1_random = df_top1_random_list[i]
-        # df_inference_time_random['mean'] = df_inference_time_random.mean(axis=1)
-        # inference_time_mean_per_deadline_random.append(df_inference_time_random['mean'].mean())
-        # df_ue_energy_comp_random['mean'] = df_ue_energy_comp_random.mean(axis=1)
-        # ue_energy_comp_mean_per_deadline_random.append(df_ue_energy_comp_random['mean'].mean())
-        # df_ue_energy_comm_random['mean'] = df_ue_energy_comm_random.mean(axis=1)
-        # ue_energy_comm_mean_per_deadline_random.append(df_ue_energy_comm_random['mean'].mean())
-        # df_top1_random['mean'] = df_top1_random.mean(axis=1)
-        # top1_mean_per_deadline_random.append(df_top1_random['mean'].mean())
+        df_inference_time_random = df_inference_time_random_list[i]
+        df_ue_energy_comp_random = df_ue_energy_comp_random_list[i]
+        df_ue_energy_comm_random = df_ue_energy_comm_random_list[i]
+        df_top1_random = df_top1_random_list[i]
+        df_inference_time_random['mean'] = df_inference_time_random.mean(axis=1)
+        inference_time_mean_per_deadline_random.append(df_inference_time_random['mean'].mean())
+        df_ue_energy_comp_random['mean'] = df_ue_energy_comp_random.mean(axis=1)
+        ue_energy_comp_mean_per_deadline_random.append(df_ue_energy_comp_random['mean'].mean())
+        ue_energy_comp_random_sd = df_ue_energy_comp_random['mean'].std()
+        ue_energy_comp_random_ci = return_ci_90(ue_energy_comp_random_sd)
+        ue_energy_comp_sd_per_deadline_random.append(ue_energy_comp_random_sd)
+        ue_energy_comp_ci_per_deadline_random.append(ue_energy_comp_random_ci)
+        df_ue_energy_comm_random['mean'] = df_ue_energy_comm_random.mean(axis=1)
+        ue_energy_comm_mean_per_deadline_random.append(df_ue_energy_comm_random['mean'].mean())
+        df_top1_random['mean'] = df_top1_random.mean(axis=1)
+        top1_mean_per_deadline_random.append(df_top1_random['mean'].mean())
 
         # # then fixed
-        # df_inference_time_fixed = df_inference_time_fixed_list[i]
-        # df_ue_energy_comp_fixed = df_ue_energy_comp_fixed_list[i]
-        # df_ue_energy_comm_fixed = df_ue_energy_comm_fixed_list[i]
-        # df_top1_fixed = df_top1_fixed_list[i]
-        # df_inference_time_fixed['mean'] = df_inference_time_fixed.mean(axis=1)
-        # inference_time_mean_per_deadline_fixed.append(df_inference_time_fixed['mean'].mean())
-        # df_ue_energy_comp_fixed['mean'] = df_ue_energy_comp_fixed.mean(axis=1)
-        # ue_energy_comp_mean_per_deadline_fixed.append(df_ue_energy_comp_fixed['mean'].mean())
-        # df_ue_energy_comm_fixed['mean'] = df_ue_energy_comm_fixed.mean(axis=1)
-        # ue_energy_comm_mean_per_deadline_fixed.append(df_ue_energy_comm_fixed['mean'].mean())
-        # df_top1_fixed['mean'] = df_top1_fixed.mean(axis=1)
-        # top1_mean_per_deadline_fixed.append(df_top1_fixed['mean'].mean())
+        df_inference_time_fixed = df_inference_time_fixed_list[i]
+        df_ue_energy_comp_fixed = df_ue_energy_comp_fixed_list[i]
+        df_ue_energy_comm_fixed = df_ue_energy_comm_fixed_list[i]
+        df_top1_fixed = df_top1_fixed_list[i]
+        df_inference_time_fixed['mean'] = df_inference_time_fixed.mean(axis=1)
+        inference_time_mean_per_deadline_fixed.append(df_inference_time_fixed['mean'].mean())
+        df_ue_energy_comp_fixed['mean'] = df_ue_energy_comp_fixed.mean(axis=1)
+        ue_energy_comp_mean_per_deadline_fixed.append(df_ue_energy_comp_fixed['mean'].mean())
+        ue_energy_comp_fixed_sd = df_ue_energy_comp_fixed['mean'].std()
+        ue_energy_comp_fixed_ci = return_ci_90(ue_energy_comp_fixed_sd)
+        ue_energy_comp_sd_per_deadline_fixed.append(ue_energy_comp_fixed_sd)
+        ue_energy_comp_ci_per_deadline_fixed.append(ue_energy_comp_fixed_ci)
+        df_ue_energy_comm_fixed['mean'] = df_ue_energy_comm_fixed.mean(axis=1)
+        ue_energy_comm_mean_per_deadline_fixed.append(df_ue_energy_comm_fixed['mean'].mean())
+        df_top1_fixed['mean'] = df_top1_fixed.mean(axis=1)
+        top1_mean_per_deadline_fixed.append(df_top1_fixed['mean'].mean())
 
-        #sum_ue_energy_per_deadline_opt.append(df_inference_time_opt['mean'] + df_ue_energy_comm_opt['mean'])
+        # finally heuristic
+        df_inference_time_hr = df_inference_time_hr_list[i]
+        df_ue_energy_comp_hr = df_ue_energy_comp_hr_list[i]
+        df_ue_energy_comm_hr = df_ue_energy_comm_hr_list[i]
+        df_top1_hr = df_top1_hr_list[i]
+        df_inference_time_hr['mean'] = df_inference_time_hr.mean(axis=1)
+        inference_time_mean_per_deadline_hr.append(df_inference_time_hr['mean'].mean())
+        df_ue_energy_comp_hr['mean'] = df_ue_energy_comp_hr.mean(axis=1)
+        ue_energy_comp_mean_per_deadline_hr.append(df_ue_energy_comp_hr['mean'].mean())
+        ue_energy_comp_hr_sd = df_ue_energy_comp_hr['mean'].std()
+        ue_energy_comp_hr_ci = return_ci_90(ue_energy_comp_hr_sd)
+        ue_energy_comp_sd_per_deadline_hr.append(ue_energy_comp_hr_sd)
+        ue_energy_comp_ci_per_deadline_hr.append(ue_energy_comp_hr_ci)
+        df_ue_energy_comm_hr['mean'] = df_ue_energy_comm_hr.mean(axis=1)
+        ue_energy_comm_mean_per_deadline_hr.append(df_ue_energy_comm_hr['mean'].mean())
+        df_top1_hr['mean'] = df_top1_hr.mean(axis=1)
+        top1_mean_per_deadline_hr.append(df_top1_hr['mean'].mean())
     # sum_ue_energy_per_deadline_ddqn = np.add(ue_energy_comp_mean_per_deadline_ddqn, ue_energy_comm_mean_per_deadline_ddqn)
     # sum_ue_energy_per_deadline_opt = np.add(ue_energy_comp_mean_per_deadline_opt, ue_energy_comm_mean_per_deadline_opt)
     # sum_ue_energy_per_deadline_random = np.add(ue_energy_comp_mean_per_deadline_random, ue_energy_comm_mean_per_deadline_random)
@@ -212,11 +302,11 @@ def plot_kpis_vs_inference_deadline(df_all_inference_time, df_all_ue_energy_comp
 
     #print(sum_ue_energy_per_deadline_ddqn)
     # comp energy
-    ax.plot(inference_deadline_list, ue_energy_comp_mean_per_deadline_opt, color='#072140', marker='o', label='opt')
+    # ax.plot(inference_deadline_list, ue_energy_comp_mean_per_deadline_opt, color='#072140', marker='o', label='opt')
     # ax.plot(inference_deadline_list, ue_energy_comp_mean_per_deadline_ddqn, color='#165DB1', marker='o', label='ddqn')
     # ax.plot(inference_deadline_list, ue_energy_comp_mean_per_deadline_random, color='#9ABCE4', marker='o', label='random')
     # ax.plot(inference_deadline_list, ue_energy_comp_mean_per_deadline_fixed, color='#8F81EA', marker='o', label='fixed')
-    #ax1 = ax.twinx()
+    # ax1 = ax.twinx()
     # ax1.plot(inference_deadline_list, top1_mean_per_deadline_opt, color='#072140', marker='D', label='opt')
     # ax1.plot(inference_deadline_list, top1_mean_per_deadline_ddqn, color='#165DB1', marker='D', label='ddqn')
     # ax1.plot(inference_deadline_list, top1_mean_per_deadline_random, color='#9ABCE4', marker='D', label='random')
@@ -230,13 +320,66 @@ def plot_kpis_vs_inference_deadline(df_all_inference_time, df_all_ue_energy_comp
     #ax.plot(inference_deadline_list, ue_energy_comm_mean_per_deadline_ddqn, color='#165DB1', marker='o', label='ddqn')
     #ax.plot(inference_deadline_list, ue_energy_comm_mean_per_deadline_random, color='#9ABCE4', marker='o', label='random')
     #ax.plot(inference_deadline_list, ue_energy_comm_mean_per_deadline_fixed, color='#8F81EA', marker='o', label='fixed')
-    #ax.plot(inference_deadline_list, sum_ue_energy_per_deadline_opt, marker='o', label='optimum')
+    # top 1 accuracy confidence
+    #ax.plot(inference_deadline_list, top1_mean_per_deadline_opt, color='#072140', marker='o', label='opt')
+    #ax.plot(inference_deadline_list, top1_mean_per_deadline_ddqn, color='#165DB1', marker='o', label='ddqn')
+    #ax.plot(inference_deadline_list, top1_mean_per_deadline_random, color='#9ABCE4', marker='o', label='random')
+    # inference time
+    # ax.plot(inference_deadline_list, inference_time_mean_per_deadline_opt, color='#072140', marker='o', label='opt')
+    # ax.plot(inference_deadline_list, inference_time_mean_per_deadline_ddqn, color='#165DB1', marker='o', label='ddqn')
+    # ax.plot(inference_deadline_list, inference_time_mean_per_deadline_random, color='#9ABCE4', marker='o', label='random')
+    plt.errorbar(x=np.array(inference_deadline_list) - 0.006, y=ue_energy_comp_mean_per_deadline_opt,
+                 yerr=ue_energy_comp_ci_per_deadline_opt, color="#072140",  # line + marker color
+                 ecolor="#072140",  # error bar color
+                 elinewidth=2,  # thickness
+                 capsize=4,  # cap size
+                 capthick=2,
+                 linestyle='-',
+                 fmt='o', label='opt')
+    plt.errorbar(x=np.array(inference_deadline_list) - 0.003, y=ue_energy_comp_mean_per_deadline_ddqn,
+                 yerr=ue_energy_comp_ci_per_deadline_ddqn, color="#114584",  # line + marker color
+                 ecolor="#114584",  # error bar color
+                 elinewidth=2,  # thickness
+                 capsize=4,  # cap size
+                 linestyle='-',
+                 capthick=2, fmt='o', label='ddqn')
+    plt.errorbar(x=np.array(inference_deadline_list) - 0.001, y=ue_energy_comp_mean_per_deadline_a2c,
+                 yerr=ue_energy_comp_ci_per_deadline_a2c, color="#165DB1",  # line + marker color
+                 ecolor="#165DB1",  # error bar color
+                 elinewidth=2,  # thickness
+                 capsize=4,  # cap size
+                 linestyle='-',
+                 capthick=2, fmt='o', label='a2c')
+    plt.errorbar(x=np.array(inference_deadline_list) + 0.001, y=ue_energy_comp_mean_per_deadline_hr,
+                 yerr=ue_energy_comp_ci_per_deadline_hr, color="black",  # line + marker color
+                 ecolor="black",  # error bar color
+                 elinewidth=2,  # thickness
+                 capsize=4,  # cap size
+                 linestyle='-',
+                 capthick=2, fmt='o', label='heuristic')
+    plt.errorbar(x=np.array(inference_deadline_list) + 0.003, y=ue_energy_comp_mean_per_deadline_random,
+                 yerr=ue_energy_comp_ci_per_deadline_random, color="#9ABCE4",  # line + marker color
+                 ecolor="#9ABCE4",  # error bar color
+                 elinewidth=2,  # thickness
+                 capsize=4,  # cap size
+                 linestyle='-',
+                 capthick=2, fmt='o', label='random')
+    plt.errorbar(x=np.array(inference_deadline_list) + 0.006, y=ue_energy_comp_mean_per_deadline_fixed,
+                 yerr=ue_energy_comp_ci_per_deadline_fixed, color="#8F81EA",  # line + marker color
+                 ecolor="#8F81EA",  # error bar color
+                 elinewidth=2,  # thickness
+                 capsize=4,  # cap size
+                 linestyle='-',
+                 capthick=2, fmt='o', label='fixed')
+
     ax.set_xlabel('Inference deadline (s)')
     ax.set_ylabel('UE energy comp (J)')
+    #ax.set_ylabel('Inference time (s)')
+    #ax.set_ylabel('Top 1 accuracy confidence (%)')
     plt.grid()
     plt.legend()
-    #plt.savefig('results/comp_energy_vs_deadlines.png')
-    #plt.savefig('results/comp_energy_vs_deadlines.svg')
+    #plt.savefig('results/journal/comp_energy_vs_deadlines.png')
+    #plt.savefig('results/journal/comp_energy_vs_deadlines.svg')
     plt.show()
 
 def main():
@@ -244,14 +387,22 @@ def main():
     path_parent = os.path.dirname(os.getcwd())
     os.chdir(path_parent)
 
-    inference_deadline_list = [0.2, 0.225, 0.25, 0.275, 0.3, 0.325, 0.35, 0.375, 0.4]
+    inference_deadline_list = [0.225, 0.25, 0.275, 0.3, 0.325, 0.35, 0.375, 0.4]
     # specifies the episodes of convergence of ddqn
-    n_episodes_to_train = 900
-    total_episodes_train = 1000
+    n_episodes_to_train = {'rl/ddqn': 4000, 'rl/a2c': 3000}
+    total_episodes_train = {'rl/ddqn': 5000, 'rl/a2c': 5000}
     df_inference_time_list_ddqn = []  # for each specified deadline in 'inference_deadline_list'
     df_ue_energy_comp_list_ddqn = []  # for each specified deadline in 'inference_deadline_list'
     df_ue_energy_comm_list_ddqn = []  # for each specified deadline in 'inference_deadline_list'
     df_top1_list_ddqn = []            # for each specified deadline in 'inference_deadline_list'
+    df_inference_time_list_a2c = []  # for each specified deadline in 'inference_deadline_list'
+    df_ue_energy_comp_list_a2c = []  # for each specified deadline in 'inference_deadline_list'
+    df_ue_energy_comm_list_a2c = []  # for each specified deadline in 'inference_deadline_list'
+    df_top1_list_a2c = []            # for each specified deadline in 'inference_deadline_list'
+    df_inference_time_list_hr = []  # for each specified deadline in 'inference_deadline_list'
+    df_ue_energy_comp_list_hr = []  # for each specified deadline in 'inference_deadline_list'
+    df_ue_energy_comm_list_hr = []  # for each specified deadline in 'inference_deadline_list'
+    df_top1_list_hr = []  # for each specified deadline in 'inference_deadline_list'
     df_inference_time_list_opt = []  # for each specified deadline in 'inference_deadline_list'
     df_ue_energy_comp_list_opt = []  # for each specified deadline in 'inference_deadline_list'
     df_ue_energy_comm_list_opt = []  # for each specified deadline in 'inference_deadline_list'
@@ -266,12 +417,26 @@ def main():
     df_top1_list_fixed = []             # for each specified deadline in 'inference_deadline_list'
 
     for deadline in inference_deadline_list:
-        # df_inference_time, df_ue_energy_comp, df_ue_energy_comm, _, _, df_top1 = parse_kpis('rl/ddqn', total_episodes_train,
-        #                                                                      deadline)
-        # df_inference_time_list_ddqn.append(df_inference_time)
-        # df_ue_energy_comp_list_ddqn.append(df_ue_energy_comp)
-        # df_ue_energy_comm_list_ddqn.append(df_ue_energy_comm)
-        # df_top1_list_ddqn.append(df_top1)
+        df_inference_time, df_ue_energy_comp, df_ue_energy_comm, _, _, df_top1 = parse_kpis('rl/ddqn', total_episodes_train['rl/ddqn'],
+                                                                             deadline)
+        df_inference_time_list_ddqn.append(df_inference_time)
+        df_ue_energy_comp_list_ddqn.append(df_ue_energy_comp)
+        df_ue_energy_comm_list_ddqn.append(df_ue_energy_comm)
+        df_top1_list_ddqn.append(df_top1)
+
+        df_inference_time, df_ue_energy_comp, df_ue_energy_comm, _, _, df_top1 = parse_kpis('rl/a2c', total_episodes_train['rl/a2c'],
+                                                                             deadline)
+        df_inference_time_list_a2c.append(df_inference_time)
+        df_ue_energy_comp_list_a2c.append(df_ue_energy_comp)
+        df_ue_energy_comm_list_a2c.append(df_ue_energy_comm)
+        df_top1_list_a2c.append(df_top1)
+
+        df_inference_time, df_ue_energy_comp, df_ue_energy_comm, _, _, df_top1 = parse_kpis('heuristic', 100,
+                                                                                            deadline)
+        df_inference_time_list_hr.append(df_inference_time)
+        df_ue_energy_comp_list_hr.append(df_ue_energy_comp)
+        df_ue_energy_comm_list_hr.append(df_ue_energy_comm)
+        df_top1_list_hr.append(df_top1)
 
         df_inference_time, df_ue_energy_comp, df_ue_energy_comm, _, _, df_top1 = parse_kpis('optimum', 9, deadline)
         df_inference_time_list_opt.append(df_inference_time)
@@ -279,25 +444,26 @@ def main():
         df_ue_energy_comm_list_opt.append(df_ue_energy_comm)
         df_top1_list_opt.append(df_top1)
 
-        # df_inference_time, df_ue_energy_comp, df_ue_energy_comm, _, _, df_top1 = parse_kpis('random', 100, deadline)
-        # df_inference_time_list_random.append(df_inference_time)
-        # df_ue_energy_comp_list_random.append(df_ue_energy_comp)
-        # df_ue_energy_comm_list_random.append(df_ue_energy_comm)
-        # df_top1_list_random.append(df_top1)
-        #
-        # df_inference_time, df_ue_energy_comp, df_ue_energy_comm, _, _, df_top1 = parse_kpis('fixed', 9, deadline)
-        # df_inference_time_list_fixed.append(df_inference_time)
-        # df_ue_energy_comp_list_fixed.append(df_ue_energy_comp)
-        # df_ue_energy_comm_list_fixed.append(df_ue_energy_comm)
-        # df_top1_list_fixed.append(df_top1)
+        df_inference_time, df_ue_energy_comp, df_ue_energy_comm, _, _, df_top1 = parse_kpis('random', 300, deadline)
+        df_inference_time_list_random.append(df_inference_time)
+        df_ue_energy_comp_list_random.append(df_ue_energy_comp)
+        df_ue_energy_comm_list_random.append(df_ue_energy_comm)
+        df_top1_list_random.append(df_top1)
 
-    df_all_inference_time = [df_inference_time_list_ddqn, df_inference_time_list_opt, df_inference_time_list_random,
-                             df_inference_time_list_fixed]
-    df_all_ue_energy_comp = [df_ue_energy_comp_list_ddqn, df_ue_energy_comp_list_opt, df_ue_energy_comp_list_random,
-                             df_ue_energy_comp_list_fixed]
-    df_all_ue_energy_comm = [df_ue_energy_comm_list_ddqn, df_ue_energy_comm_list_opt, df_ue_energy_comm_list_random,
-                             df_ue_energy_comm_list_fixed]
-    df_all_top1 = [df_top1_list_ddqn, df_top1_list_opt, df_top1_list_random, df_top1_list_fixed]
+        df_inference_time, df_ue_energy_comp, df_ue_energy_comm, _, _, df_top1 = parse_kpis('fixed', 9, deadline)
+        df_inference_time_list_fixed.append(df_inference_time)
+        df_ue_energy_comp_list_fixed.append(df_ue_energy_comp)
+        df_ue_energy_comm_list_fixed.append(df_ue_energy_comm)
+        df_top1_list_fixed.append(df_top1)
+
+    df_all_inference_time = [df_inference_time_list_ddqn, df_inference_time_list_a2c, df_inference_time_list_opt,
+                             df_inference_time_list_random, df_inference_time_list_fixed, df_inference_time_list_hr]
+    df_all_ue_energy_comp = [df_ue_energy_comp_list_ddqn, df_ue_energy_comp_list_a2c, df_ue_energy_comp_list_opt,
+                             df_ue_energy_comp_list_random, df_ue_energy_comp_list_fixed, df_ue_energy_comp_list_hr]
+    df_all_ue_energy_comm = [df_ue_energy_comm_list_ddqn, df_ue_energy_comm_list_a2c, df_ue_energy_comm_list_opt,
+                             df_ue_energy_comm_list_random, df_ue_energy_comm_list_fixed, df_ue_energy_comm_list_hr]
+    df_all_top1 = [df_top1_list_ddqn, df_top1_list_a2c, df_top1_list_opt, df_top1_list_random, df_top1_list_fixed,
+                   df_top1_list_hr]
     plot_kpis_vs_inference_deadline(df_all_inference_time, df_all_ue_energy_comp, df_all_ue_energy_comm,
                                     inference_deadline_list, n_episodes_to_train, total_episodes_train, df_all_top1)
 

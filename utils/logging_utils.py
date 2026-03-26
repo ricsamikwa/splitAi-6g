@@ -1,5 +1,6 @@
 import csv
 from csv import writer
+
 from utils.rl_utils import save_model_params, return_order, parse_episode_number
 
 
@@ -23,8 +24,10 @@ def write_logs(scenario_params, episode, data, model):
         folder = 'optimum'
     elif scenario_params['split_algorithm'] == 4:
         folder = 'fixed'
-    else:
+    elif scenario_params['split_algorithm'] == 5:
         folder = 'ue'
+    else:
+        folder = 'heuristic'
     # inference time
     filename = 'system/{}_{}'.format('inference_time', episode_count)
     writeToCsv(data['inference_time'], filename, folder)
@@ -46,9 +49,6 @@ def write_logs(scenario_params, episode, data, model):
     # top 1 accuracy
     filename = 'system/{}_{}'.format('top1', episode_count)
     writeToCsv(data['top1'], filename, folder)
-    # top 5 accuracy
-    #filename = 'system/{}_{}'.format('top5', episode_count)
-    #writeToCsv(data['top5'], filename, folder)
     # energy credit
     filename = 'system/{}_{}'.format('energy_credit', episode_count)
     writeToCsv(data['energy_credit'], filename, folder)
