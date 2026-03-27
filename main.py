@@ -98,7 +98,7 @@ for ep in range(start_episode, scenario_params['n_episodes'] + 1):
         # initialize solver
         opt = Opt(scenario_params, allowed_splits, num_nodes, flops_per_block, allowed_splits_blocks)
     else:
-        # initialize the baseline algorithm i.e. random/fixed split/ue only
+        # initialize the baseline algorithm i.e. random/fixed split/ue only/greedy heuristic
         baseline = Baseline(scenario_params, allowed_splits, num_nodes, flops_per_block, allowed_splits_blocks)
     # determine the file number for the episode
     if file_number > num_input_files:
@@ -214,10 +214,17 @@ for ep in range(start_episode, scenario_params['n_episodes'] + 1):
             split_config, compression_rate, split_config_idx, top_1 = baseline.fixed_split(allowed_splits, num_nodes, True, model,
                                                           episode_params, current_output)
             folder = 'fixed'
-        else:   # ue only i.e. no split
+        elif scenario_params['split_algorithm'] == 5:   # ue only i.e. no split
             split_config, compression_rate, split_config_idx, top_1 = baseline.ue_computation_only(allowed_splits, num_nodes, True, model,
                                                           episode_params, current_output)
             folder = 'ue'
+        else:
+            folder = 'heuristic'
+            split_config, compression_rate, split_config_idx, top_1 = baseline.heuristic(allowed_splits,
+                                                                                                   num_nodes, True,
+                                                                                                   model,
+                                                                                                   episode_params,
+                                                                                                   current_output)
         # compute inference using the generated split configuration
         # Here add compression ratio inside compute_inference
         total_time, ue_energy_comp, ue_energy_comm, current_output = compute_inference(split_config, model,
