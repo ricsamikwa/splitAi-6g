@@ -102,7 +102,7 @@ if __name__ == "__main__":
     allowed_splits = [0, 3, 6, 10, 14, 18]
     num_nodes = 4
     all_actions, action_indices = enumerate_action_space(allowed_splits, num_nodes, allow_empty_nodes=True)
-    #print(f"Total actions: {len(all_actions)}")
+    print(f"Total actions: {len(all_actions)}")
     for i, a in enumerate(all_actions):
         print(a)
         action_indices[i] = a
@@ -115,4 +115,3 @@ if __name__ == "__main__":
     action_space, _ = extended_action_space(all_actions, compression_rate_list)
     print(action_space)
     print(len(action_space))
-
