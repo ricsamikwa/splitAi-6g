@@ -98,7 +98,7 @@ for ep in range(start_episode, scenario_params['n_episodes'] + 1):
         # initialize solver
         opt = Opt(scenario_params, allowed_splits, num_nodes, flops_per_block, allowed_splits_blocks)
     else:
-        # initialize the baseline algorithm i.e. random/fixed split/ue only/greedy heuristic
+        # initialize the baseline algorithm i.e. random/fixed split/ue only
         baseline = Baseline(scenario_params, allowed_splits, num_nodes, flops_per_block, allowed_splits_blocks)
     # determine the file number for the episode
     if file_number > num_input_files:
@@ -112,7 +112,7 @@ for ep in range(start_episode, scenario_params['n_episodes'] + 1):
         path = 'input/episode_parameters/radio_parameters_moving_{}.csv'.format(file_number)
         df_radio_params = pd.read_csv(path)
         # then read other params
-        df = read_params_from_file(episode=file_number, num_nodes=num_nodes)
+        df = read_params_from_file(episode=file_number, num_nodes=num_nodes, scenario_params = scenario_params)
         ue_freq = df['ue_freq'][k-1]
         ue_flops_cycle = df['ue_flops_per_cycle'][k-1]
         # uncomment this for production dataset
@@ -214,17 +214,10 @@ for ep in range(start_episode, scenario_params['n_episodes'] + 1):
             split_config, compression_rate, split_config_idx, top_1 = baseline.fixed_split(allowed_splits, num_nodes, True, model,
                                                           episode_params, current_output)
             folder = 'fixed'
-        elif scenario_params['split_algorithm'] == 5:   # ue only i.e. no split
+        else:   # ue only i.e. no split
             split_config, compression_rate, split_config_idx, top_1 = baseline.ue_computation_only(allowed_splits, num_nodes, True, model,
                                                           episode_params, current_output)
             folder = 'ue'
-        else:
-            folder = 'heuristic'
-            split_config, compression_rate, split_config_idx, top_1 = baseline.heuristic(allowed_splits,
-                                                                                                   num_nodes, True,
-                                                                                                   model,
-                                                                                                   episode_params,
-                                                                                                   current_output)
         # compute inference using the generated split configuration
         # Here add compression ratio inside compute_inference
         total_time, ue_energy_comp, ue_energy_comm, current_output = compute_inference(split_config, model,
@@ -260,7 +253,7 @@ for ep in range(start_episode, scenario_params['n_episodes'] + 1):
             total_flops_on_ue_per_episode.append({'time_step': k, 'y_ue': agent.agent.total_flops_on_ue})
             energy_credit_consumed_per_episode.append({'time_step': k, 'energy_credit': agent.agent.energy_credit_consumed})
             flops_offloaded_per_episode.append({'time_step': k, 'flops_off': agent.agent.flops_offloaded})
-        else:   # for all other baseline algorithms i.e. random/fixed split/ue only/heuristic
+        else:   # for all other baseline algorithms i.e. random/fixed split/ue only
             energy_credit_consumed_per_episode.append({'time_step': k, 'energy_credit': baseline.energy_credit_consumed})
             flops_offloaded_per_episode.append({'time_step': k, 'flops_off': baseline.flops_offloaded})
         # -----------------------
