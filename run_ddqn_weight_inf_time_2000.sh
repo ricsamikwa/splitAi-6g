@@ -6,7 +6,7 @@ cd "$(dirname "$0")"
 GPU_ID=0
 CONFIG_FILE="config.ini"
 PARAM_FOLDER=2000
-WEIGHTS=(0.9 0.5)
+WEIGHTS=(0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9)
 
 ts() { date "+%Y-%m-%d %H:%M:%S"; }
 
