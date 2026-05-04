@@ -20,10 +20,10 @@ def plot_kpis_in_episode(ue_energy_comp_per_algorithm, ue_energy_comm_per_algori
     fig, ax1 = plt.subplots()
     window = 10
     ax1.set_xlabel('Simulation time in s')
-    ax1.set_ylabel('UE energy comm (J)')
+    ax1.set_ylabel('UE energy comp (J)')
     ax2 = ax1.twinx()
-    #ax2.set_ylabel('Accumulated energy credits used')
-    ax2.set_ylabel('Inference latency (s)')
+    ax2.set_ylabel('Energy credits used')
+    #ax2.set_ylabel('Inference latency (s)')
     for alg in algorithms:
         ue_energy_comp_data = ue_energy_comp_per_algorithm[alg]
         ue_energy_comm_data = ue_energy_comm_per_algorithm[alg]
@@ -35,14 +35,14 @@ def plot_kpis_in_episode(ue_energy_comp_per_algorithm, ue_energy_comm_per_algori
         y = flops_offloaded_data['flops_off'] + y_net_data['y_net']
         #y = flops_offloaded_data['flops_off']
         #y = y_net_data['y_net']
-        ax1.plot(ue_energy_comm_data['time_step'], ue_energy_comm_data['ue_energy_comm'], color='#072140', marker='o',
-                label='ue energy comm')
-        ax2.plot(inference_time_data['time_step'], inference_time_data['inference_time'], linestyle='dotted', color='#9ABCE4', marker='D',
-                 label='inference latency')
-        # ax1.plot(ue_energy_comp_data['time_step'], ue_energy_comp_data['ue_energy_comp'], color='#072140', marker='o',
-        #          label='ue energy comp')
-        # ax2.plot(flops_offloaded_data['time_step'], y, linestyle='dotted', color='#9ABCE4', marker='D',
-        #          label='energy credits')
+        # ax1.plot(ue_energy_comm_data['time_step'], ue_energy_comm_data['ue_energy_comm'], color='#072140', marker='o',
+        #         label='ue energy comm')
+        # ax2.plot(inference_time_data['time_step'], inference_time_data['inference_time'], linestyle='dotted', color='#9ABCE4', marker='D',
+        #          label='inference latency')
+        ax1.plot(ue_energy_comp_data['time_step'], ue_energy_comp_data['ue_energy_comp'], color='#072140', marker='o',
+                 label='ue energy comp')
+        ax2.plot(flops_offloaded_data['time_step'], y, linestyle='dotted', color='#9ABCE4', marker='D',
+                 label='energy credits')
 
 
     ax1.grid()
@@ -84,7 +84,7 @@ def main():
     os.chdir(path_parent)
 
     algorithm = ['rl/ddqn']
-    episode_to_plot = {'optimum': 1, 'rl/ddqn': 10, 'random': 1, 'fixed': 1}
+    episode_to_plot = {'optimum': 1, 'rl/ddqn': 4000, 'random': 1, 'fixed': 1}
     order_to_convert = {'optimum': 1, 'rl/ddqn': 1000, 'random': 1, 'fixed': 1}
     flops_offloaded_per_algorithm = {}
     inference_time_per_algorithm = {}

@@ -35,8 +35,12 @@ def read_kpis_from_files(folder, kpi_type, episode_count, weight_inference_laten
     Returns:
         Tuple: (time step when kpi was recorded as list, kpi as list )
     """
-    file = 'logs/{}/comparison/omega1_{}/system/{}_{}.csv'.format(folder, weight_inference_latency, kpi_type,
+    if kpi_type != 'compression':
+        file = 'logs/{}/comparison/omega1_{}/system/{}_{}.csv'.format(folder, weight_inference_latency, kpi_type,
                                                                   episode_count)
+    else:
+        file = 'logs/{}/comparison/omega1_{}/splits/{}_{}.csv'.format(folder, weight_inference_latency, kpi_type,
+                                                                      episode_count)
     data_timestep = []
     data_kpi = []
     with open(file, 'r', newline='') as csvfile:
@@ -66,6 +70,7 @@ def parse_kpis(folder, n_episodes, weight_inference_latency):
     top1_all_episodes = []
     y_net_all_episodes = []
     flops_off_all_episodes = []
+    compression_all_episodes = []
     time_steps = []
 
     for episode in range(1, n_episodes + 1):
@@ -85,6 +90,9 @@ def parse_kpis(folder, n_episodes, weight_inference_latency):
         kpi_type = 'top1'
         time_steps, top1_per_episode = read_kpis_from_files(folder, kpi_type, episode_count, weight_inference_latency)
         top1_all_episodes.append(top1_per_episode)
+        kpi_type = 'compression'
+        time_steps, compression_per_episode = read_kpis_from_files(folder, kpi_type, episode_count, weight_inference_latency)
+        compression_all_episodes.append(compression_per_episode)
         if folder == 'rl/ddqn':
             kpi_type = 'y_net'
             time_steps, y_net_per_episode = read_kpis_from_files(folder, kpi_type, episode_count, weight_inference_latency)
@@ -108,25 +116,28 @@ def parse_kpis(folder, n_episodes, weight_inference_latency):
                                     index=[ep for ep in range(1, n_episodes + 1)])
     df_flops_off = pd.DataFrame(flops_off_all_episodes, columns=time_steps,
                                     index=[ep for ep in range(1, n_episodes + 1)])
+    df_compression = pd.DataFrame(compression_all_episodes, columns=time_steps,
+                                    index=[ep for ep in range(1, n_episodes + 1)])
 
-    return df_inference_time, df_ue_energy_comp, df_ue_energy_comm, df_energy_credit, df_top1, df_y_net, df_flops_off
+    return df_inference_time, df_ue_energy_comp, df_ue_energy_comm, df_energy_credit, df_top1, df_y_net, df_flops_off, df_compression
 
 
 def plot_kpis(df_inference_time_list, df_ue_energy_comp_list, df_ue_energy_comm_list,
-          df_energy_credit_list, df_top1_list, df_y_net_list, df_flops_off_list, n_episodes_to_train,
+          df_energy_credit_list, df_top1_list, df_y_net_list, df_flops_off_list, df_compression_list, n_episodes_to_train,
           total_episodes_train, inference_latency_weights):
     fig, ax1 = plt.subplots(layout='constrained')
     #fig, axs = plt.subplots(1, len(inference_latency_weights), figsize=(15, 4))
-    ax2 = ax1.twinx()
-    ax1.set_xlabel('Weight')
-    ax1.set_ylabel('weighted inference latency (s)')
-    ax2.set_ylabel('weighted ue energy (J)')
+    #ax2 = ax1.twinx()
+    #ax1.set_xlabel('Weights')
+    #ax1.set_ylabel('inference latency (s)')
+    #ax2.set_ylabel('weighted ue energy (J)')
     n_episodes_aft_train = total_episodes_train - n_episodes_to_train
     # store data
     inference_time = []
     ue_energy_sum = []
+    compressions = []
     cmaps = ['Reds', 'Blues', 'Greens']
-    for alg_idx in range(3):
+    for alg_idx in range(len(inference_latency_weights)):
         #alg_idx = 0     # for omega1 = 0.1
         weight = inference_latency_weights[alg_idx]
         df_ddqn_inference_time = df_inference_time_list[alg_idx]
@@ -136,6 +147,7 @@ def plot_kpis(df_inference_time_list, df_ue_energy_comp_list, df_ue_energy_comm_
         df_ddqn_top1 = df_top1_list[alg_idx]
         df_ddqn_y_net = df_y_net_list[alg_idx]
         # df_ddqn_flops_off = df_flops_off_list[alg_idx]
+        df_ddqn_compression = df_compression_list[alg_idx]
         # then calculate the means
         df_ddqn_inference_time['mean'] = df_ddqn_inference_time.mean(axis=1)
         #mean_inference_time_ddqn = df_ddqn_inference_time['mean'][n_episodes_aft_train:total_episodes_train].mean()
@@ -149,14 +161,17 @@ def plot_kpis(df_inference_time_list, df_ue_energy_comp_list, df_ue_energy_comm_
         # df_ddqn_top1['mean'] = df_ddqn_top1.mean(axis=1)
         # mean_top1_ddqn = df_ddqn_top1['mean'][n_episodes_aft_train:total_episodes_train].mean()
         # df_ddqn_y_net['mean'] = df_ddqn_y_net.mean(axis=1)
+        df_ddqn_compression['mean'] = df_ddqn_compression.mean(axis=1)
 
         # store data here
-        inf_time = df_ddqn_inference_time['mean'].iloc[:n_episodes_aft_train].mean()
-        comp = df_ddqn_ue_energy_comp['mean'].iloc[:n_episodes_aft_train].mean()
-        comm = df_ddqn_ue_energy_comm['mean'].iloc[:n_episodes_aft_train].mean()
-        inference_time.append(weight * inf_time)
+        inf_time = df_ddqn_inference_time['mean'].iloc[n_episodes_to_train:total_episodes_train].mean()
+        comp = df_ddqn_ue_energy_comp['mean'].iloc[n_episodes_to_train:total_episodes_train].mean()
+        comm = df_ddqn_ue_energy_comm['mean'].iloc[n_episodes_to_train:total_episodes_train].mean()
+        compression = df_ddqn_compression['mean'].iloc[n_episodes_to_train:total_episodes_train].mean()
+        inference_time.append(inf_time)
         ue_energy_overall = comp + comm
-        ue_energy_sum.append((1 - weight) * ue_energy_overall)
+        ue_energy_sum.append(ue_energy_overall)
+        compressions.append(compression)
         objective = weight * np.array(inf_time) + (1 - weight) * np.array(ue_energy_overall)
         #best_idx = np.argmin(objective)
         #inference_time.append(np.array(inf_time)[best_idx])
@@ -175,12 +190,27 @@ def plot_kpis(df_inference_time_list, df_ue_energy_comp_list, df_ue_energy_comm_
         #ax.set_xlabel("Latency")
         #ax.set_ylabel("Energy")
     #fig.colorbar(sc, ax=axs, label="Objective")
-    ax1.plot(inference_latency_weights, inference_time, color='blue', marker='^', label='inference_latency')
-    ax2.plot(inference_latency_weights, ue_energy_sum, color='black', marker='o', label='ue_energy_sum')
+    print(inference_time)
+    print(ue_energy_sum)
+    r = np.arange(len(inference_latency_weights))  # the label locations
+    width = 0.35  # the width of the bars
+    multiplier = 0
+    offset = width * multiplier
+    #rects = ax1.bar(r + offset, inference_time, color='blue', label='inference_latency')
+    #ax1.bar_label(rects, padding=3, fontsize=8)
+    rects1 = ax1.bar(r - width/2, inference_time, width, color='blue', label='inference_latency')
+    rects2 = ax1.bar(r + width/2, ue_energy_sum, width, color='black', label='ue_energy_sum')
+    #ax1.bar(r, compressions)
+    multiplier += 1
+    offset = width * multiplier
+    #rects = ax1.bar(r + offset, ue_energy_sum, color='black', label='ue_energy_sum')
+    #ax1.bar_label(rects, padding=3, fontsize=8)
     #plt.plot(inference_latency_weights, inference_time, marker='o', label="inference_latency")
     #plt.plot(inference_latency_weights, ue_energy_sum, marker='o', label="ue_energy_sum")
-    #ax1.set_xlabel('weight')
-    #ax1.set_ylabel('value')
+    ax1.set_xlabel('weight')
+    #ax1.set_ylabel('compression')
+    ax1.set_xticks(r)
+    ax1.set_xticklabels(inference_latency_weights)
     plt.grid()
     plt.legend()
     plt.show()
@@ -197,7 +227,7 @@ def main():
     path_parent = os.path.dirname(os.getcwd())
     os.chdir(path_parent)
 
-    inference_latency_weights = [0.1, 0.5, 0.9]
+    inference_latency_weights = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]
     df_inference_time_list = [] # for each specified weight in 'inference_latency_weights'
     df_ue_energy_comp_list = [] # for each specified weight in 'inference_latency_weights'
     df_ue_energy_comm_list = [] # for each specified weight in 'inference_latency_weights'
@@ -205,13 +235,14 @@ def main():
     df_top1_list = []   # for each specified weight in 'inference_latency_weights'
     df_y_net_list = []  # for each specified weight in 'inference_latency_weights'
     df_flops_off_list = []  # for each specified weight in 'inference_latency_weights'
+    df_compression_list = []     # for each specified weight in 'inference_latency_weights'
 
     # specifies the episodes of convergence of ddqn
-    n_episodes_to_train = 4800  # for inference latency vs energy plots
+    n_episodes_to_train = 2000  # for inference latency vs energy plots
     total_episodes_train = 5000 # mean inference latency & ue energy of different methods
     for weight in inference_latency_weights:
-        df_inference_time, df_ue_energy_comp, df_ue_energy_comm, df_energy_credit, df_top1, df_y_net, df_flops_off = (
-            parse_kpis('rl/ddqn', total_episodes_train, weight))
+        df_inference_time, df_ue_energy_comp, df_ue_energy_comm, df_energy_credit, df_top1, df_y_net, df_flops_off,\
+            df_compression = (parse_kpis('rl/ddqn', total_episodes_train, weight))
         df_inference_time_list.append(df_inference_time)
         df_ue_energy_comp_list.append(df_ue_energy_comp)
         df_ue_energy_comm_list.append(df_ue_energy_comm)
@@ -219,10 +250,11 @@ def main():
         df_top1_list.append(df_top1)
         df_y_net_list.append(df_y_net)
         df_flops_off_list.append(df_flops_off)
+        df_compression_list.append(df_compression)
 
     plot_kpis(df_inference_time_list, df_ue_energy_comp_list, df_ue_energy_comm_list,
-    df_energy_credit_list, df_top1_list, df_y_net_list, df_flops_off_list, n_episodes_to_train, total_episodes_train,
-                           inference_latency_weights)
+    df_energy_credit_list, df_top1_list, df_y_net_list, df_flops_off_list, df_compression_list, n_episodes_to_train,
+              total_episodes_train, inference_latency_weights)
 
 if __name__ == '__main__':
     main()

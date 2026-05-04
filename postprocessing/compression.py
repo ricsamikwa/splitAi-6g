@@ -133,6 +133,32 @@ def plot_compression_vs_accuracy(df_compression_list, df_top1_accuracy_list, df_
     df_random_ue_energy_comp = df_ue_energy_comp_list[alg_idx]
     df_random_ue_energy_comp_list = []
 
+    # for heuristic
+    alg_idx = 4
+    df_hr_compression = df_compression_list[alg_idx]
+    df_hr_compression_list = []
+    df_hr_top1_accuracy = df_top1_accuracy_list[alg_idx]
+    df_hr_top1_accuracy_list = []
+    df_hr_split_idx = df_split_idx_list[alg_idx]
+    df_hr_split_idx_list = []
+    df_hr_ue_energy_comm = df_ue_energy_comm_list[alg_idx]
+    df_hr_ue_energy_comm_list = []
+    df_hr_ue_energy_comp = df_ue_energy_comp_list[alg_idx]
+    df_hr_ue_energy_comp_list = []
+
+    # for fixed
+    alg_idx = 4
+    df_fixed_compression = df_compression_list[alg_idx]
+    df_fixed_compression_list = []
+    df_fixed_top1_accuracy = df_top1_accuracy_list[alg_idx]
+    df_fixed_top1_accuracy_list = []
+    df_fixed_split_idx = df_split_idx_list[alg_idx]
+    df_fixed_split_idx_list = []
+    df_fixed_ue_energy_comm = df_ue_energy_comm_list[alg_idx]
+    df_fixed_ue_energy_comm_list = []
+    df_fixed_ue_energy_comp = df_ue_energy_comp_list[alg_idx]
+    df_fixed_ue_energy_comp_list = []
+
     # for optimum
     for i in range(0, 1):
         x, y, z, w, k = return_metrics_list_per_episode(i, df_opt_compression, df_opt_top1_accuracy, df_opt_split_idx,
@@ -170,6 +196,25 @@ def plot_compression_vs_accuracy(df_compression_list, df_top1_accuracy_list, df_
         df_random_ue_energy_comm_list.extend(w)
         df_random_ue_energy_comp_list.extend(k)
 
+    # # for heuristic
+    # for i in range(0, 100):
+    #     x, y, z, w, k = return_metrics_list_per_episode(i, df_hr_compression, df_hr_top1_accuracy, df_hr_split_idx,
+    #                                                     df_hr_ue_energy_comm, df_hr_ue_energy_comp)
+    #     df_hr_compression_list.extend(x)
+    #     df_hr_top1_accuracy_list.extend(y)
+    #     df_hr_split_idx_list.extend(z)
+    #     df_hr_ue_energy_comm_list.extend(w)
+    #     df_hr_ue_energy_comp_list.extend(k)
+    # for fixed
+    for i in range(0, 9):
+        x, y, z, w, k = return_metrics_list_per_episode(i, df_hr_compression, df_hr_top1_accuracy, df_hr_split_idx,
+                                                        df_hr_ue_energy_comm, df_hr_ue_energy_comp)
+        df_fixed_compression_list.extend(x)
+        df_fixed_top1_accuracy_list.extend(y)
+        df_fixed_split_idx_list.extend(z)
+        df_fixed_ue_energy_comm_list.extend(w)
+        df_fixed_ue_energy_comp_list.extend(k)
+
     df_opt = pd.DataFrame({'compression': df_opt_compression_list, 'top1': df_opt_top1_accuracy_list,
                            'split_idx': df_opt_split_idx_list, 'ue_energy_comm': df_opt_ue_energy_comm_list,
                            'ue_energy_comp': df_opt_ue_energy_comp_list})
@@ -182,13 +227,22 @@ def plot_compression_vs_accuracy(df_compression_list, df_top1_accuracy_list, df_
     df_random = pd.DataFrame({'compression': df_random_compression_list, 'top1': df_random_top1_accuracy_list,
                               'split_idx': df_random_split_idx_list, 'ue_energy_comm': df_random_ue_energy_comm_list,
                               'ue_energy_comp': df_random_ue_energy_comp_list})
+    # df_heuristic = pd.DataFrame({'compression': df_hr_compression_list, 'top1': df_hr_top1_accuracy_list,
+    #                           'split_idx': df_hr_split_idx_list, 'ue_energy_comm': df_hr_ue_energy_comm_list,
+    #                           'ue_energy_comp': df_hr_ue_energy_comp_list})
+    df_fixed = pd.DataFrame({'compression': df_fixed_compression_list, 'top1': df_fixed_top1_accuracy_list,
+                              'split_idx': df_fixed_split_idx_list, 'ue_energy_comm': df_fixed_ue_energy_comm_list,
+                              'ue_energy_comp': df_fixed_ue_energy_comp_list})
 
     df_opt['algorithm'] = 'opt'
     df_ddqn['algorithm'] = 'ddqn'
     df_a2c['algorithm'] = 'a2c'
     df_random['algorithm'] = 'random'
+    #df_heuristic['algorithm'] = 'heuristic'
+    df_fixed['algorithm'] = 'fixed'
     df_all = pd.concat([df_opt, df_ddqn, df_a2c, df_random], ignore_index=True)
-    palette = {'opt': '#072140', 'ddqn': '#114584', 'a2c': '#165DB1', 'random': '#9ABCE4'}
+    palette = {'opt': '#072140', 'ddqn': '#114584', 'a2c': '#165DB1', 'random': '#9ABCE4', 'fixed': '#8F81EA'}
+    palette = {'opt': '#072140', 'ddqn': '#165DB1', 'a2c': '#9ABCE4', 'random': '#8F81EA'}
     #df_all.boxplot(column='ue_energy_comm', by=['compression', 'algorithm'])
     # sns.boxplot(
     #     data=df_all,
@@ -222,15 +276,16 @@ def plot_compression_vs_accuracy(df_compression_list, df_top1_accuracy_list, df_
     #     alpha=0.35,
     #     size=3
     # )
-    # sns.barplot(
-    #     data=df_all,
-    #     x="compression",
-    #     y="ue_energy_comm",
-    #     hue="algorithm",
-    #     estimator="mean",
-    #     errorbar=("ci", 95),
-    #     palette=palette
-    # )
+    # ----------------- for journal ----------------
+    sns.barplot(
+        data=df_all,
+        x="compression",
+        y="ue_energy_comm",
+        hue="algorithm",
+        estimator="mean",
+        errorbar=("ci", 95),
+        palette=palette
+    )
     # for top1 accuracy confidence
     # sns.barplot(
     #     data=df_all,
@@ -241,23 +296,23 @@ def plot_compression_vs_accuracy(df_compression_list, df_top1_accuracy_list, df_
     #     errorbar=("ci", 95),
     #     palette=palette
     # )
-    # # for ue_energy_comp
-    sns.barplot(
-        data=df_all,
-        x="compression",
-        y="ue_energy_comp",
-        hue="algorithm",
-        estimator="mean",
-        errorbar=("ci", 95),
-        palette=palette
-    )
+    # for ue_energy_comp
+    # sns.barplot(
+    #     data=df_all,
+    #     x="compression",
+    #     y="ue_energy_comp",
+    #     hue="algorithm",
+    #     estimator="mean",
+    #     errorbar=("ci", 95),
+    #     palette=palette
+    # )
     handles, labels = ax.get_legend_handles_labels()
     ax.legend(handles[:4], labels[:4], title="Algorithm")
     #plt.xticks(rotation=45)
     #plt.suptitle('')
     plt.grid()
-    plt.savefig('results/journal/comp_vs_rho.png')
-    plt.savefig('results/journal/comp_vs_rho.svg')
+    plt.savefig('results/journal/comm_vs_rho.png')
+    plt.savefig('results/journal/comm_vs_rho.svg')
     plt.show()
 
 
@@ -273,9 +328,9 @@ def main():
     os.chdir(path_parent)
 
     #algorithms = ['optimum', 'rl/ddqn', 'random']
-    algorithms = ['optimum', 'rl/ddqn', 'rl/a2c', 'random']
+    algorithms = ['optimum', 'rl/ddqn', 'rl/a2c', 'random', 'fixed']
     #n_episodes = {'optimum': 9, 'rl/ddqn': 2000, 'random': 200}
-    n_episodes = {'optimum': 1, 'rl/ddqn': 5000, 'rl/a2c': 5000, 'random': 200}
+    n_episodes = {'optimum': 1, 'rl/ddqn': 5000, 'rl/a2c': 5000, 'random': 200, 'heuristic': 100, 'fixed': 9}
     df_compression_list = []    # for each specified algorithm in 'algorithms'
     df_top1_accuracy_list = []  # for each specified algorithm in 'algorithms'
     df_split_idx_list = []      # for each specified algorithm in 'algorithms'

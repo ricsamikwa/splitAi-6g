@@ -133,6 +133,9 @@ def plot_kpis_vs_max_throughput(df_all_inference_time, df_all_ue_energy_comp, df
     df_inference_time_fixed_list = df_all_inference_time[4]     # fixed
     df_ue_energy_comp_fixed_list = df_all_ue_energy_comp[4]     # fixed
     df_ue_energy_comm_fixed_list = df_all_ue_energy_comm[4]     # fixed
+    df_inference_time_hr_list = df_all_inference_time[5]     # heuristic
+    df_ue_energy_comp_hr_list = df_all_ue_energy_comp[5]     # heuristic
+    df_ue_energy_comm_hr_list = df_all_ue_energy_comm[5]     # heuristic
 
     n_episodes_aft_train_ddqn = total_episodes_train['rl/ddqn'] - n_episodes_to_train['rl/ddqn']
     n_episodes_aft_train_a2c = total_episodes_train['rl/a2c'] - n_episodes_to_train['rl/a2c']
@@ -162,6 +165,11 @@ def plot_kpis_vs_max_throughput(df_all_inference_time, df_all_ue_energy_comp, df
     inference_time_ci_per_deadline_fixed = []
     ue_energy_comp_mean_per_deadline_fixed = []
     ue_energy_comm_mean_per_deadline_fixed = []
+    inference_time_mean_per_deadline_hr = []
+    inference_time_sd_per_deadline_hr = []
+    inference_time_ci_per_deadline_hr = []
+    ue_energy_comp_mean_per_deadline_hr = []
+    ue_energy_comm_mean_per_deadline_hr = []
     #print(df_inference_time_ddqn_list[0])
     # extract data and store means
     for i, max_throughput in enumerate(max_throughput_list):
@@ -247,6 +255,21 @@ def plot_kpis_vs_max_throughput(df_all_inference_time, df_all_ue_energy_comp, df
         df_ue_energy_comm_fixed['mean'] = df_ue_energy_comm_fixed.mean(axis=1)
         ue_energy_comm_mean_per_deadline_fixed.append(df_ue_energy_comm_fixed['mean'].mean())
 
+        # finally heuristic
+        # df_inference_time_hr = df_inference_time_hr_list[i]
+        # df_ue_energy_comp_hr = df_ue_energy_comp_hr_list[i]
+        # df_ue_energy_comm_hr = df_ue_energy_comm_hr_list[i]
+        # df_inference_time_hr['mean'] = df_inference_time_hr.mean(axis=1)
+        # inference_time_mean_per_deadline_hr.append(df_inference_time_hr['mean'].mean())
+        # inference_time_hr_sd = df_inference_time_hr['mean'].std()
+        # inference_time_hr_ci = return_ci_90(inference_time_hr_sd)
+        # inference_time_sd_per_deadline_hr.append(inference_time_hr_sd)
+        # inference_time_ci_per_deadline_hr.append(inference_time_hr_ci)
+        # df_ue_energy_comp_hr['mean'] = df_ue_energy_comp_hr.mean(axis=1)
+        # ue_energy_comp_mean_per_deadline_hr.append(df_ue_energy_comp_hr['mean'].mean())
+        # df_ue_energy_comm_hr['mean'] = df_ue_energy_comm_hr.mean(axis=1)
+        # ue_energy_comm_mean_per_deadline_hr.append(df_ue_energy_comm_hr['mean'].mean())
+
         #sum_ue_energy_per_deadline_opt.append(df_inference_time_opt['mean'] + df_ue_energy_comm_opt['mean'])
     # sum_ue_energy_per_deadline_ddqn = np.add(ue_energy_comp_mean_per_deadline_ddqn, ue_energy_comm_mean_per_deadline_ddqn)
     sum_ue_energy_per_deadline_opt = np.add(ue_energy_comp_mean_per_deadline_opt, ue_energy_comm_mean_per_deadline_opt)
@@ -281,34 +304,45 @@ def plot_kpis_vs_max_throughput(df_all_inference_time, df_all_ue_energy_comp, df
     # ax.plot(max_throughput_list, inference_time_mean_per_deadline_ddqn, color='#165DB1', marker='o', label='ddqn')
     # ax.plot(max_throughput_list, inference_time_mean_per_deadline_random, color='#9ABCE4', marker='o', label='random')
     # #ax.plot(max_throughput_list, inference_time_mean_per_deadline_fixed, color='#8F81EA', marker='o', label='fixed')
-    plt.errorbar(x=np.array(max_throughput_list)-10, y=inference_time_mean_per_deadline_opt, yerr=inference_time_ci_per_deadline_opt, color="#072140",        # line + marker color
+    plt.errorbar(x=np.array(max_throughput_list)-8, y=inference_time_mean_per_deadline_opt, yerr=inference_time_ci_per_deadline_opt, color="#072140",        # line + marker color
     ecolor="#072140",         # error bar color
     elinewidth=2,         # thickness
     capsize=4,            # cap size
     capthick=2,
+    linestyle='-',
     fmt='o', label='opt')
-    plt.errorbar(x=np.array(max_throughput_list) - 5, y=inference_time_mean_per_deadline_ddqn, yerr=inference_time_ci_per_deadline_ddqn, color="#165DB1",        # line + marker color
-    ecolor="#165DB1",         # error bar color
+    plt.errorbar(x=np.array(max_throughput_list) - 4, y=inference_time_mean_per_deadline_ddqn, yerr=inference_time_ci_per_deadline_ddqn, color="#114584",        # line + marker color
+    ecolor="#114584",         # error bar color
     elinewidth=2,         # thickness
     capsize=4,            # cap size
+    linestyle='-',
     capthick=2, fmt='o', label='ddqn')
     plt.errorbar(x=max_throughput_list, y=inference_time_mean_per_deadline_a2c,
-                 yerr=inference_time_ci_per_deadline_a2c, color="#9ABCE4",  # line + marker color
-                 ecolor="#9ABCE4",  # error bar color
+                 yerr=inference_time_ci_per_deadline_a2c, color="#165DB1",  # line + marker color
+                 ecolor="#165DB1",  # error bar color
                  elinewidth=2,  # thickness
                  capsize=4,  # cap size
+                 linestyle='-',
                  capthick=2, fmt='o', label='a2c')
-    plt.errorbar(x=np.array(max_throughput_list)+5, y=inference_time_mean_per_deadline_random,
-                 yerr=inference_time_ci_per_deadline_random, color="#8F81EA",        # line + marker color
-    ecolor="#8F81EA",         # error bar color
+    # plt.errorbar(x=np.array(max_throughput_list) + 4, y=inference_time_mean_per_deadline_hr,
+    #              yerr=inference_time_ci_per_deadline_hr, color="salmon",  # line + marker color
+    #              ecolor="salmon",  # error bar color
+    #              elinewidth=2,  # thickness
+    #              capsize=4,  # cap size
+    #              capthick=2, fmt='o', label='heuristic')
+    plt.errorbar(x=np.array(max_throughput_list) + 4, y=inference_time_mean_per_deadline_random,
+                 yerr=inference_time_ci_per_deadline_random, color="#9ABCE4",        # line + marker color
+    ecolor="#9ABCE4",         # error bar color
     elinewidth=2,         # thickness
     capsize=4,            # cap size
+    linestyle='-',
     capthick=2, fmt='o', label='random')
-    plt.errorbar(x=np.array(max_throughput_list) + 10, y=inference_time_mean_per_deadline_fixed,
-                 yerr=inference_time_ci_per_deadline_fixed, color="red",  # line + marker color
-                 ecolor="black",  # error bar color
+    plt.errorbar(x=np.array(max_throughput_list) + 8, y=inference_time_mean_per_deadline_fixed,
+                 yerr=inference_time_ci_per_deadline_fixed, color="#8F81EA",  # line + marker color
+                 ecolor="#8F81EA",  # error bar color
                  elinewidth=2,  # thickness
                  capsize=4,  # cap size
+                 linestyle='-',
                  capthick=2, fmt='o', label='fixed')
     ax.set_xlabel('Network throughput (MB/s)')
     ax.set_ylabel('Inference time (s)')
@@ -318,8 +352,8 @@ def plot_kpis_vs_max_throughput(df_all_inference_time, df_all_ue_energy_comp, df
     # #plt.yscale('log')
     plt.grid()
     plt.legend()
-    # #plt.savefig('results/inference_time_vs_max_throughput.png')
-    # #plt.savefig('results/inference_time_vs_max_throughput.svg')
+    plt.savefig('results/journal/inference_time_vs_max_throughput.png')
+    plt.savefig('results/journal/inference_time_vs_max_throughput.svg')
     plt.show()
 
 
@@ -348,6 +382,9 @@ def main():
     df_inference_time_list_fixed = []  # for each specified max throughput in 'max_network_throughput_list'
     df_ue_energy_comp_list_fixed = []  # for each specified max throughput in 'max_network_throughput_list'
     df_ue_energy_comm_list_fixed = []  # for each specified max throughput in 'max_network_throughput_list'
+    df_inference_time_list_hr = []  # for each specified max throughput in 'max_network_throughput_list'
+    df_ue_energy_comp_list_hr = []  # for each specified max throughput in 'max_network_throughput_list'
+    df_ue_energy_comm_list_hr = []  # for each specified max throughput in 'max_network_throughput_list'
 
     for max_throughput in max_network_throughput_list:
         df_inference_time, df_ue_energy_comp, df_ue_energy_comm, _, _ = parse_kpis('rl/ddqn', total_episodes_train['rl/ddqn'],
@@ -379,12 +416,17 @@ def main():
         df_ue_energy_comp_list_fixed.append(df_ue_energy_comp)
         df_ue_energy_comm_list_fixed.append(df_ue_energy_comm)
 
+        # df_inference_time, df_ue_energy_comp, df_ue_energy_comm, _, _ = parse_kpis('heuristic', 50, max_throughput)
+        # df_inference_time_list_hr.append(df_inference_time)
+        # df_ue_energy_comp_list_hr.append(df_ue_energy_comp)
+        # df_ue_energy_comm_list_hr.append(df_ue_energy_comm)
+
     df_all_inference_time = [df_inference_time_list_ddqn, df_inference_time_list_a2c, df_inference_time_list_opt,
-                             df_inference_time_list_random, df_inference_time_list_fixed]
+                             df_inference_time_list_random, df_inference_time_list_fixed, df_inference_time_list_hr]
     df_all_ue_energy_comp = [df_ue_energy_comp_list_ddqn, df_ue_energy_comp_list_a2c, df_ue_energy_comp_list_opt,
-                             df_ue_energy_comp_list_random, df_ue_energy_comp_list_fixed]
+                             df_ue_energy_comp_list_random, df_ue_energy_comp_list_fixed, df_ue_energy_comp_list_hr]
     df_all_ue_energy_comm = [df_ue_energy_comm_list_ddqn, df_ue_energy_comm_list_a2c, df_ue_energy_comm_list_opt,
-                             df_ue_energy_comm_list_random, df_ue_energy_comm_list_fixed]
+                             df_ue_energy_comm_list_random, df_ue_energy_comm_list_fixed, df_ue_energy_comm_list_hr]
     plot_kpis_vs_max_throughput(df_all_inference_time, df_all_ue_energy_comp, df_all_ue_energy_comm,
                                     max_network_throughput_list, n_episodes_to_train, total_episodes_train)
 

@@ -46,7 +46,8 @@ def get_confidence_interval(sd, size):
     """
     return 1.960 * sd / size
 
-
+def return_ci_95(sd):
+    return 1.96 * sd
 
 def plot_kpis_tradeoff_optimum(df_inference_time_list, df_ue_energy_comp_list, df_ue_energy_comm_list, omega_list):
     """
@@ -120,15 +121,20 @@ def plot_kpis_all_episodes(df_inference_time_list, df_ue_energy_comp_list, df_ue
     # then calculate the means
     df_optimum_inference_time['mean'] = df_optimum_inference_time.mean(axis=1)  # row-wise mean
     mean_inference_time_optimum = df_optimum_inference_time['mean'].mean()
+    sd_inference_time_optimum = df_optimum_inference_time['mean'].std()
     df_optimum_ue_energy_comp['mean'] = df_optimum_ue_energy_comp.mean(axis=1)
     mean_ue_energy_comp_optimum = df_optimum_ue_energy_comp['mean'].mean()
+    sd_ue_energy_comp_optimum = df_optimum_ue_energy_comp['mean'].std()
     df_optimum_ue_energy_comm['mean'] = df_optimum_ue_energy_comm.mean(axis=1)
     mean_ue_energy_comm_optimum = df_optimum_ue_energy_comm['mean'].mean()
+    sd_ue_energy_comm_optimum = df_optimum_ue_energy_comm['mean'].std()
     mean_ue_energy_optimum = mean_ue_energy_comp_optimum + mean_ue_energy_comm_optimum
+    sd_ue_energy_optimum = sd_ue_energy_comp_optimum + sd_ue_energy_comm_optimum
     df_optimum_energy_credit['mean'] = df_optimum_energy_credit.mean(axis=1)
     mean_energy_credit_optimum = df_optimum_energy_credit['mean'].mean()
     df_optimum_top1['mean'] = df_optimum_top1.mean(axis=1)
     mean_top1_optimum = df_optimum_top1['mean'].mean()
+    sd_top1_optimum = df_optimum_top1['mean'].std()
     # then ddqn
     alg_idx = 1
     n_episodes_bef_train = n_episodes_to_train
@@ -143,15 +149,20 @@ def plot_kpis_all_episodes(df_inference_time_list, df_ue_energy_comp_list, df_ue
     # then calculate the means
     df_ddqn_inference_time['mean'] = df_ddqn_inference_time.mean(axis=1)
     mean_inference_time_ddqn = df_ddqn_inference_time['mean'][n_episodes_aft_train:total_episodes_train].mean()
+    sd_inference_time_ddqn = df_ddqn_inference_time['mean'][n_episodes_aft_train:total_episodes_train].std()
     df_ddqn_ue_energy_comp['mean'] = df_ddqn_ue_energy_comp.mean(axis=1)
     mean_ue_energy_comp_ddqn = df_ddqn_ue_energy_comp['mean'][n_episodes_aft_train:total_episodes_train].mean()
+    sd_ue_energy_comp_ddqn = df_ddqn_ue_energy_comp['mean'][n_episodes_aft_train:total_episodes_train].mean()
     df_ddqn_ue_energy_comm['mean'] = df_ddqn_ue_energy_comm.mean(axis=1)
     mean_ue_energy_comm_ddqn = df_ddqn_ue_energy_comm['mean'][n_episodes_aft_train:total_episodes_train].mean()
+    sd_ue_energy_comm_ddqn = df_ddqn_ue_energy_comm['mean'][n_episodes_aft_train:total_episodes_train].std()
     mean_ue_energy_ddqn = mean_ue_energy_comp_ddqn + mean_ue_energy_comm_ddqn
+    sd_ue_energy_ddqn = sd_ue_energy_comp_ddqn + sd_ue_energy_comm_ddqn
     df_ddqn_energy_credit['mean'] = df_ddqn_energy_credit.mean(axis=1)
     mean_energy_credit_ddqn = df_ddqn_energy_credit['mean'][n_episodes_aft_train:total_episodes_train].mean()
     df_ddqn_top1['mean'] = df_ddqn_top1.mean(axis=1)
     mean_top1_ddqn = df_ddqn_top1['mean'][n_episodes_aft_train:total_episodes_train].mean()
+    sd_top1_ddqn = df_ddqn_top1['mean'][n_episodes_aft_train:total_episodes_train].std()
     df_ddqn_y_net['mean'] = df_ddqn_y_net.mean(axis=1)
     #df_ddqn_flops_off['mean'] = df_ddqn_flops_off.mean(axis=1)
 
@@ -166,15 +177,20 @@ def plot_kpis_all_episodes(df_inference_time_list, df_ue_energy_comp_list, df_ue
     # then calculate the means
     df_a2c_inference_time['mean'] = df_a2c_inference_time.mean(axis=1)
     mean_inference_time_a2c = df_a2c_inference_time['mean'][n_episodes_aft_train:total_episodes_train].mean()
+    sd_inference_time_a2c = df_a2c_inference_time['mean'][n_episodes_aft_train:total_episodes_train].std()
     df_a2c_ue_energy_comp['mean'] = df_a2c_ue_energy_comp.mean(axis=1)
     mean_ue_energy_comp_a2c = df_a2c_ue_energy_comp['mean'][n_episodes_aft_train:total_episodes_train].mean()
+    sd_ue_energy_comp_a2c = df_a2c_ue_energy_comp['mean'][n_episodes_aft_train:total_episodes_train].mean()
     df_a2c_ue_energy_comm['mean'] = df_a2c_ue_energy_comm.mean(axis=1)
     mean_ue_energy_comm_a2c = df_a2c_ue_energy_comm['mean'][n_episodes_aft_train:total_episodes_train].mean()
+    sd_ue_energy_comm_a2c = df_a2c_ue_energy_comm['mean'][n_episodes_aft_train:total_episodes_train].std()
     mean_ue_energy_a2c = mean_ue_energy_comp_a2c + mean_ue_energy_comm_a2c
+    sd_ue_energy_a2c = sd_ue_energy_comp_a2c + sd_ue_energy_comm_a2c
     df_a2c_energy_credit['mean'] = df_a2c_energy_credit.mean(axis=1)
     mean_energy_credit_a2c = df_a2c_energy_credit['mean'][n_episodes_aft_train:total_episodes_train].mean()
     df_a2c_top1['mean'] = df_a2c_top1.mean(axis=1)
     mean_top1_a2c = df_a2c_top1['mean'][n_episodes_aft_train:total_episodes_train].mean()
+    sd_top1_a2c = df_a2c_top1['mean'][n_episodes_aft_train:total_episodes_train].std()
     df_a2c_y_net['mean'] = df_a2c_y_net.mean(axis=1)
 
     # then random
@@ -187,15 +203,20 @@ def plot_kpis_all_episodes(df_inference_time_list, df_ue_energy_comp_list, df_ue
     # then calculate the means
     df_random_inference_time['mean'] = df_random_inference_time.mean(axis=1)
     mean_inference_time_random = df_random_inference_time['mean'].mean()
+    sd_inference_time_random = df_random_inference_time['mean'].std()
     df_random_ue_energy_comp['mean'] = df_random_ue_energy_comp.mean(axis=1)
     mean_ue_energy_comp_random = df_random_ue_energy_comp['mean'].mean()
+    sd_ue_energy_comp_random = df_random_ue_energy_comp['mean'].std()
     df_random_ue_energy_comm['mean'] = df_random_ue_energy_comm.mean(axis=1)
     mean_ue_energy_comm_random = df_random_ue_energy_comm['mean'].mean()
+    sd_ue_energy_comm_random = df_random_ue_energy_comm['mean'].std()
     mean_ue_energy_random = mean_ue_energy_comp_random + mean_ue_energy_comm_random
+    sd_ue_energy_random = sd_ue_energy_comp_random + sd_ue_energy_comm_random
     df_random_energy_credit['mean'] = df_random_energy_credit.mean(axis=1)
     mean_energy_credit_random = df_random_energy_credit['mean'].mean()
     df_random_top1['mean'] = df_random_top1.mean(axis=1)
     mean_top1_random = df_random_top1['mean'].mean()
+    sd_top1_random = df_random_top1['mean'].std()
     # then fixed split
     alg_idx = 4
     df_fixed_inference_time = df_inference_time_list[alg_idx]
@@ -206,15 +227,20 @@ def plot_kpis_all_episodes(df_inference_time_list, df_ue_energy_comp_list, df_ue
     # then calculate the means
     df_fixed_inference_time['mean'] = df_fixed_inference_time.mean(axis=1)
     mean_inference_time_fixed = df_fixed_inference_time['mean'].mean()
+    sd_inference_time_fixed = df_fixed_inference_time['mean'].std()
     df_fixed_ue_energy_comp['mean'] = df_fixed_ue_energy_comp.mean(axis=1)
     mean_ue_energy_comp_fixed = df_fixed_ue_energy_comp['mean'].mean()
+    sd_ue_energy_comp_fixed = df_fixed_ue_energy_comp['mean'].std()
     df_fixed_ue_energy_comm['mean'] = df_fixed_ue_energy_comm.mean(axis=1)
     mean_ue_energy_comm_fixed = df_fixed_ue_energy_comm['mean'].mean()
+    sd_ue_energy_comm_fixed = df_fixed_ue_energy_comm['mean'].std()
     mean_ue_energy_fixed = mean_ue_energy_comp_fixed + mean_ue_energy_comm_fixed
+    sd_ue_energy_fixed = sd_ue_energy_comp_fixed + sd_ue_energy_comm_fixed
     df_fixed_energy_credit['mean'] = df_fixed_energy_credit.mean(axis=1)
     mean_energy_credit_fixed = df_fixed_energy_credit['mean'].mean()
     df_fixed_top1['mean'] = df_fixed_top1.mean(axis=1)
     mean_top1_fixed = df_fixed_top1['mean'].mean()
+    sd_top1_fixed = df_fixed_top1['mean'].std()
     #print(df_fixed_inference_time['mean'])
     # then ue only i.e. local computation
     alg_idx = 5
@@ -226,35 +252,40 @@ def plot_kpis_all_episodes(df_inference_time_list, df_ue_energy_comp_list, df_ue
     # then calculate the means
     df_local_inference_time['mean'] = df_local_inference_time.mean(axis=1)
     mean_inference_time_local = df_local_inference_time['mean'].mean()
+    sd_inference_time_local = df_local_inference_time['mean'].std()
     df_local_ue_energy_comp['mean'] = df_local_ue_energy_comp.mean(axis=1)
     mean_ue_energy_comp_local = df_local_ue_energy_comp['mean'].mean()
+    sd_ue_energy_comp_local = df_local_ue_energy_comp['mean'].std()
     df_local_ue_energy_comm['mean'] = df_local_ue_energy_comm.mean(axis=1)
     mean_ue_energy_comm_local = df_local_ue_energy_comm['mean'].mean()
+    sd_ue_energy_comm_local = df_local_ue_energy_comm['mean'].std()
     mean_ue_energy_local = mean_ue_energy_comp_local + mean_ue_energy_comm_local
+    sd_ue_energy_local = sd_ue_energy_comp_local + sd_ue_energy_comm_local
     df_local_energy_credit['mean'] = df_local_energy_credit.mean(axis=1)
     mean_energy_credit_local = df_local_energy_credit['mean'].mean()
     df_local_top1['mean'] = df_local_top1.mean(axis=1)
     mean_top1_local = df_local_top1['mean'].mean()
+    sd_top1_local = df_local_top1['mean'].std()
 
     # heuristic
-    alg_idx = 6
-    df_heuristic_inference_time = df_inference_time_list[alg_idx]
-    df_heuristic_ue_energy_comp = df_ue_energy_comp_list[alg_idx]
-    df_heuristic_ue_energy_comm = df_ue_energy_comm_list[alg_idx]
-    df_heuristic_energy_credit = df_energy_credit_list[alg_idx]
-    df_heuristic_top1 = df_top1_list[alg_idx]
-    # then calculate the means
-    df_heuristic_inference_time['mean'] = df_heuristic_inference_time.mean(axis=1)
-    mean_inference_time_heuristic = df_heuristic_inference_time['mean'].mean()
-    df_heuristic_ue_energy_comp['mean'] = df_heuristic_ue_energy_comp.mean(axis=1)
-    mean_ue_energy_comp_heuristic = df_heuristic_ue_energy_comp['mean'].mean()
-    df_heuristic_ue_energy_comm['mean'] = df_heuristic_ue_energy_comm.mean(axis=1)
-    mean_ue_energy_comm_heuristic = df_heuristic_ue_energy_comm['mean'].mean()
-    mean_ue_energy_heuristic = mean_ue_energy_comp_heuristic + mean_ue_energy_comm_heuristic
-    df_heuristic_energy_credit['mean'] = df_heuristic_energy_credit.mean(axis=1)
-    mean_energy_credit_heuristic = df_heuristic_energy_credit['mean'].mean()
-    df_heuristic_top1['mean'] = df_heuristic_top1.mean(axis=1)
-    mean_top1_heuristic = df_heuristic_top1['mean'].mean()
+    # alg_idx = 6
+    # df_heuristic_inference_time = df_inference_time_list[alg_idx]
+    # df_heuristic_ue_energy_comp = df_ue_energy_comp_list[alg_idx]
+    # df_heuristic_ue_energy_comm = df_ue_energy_comm_list[alg_idx]
+    # df_heuristic_energy_credit = df_energy_credit_list[alg_idx]
+    # df_heuristic_top1 = df_top1_list[alg_idx]
+    # # then calculate the means
+    # df_heuristic_inference_time['mean'] = df_heuristic_inference_time.mean(axis=1)
+    # mean_inference_time_heuristic = df_heuristic_inference_time['mean'].mean()
+    # df_heuristic_ue_energy_comp['mean'] = df_heuristic_ue_energy_comp.mean(axis=1)
+    # mean_ue_energy_comp_heuristic = df_heuristic_ue_energy_comp['mean'].mean()
+    # df_heuristic_ue_energy_comm['mean'] = df_heuristic_ue_energy_comm.mean(axis=1)
+    # mean_ue_energy_comm_heuristic = df_heuristic_ue_energy_comm['mean'].mean()
+    # mean_ue_energy_heuristic = mean_ue_energy_comp_heuristic + mean_ue_energy_comm_heuristic
+    # df_heuristic_energy_credit['mean'] = df_heuristic_energy_credit.mean(axis=1)
+    # mean_energy_credit_heuristic = df_heuristic_energy_credit['mean'].mean()
+    # df_heuristic_top1['mean'] = df_heuristic_top1.mean(axis=1)
+    # mean_top1_heuristic = df_heuristic_top1['mean'].mean()
 
     # gather fixed and local
     data = {'inference_latency': (mean_inference_time_fixed, mean_inference_time_local),
@@ -265,17 +296,29 @@ def plot_kpis_all_episodes(df_inference_time_list, df_ue_energy_comp_list, df_ue
 
     # gather splitting mechanisms
     data_split = {'inference_latency': (mean_inference_time_optimum, mean_inference_time_ddqn, mean_inference_time_a2c,
-                                  mean_inference_time_heuristic, mean_inference_time_random, mean_inference_time_fixed),
+                                  mean_inference_time_random, mean_inference_time_fixed),
+                  'inference_latency_sd': (sd_inference_time_optimum, sd_inference_time_ddqn, sd_inference_time_a2c,
+                                           sd_inference_time_random, sd_inference_time_fixed),
             'ue_energy_comp': (mean_ue_energy_comp_optimum, mean_ue_energy_comp_ddqn, mean_ue_energy_comp_a2c,
-                               mean_ue_energy_comp_heuristic, mean_ue_energy_comp_random, mean_ue_energy_comp_fixed),
+                               mean_ue_energy_comp_random, mean_ue_energy_comp_fixed),
+            'ue_energy_comp_sd': (sd_ue_energy_comp_optimum, sd_ue_energy_comp_ddqn, sd_ue_energy_comp_a2c,
+                                  sd_ue_energy_comp_random, sd_ue_energy_comp_fixed),
             'ue_energy_comm': (mean_ue_energy_comm_optimum, mean_ue_energy_comm_ddqn, mean_ue_energy_comm_a2c,
-                               mean_ue_energy_comm_heuristic, mean_ue_energy_comm_random, mean_ue_energy_comm_fixed),
-            'mean_ue_energy': (mean_ue_energy_optimum, mean_ue_energy_ddqn, mean_ue_energy_a2c, mean_ue_energy_heuristic,
+                               mean_ue_energy_comm_random, mean_ue_energy_comm_fixed),
+            'ue_energy_comm_sd': (sd_ue_energy_comm_optimum, sd_ue_energy_comm_ddqn, sd_ue_energy_comm_a2c,
+                                  sd_ue_energy_comm_random, sd_ue_energy_comm_fixed),
+            'mean_ue_energy': (mean_ue_energy_optimum, mean_ue_energy_ddqn, mean_ue_energy_a2c,
                                mean_ue_energy_random, mean_ue_energy_fixed),
-            'top1': (mean_top1_optimum, mean_top1_ddqn, mean_top1_a2c, mean_top1_heuristic, mean_top1_random, mean_top1_fixed)}
+            'sd_ue_energy': (sd_ue_energy_optimum, sd_ue_energy_ddqn, sd_ue_energy_a2c, sd_ue_energy_random,
+                             sd_ue_energy_fixed),
+            'top1': (mean_top1_optimum, mean_top1_ddqn, mean_top1_a2c, mean_top1_random, mean_top1_fixed),
+            'top1_sd': (sd_top1_optimum, sd_top1_ddqn, sd_top1_a2c, sd_top1_random, sd_top1_fixed)
+
+                  }
+
     # change the algorithms according to the desired plot
     #algorithms = ['fixed', 'ue']
-    algorithms = ['optimum', 'rl/ddqn', 'rl/a2c', 'heuristic', 'random', 'fixed']
+    algorithms = ['optimum', 'rl/ddqn', 'rl/a2c', 'random', 'fixed']
     r = np.arange(len(algorithms))  # the label locations
     width = 0.15  # the width of the bars
     multiplier = 0
@@ -316,7 +359,7 @@ def plot_kpis_all_episodes(df_inference_time_list, df_ue_energy_comp_list, df_ue
         #plt.yscale('log')
         plt.savefig('results/journal/performance_split_algorithms.png')
         plt.savefig('results/journal/performance_split_algorithms.svg')
-        plt.show()
+        #plt.show()
     else:
         window = 1
         # ax.scatter(df_ddqn_ue_energy_comm['mean'][n_episodes_aft_train:].rolling(window=window).mean(),
@@ -539,9 +582,9 @@ def main():
 
     n_episodes_to_plot = 1500
     #n_episodes = {'optimum': 9, 'random': 200, 'rl/ddqn': 5000}
-    n_episodes = {'optimum': 9, 'rl/ddqn': 5000, 'rl/a2c': 5000, 'random': 200, 'fixed': 9, 'ue': 1, 'heuristic': 200}
+    n_episodes = {'optimum': 9, 'rl/ddqn': 5000, 'rl/a2c': 5000, 'random': 200, 'fixed': 9, 'ue': 1}
     #n_episodes = {'optimum': 1, 'rl/ddqn': 1500, 'random': 15, 'fixed': 1}
-    algorithms = ['optimum', 'rl/ddqn', 'rl/a2c', 'random', 'fixed', 'ue', 'heuristic']
+    algorithms = ['optimum', 'rl/ddqn', 'rl/a2c', 'random', 'fixed', 'ue']
     #algorithms = ['optimum', 'rl/ddqn', 'random', 'fixed']
     #algorithms = ['optimum', 'rl/ddqn', 'random']
     #algorithms = ['rl/ddqn']

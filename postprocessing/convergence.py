@@ -1,5 +1,4 @@
 import os
-import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import statistics
@@ -81,31 +80,31 @@ def main():
     order_to_convert = 1000
 
     #---- for DDQN -----
-    folder = 'rl/ddqn'
-    df_loss = generate_metric(folder, n_episodes, order_to_convert, 'loss')
-    df_reward = generate_metric(folder, n_episodes, order_to_convert, 'reward')
+    # folder = 'rl/ddqn'
+    # df_loss = generate_metric(folder, n_episodes, order_to_convert, 'loss')
+    # df_reward = generate_metric(folder, n_episodes, order_to_convert, 'reward')
     # # for debug
     # df_accuracy = generate_metric(folder, n_episodes, order_to_convert, 'top1')
 
     # ---- for A2C -----
-    # folder = 'rl/a2c'
-    # df_actor_loss = generate_metric(folder, n_episodes, order_to_convert, 'actor_loss')
-    # df_critic_loss = generate_metric(folder, n_episodes, order_to_convert, 'critic_loss')
-    # df_reward = generate_metric(folder, n_episodes, order_to_convert, 'reward')
-    # df_advantage = generate_metric(folder, n_episodes, order_to_convert, 'advantage')
-    # df_entropy = generate_metric(folder, n_episodes, order_to_convert, 'entropy')
+    folder = 'rl/a2c'
+    df_actor_loss = generate_metric(folder, n_episodes, order_to_convert, 'actor_loss')
+    df_critic_loss = generate_metric(folder, n_episodes, order_to_convert, 'critic_loss')
+    df_reward = generate_metric(folder, n_episodes, order_to_convert, 'reward')
+    df_advantage = generate_metric(folder, n_episodes, order_to_convert, 'advantage')
+    df_entropy = generate_metric(folder, n_episodes, order_to_convert, 'entropy')
 
     # ---- for DDQN -----
-    plot_metric('loss', df_loss, 'loss', folder)
-    plot_metric('reward', df_reward, 'reward', folder)
+    # plot_metric('loss', df_loss, 'loss', folder)
+    # plot_metric('reward', df_reward, 'reward', folder)
     #plot_metric('top1', df_accuracy, 'top1', folder)
 
     # call this function to generate loss and reward charts separately for A2C
-    # plot_metric('actor_loss', df_actor_loss, 'actor_loss', folder)
-    # plot_metric('critic_loss', df_critic_loss, 'critic_loss', folder)
-    # plot_metric('reward', df_reward, 'reward', folder)
-    # plot_metric('advantage', df_advantage, 'advantage', folder)
-    # plot_metric('entropy', df_entropy, 'entropy', folder)
+    plot_metric('actor_loss', df_actor_loss, 'actor_loss', folder)
+    plot_metric('critic_loss', df_critic_loss, 'critic_loss', folder)
+    plot_metric('reward', df_reward, 'reward', folder)
+    plot_metric('advantage', df_advantage, 'advantage', folder)
+    plot_metric('entropy', df_entropy, 'entropy', folder)
 
     # call this function to plot both loss and reward in the same chart
     #plot_metrics_together('mean_loss', 'mean_reward', df_loss, df_reward, 'loss_reward', folder)

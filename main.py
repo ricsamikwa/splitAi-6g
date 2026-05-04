@@ -67,6 +67,7 @@ allowed_splits = [0, 3, 6, 10, 14, 18]  # Safe boundaries (post-MaxPool layers)
 # mapping block numbers to the start-end boundaries
 allowed_splits_blocks = [(1, 0, 3), (2, 3, 6), (3, 6, 10), (4, 10, 14), (5, 14, 18)]
 elapsed_time = []   # records the time complexity for each episode
+constraint_violations = []
 # -----------------------
 # Generate split configuration according to desired algorithm
 # -----------------------
@@ -306,6 +307,8 @@ for ep in range(start_episode, scenario_params['n_episodes'] + 1):
     # --------------------------------------
     if scenario_params['split_algorithm'] == 2:
         print('Cumulative episode reward {}'.format(agent.agent.cumulative_reward))
+    if scenario_params['split_algorithm'] == 1:
+        constraint_violations.append(100 * (baseline.n_violations/scenario_params['episode_duration']))
 
 
     file_number = file_number + 1   # increment the file number by the episode number
@@ -313,4 +316,5 @@ for ep in range(start_episode, scenario_params['n_episodes'] + 1):
     # log the time complexity at the last episode
     if ep == scenario_params['n_episodes']:
         writeToCsv(elapsed_time, 'system/elapsed_time', folder)
+        print('mean percentage violation {}'.format(sum(constraint_violations)/scenario_params['n_episodes']))
 

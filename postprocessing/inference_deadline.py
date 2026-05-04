@@ -271,22 +271,22 @@ def plot_kpis_vs_inference_deadline(df_all_inference_time, df_all_ue_energy_comp
         top1_mean_per_deadline_fixed.append(df_top1_fixed['mean'].mean())
 
         # finally heuristic
-        df_inference_time_hr = df_inference_time_hr_list[i]
-        df_ue_energy_comp_hr = df_ue_energy_comp_hr_list[i]
-        df_ue_energy_comm_hr = df_ue_energy_comm_hr_list[i]
-        df_top1_hr = df_top1_hr_list[i]
-        df_inference_time_hr['mean'] = df_inference_time_hr.mean(axis=1)
-        inference_time_mean_per_deadline_hr.append(df_inference_time_hr['mean'].mean())
-        df_ue_energy_comp_hr['mean'] = df_ue_energy_comp_hr.mean(axis=1)
-        ue_energy_comp_mean_per_deadline_hr.append(df_ue_energy_comp_hr['mean'].mean())
-        ue_energy_comp_hr_sd = df_ue_energy_comp_hr['mean'].std()
-        ue_energy_comp_hr_ci = return_ci_90(ue_energy_comp_hr_sd)
-        ue_energy_comp_sd_per_deadline_hr.append(ue_energy_comp_hr_sd)
-        ue_energy_comp_ci_per_deadline_hr.append(ue_energy_comp_hr_ci)
-        df_ue_energy_comm_hr['mean'] = df_ue_energy_comm_hr.mean(axis=1)
-        ue_energy_comm_mean_per_deadline_hr.append(df_ue_energy_comm_hr['mean'].mean())
-        df_top1_hr['mean'] = df_top1_hr.mean(axis=1)
-        top1_mean_per_deadline_hr.append(df_top1_hr['mean'].mean())
+        # df_inference_time_hr = df_inference_time_hr_list[i]
+        # df_ue_energy_comp_hr = df_ue_energy_comp_hr_list[i]
+        # df_ue_energy_comm_hr = df_ue_energy_comm_hr_list[i]
+        # df_top1_hr = df_top1_hr_list[i]
+        # df_inference_time_hr['mean'] = df_inference_time_hr.mean(axis=1)
+        # inference_time_mean_per_deadline_hr.append(df_inference_time_hr['mean'].mean())
+        # df_ue_energy_comp_hr['mean'] = df_ue_energy_comp_hr.mean(axis=1)
+        # ue_energy_comp_mean_per_deadline_hr.append(df_ue_energy_comp_hr['mean'].mean())
+        # ue_energy_comp_hr_sd = df_ue_energy_comp_hr['mean'].std()
+        # ue_energy_comp_hr_ci = return_ci_90(ue_energy_comp_hr_sd)
+        # ue_energy_comp_sd_per_deadline_hr.append(ue_energy_comp_hr_sd)
+        # ue_energy_comp_ci_per_deadline_hr.append(ue_energy_comp_hr_ci)
+        # df_ue_energy_comm_hr['mean'] = df_ue_energy_comm_hr.mean(axis=1)
+        # ue_energy_comm_mean_per_deadline_hr.append(df_ue_energy_comm_hr['mean'].mean())
+        # df_top1_hr['mean'] = df_top1_hr.mean(axis=1)
+        # top1_mean_per_deadline_hr.append(df_top1_hr['mean'].mean())
     # sum_ue_energy_per_deadline_ddqn = np.add(ue_energy_comp_mean_per_deadline_ddqn, ue_energy_comm_mean_per_deadline_ddqn)
     # sum_ue_energy_per_deadline_opt = np.add(ue_energy_comp_mean_per_deadline_opt, ue_energy_comm_mean_per_deadline_opt)
     # sum_ue_energy_per_deadline_random = np.add(ue_energy_comp_mean_per_deadline_random, ue_energy_comm_mean_per_deadline_random)
@@ -343,20 +343,20 @@ def plot_kpis_vs_inference_deadline(df_all_inference_time, df_all_ue_energy_comp
                  capsize=4,  # cap size
                  linestyle='-',
                  capthick=2, fmt='o', label='ddqn')
-    plt.errorbar(x=np.array(inference_deadline_list) - 0.001, y=ue_energy_comp_mean_per_deadline_a2c,
+    plt.errorbar(x=inference_deadline_list, y=ue_energy_comp_mean_per_deadline_a2c,
                  yerr=ue_energy_comp_ci_per_deadline_a2c, color="#165DB1",  # line + marker color
                  ecolor="#165DB1",  # error bar color
                  elinewidth=2,  # thickness
                  capsize=4,  # cap size
                  linestyle='-',
                  capthick=2, fmt='o', label='a2c')
-    plt.errorbar(x=np.array(inference_deadline_list) + 0.001, y=ue_energy_comp_mean_per_deadline_hr,
-                 yerr=ue_energy_comp_ci_per_deadline_hr, color="black",  # line + marker color
-                 ecolor="black",  # error bar color
-                 elinewidth=2,  # thickness
-                 capsize=4,  # cap size
-                 linestyle='-',
-                 capthick=2, fmt='o', label='heuristic')
+    # plt.errorbar(x=np.array(inference_deadline_list) + 0.001, y=ue_energy_comp_mean_per_deadline_hr,
+    #              yerr=ue_energy_comp_ci_per_deadline_hr, color="salmon",  # line + marker color
+    #              ecolor="salmon",  # error bar color
+    #              elinewidth=2,  # thickness
+    #              capsize=4,  # cap size
+    #              linestyle='-',
+    #              capthick=2, fmt='o', label='heuristic')
     plt.errorbar(x=np.array(inference_deadline_list) + 0.003, y=ue_energy_comp_mean_per_deadline_random,
                  yerr=ue_energy_comp_ci_per_deadline_random, color="#9ABCE4",  # line + marker color
                  ecolor="#9ABCE4",  # error bar color
@@ -378,8 +378,8 @@ def plot_kpis_vs_inference_deadline(df_all_inference_time, df_all_ue_energy_comp
     #ax.set_ylabel('Top 1 accuracy confidence (%)')
     plt.grid()
     plt.legend()
-    #plt.savefig('results/journal/comp_energy_vs_deadlines.png')
-    #plt.savefig('results/journal/comp_energy_vs_deadlines.svg')
+    plt.savefig('results/journal/comp_energy_vs_deadlines.png')
+    plt.savefig('results/journal/comp_energy_vs_deadlines.svg')
     plt.show()
 
 def main():
@@ -431,12 +431,12 @@ def main():
         df_ue_energy_comm_list_a2c.append(df_ue_energy_comm)
         df_top1_list_a2c.append(df_top1)
 
-        df_inference_time, df_ue_energy_comp, df_ue_energy_comm, _, _, df_top1 = parse_kpis('heuristic', 100,
-                                                                                            deadline)
-        df_inference_time_list_hr.append(df_inference_time)
-        df_ue_energy_comp_list_hr.append(df_ue_energy_comp)
-        df_ue_energy_comm_list_hr.append(df_ue_energy_comm)
-        df_top1_list_hr.append(df_top1)
+        # df_inference_time, df_ue_energy_comp, df_ue_energy_comm, _, _, df_top1 = parse_kpis('heuristic', 300,
+        #                                                                                     deadline)
+        # df_inference_time_list_hr.append(df_inference_time)
+        # df_ue_energy_comp_list_hr.append(df_ue_energy_comp)
+        # df_ue_energy_comm_list_hr.append(df_ue_energy_comm)
+        # df_top1_list_hr.append(df_top1)
 
         df_inference_time, df_ue_energy_comp, df_ue_energy_comm, _, _, df_top1 = parse_kpis('optimum', 9, deadline)
         df_inference_time_list_opt.append(df_inference_time)

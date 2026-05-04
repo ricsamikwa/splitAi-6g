@@ -45,6 +45,7 @@ class Baseline:
         for key, value in self.flops_per_block.items():
             self.total_flops += value
         self.objective = None   # this variable is only for the greedy heuristic
+        self.n_violations = 0   # only for random
 
     def random(self, allowed_splits, num_nodes, allow_empty_nodes, dnn_model, episode_params, output):
         split_idx = None
@@ -67,16 +68,23 @@ class Baseline:
         # print(selected_split_compression)
         selected_split = selected_split_compression['split']
         selected_compression = selected_split_compression['compression']
+        flops_offloaded, flops_on_ue = self.get_flops_offloaded(selected_split)
+        # compute the inference due to this selected split + compression
+        inference_time, ue_en_comp, ue_en_comm, out = compute_inference(selected_split, dnn_model, episode_params,
+                                                                        output, selected_compression)
+        # compute top1 accuracy confidence due to this split + compression
+        self.top1_accuracy_confidence = self.return_top1_accuracy_confidence(out)
+        # compute and check constraints
+        energy_credit_criteria, energy_credit_consumed = self.check_energy_credit_budget(flops_offloaded)
+        latency_criteria = self.check_latency_criteria(inference_time)
+        accuracy_criteria = self.check_accuracy_confidence_criteria(self.top1_accuracy_confidence)
+        # if both criteria are satisfied, then selected_split is the final split, else do nothing or continue with default split
+        if not energy_credit_criteria or not latency_criteria or not accuracy_criteria:
+            self.n_violations += 1
         # extract index of split config
         for k, v in split_indices.items():
             if v == self.split:
                 split_idx = k
-        # compute the inference due to this selected split
-        inference_time, ue_en_comp, ue_en_comm, out = compute_inference(selected_split, dnn_model,
-                                                                                episode_params,
-                                                                                output, selected_compression)
-        # compute top1 accuracy confidence due to this split
-        self.top1_accuracy_confidence = self.return_top1_accuracy_confidence(out)
         return selected_split, selected_compression, split_idx, self.top1_accuracy_confidence
 
     def heuristic(self, allowed_splits, num_nodes, allow_empty_nodes, dnn_model, episode_params, output):
