@@ -5,7 +5,8 @@ Defines the generic RL agent and its associated methods to train or infer the RL
 """
 
 from rl.ddqn import DDQNAgent, QValues
-from rl.a2c import  A2CAgent
+from rl.a2c import A2CAgent
+from rl.ppo import PPOAgent
 from rl.replay_buffer import Experience, extract_tensors, Sample
 from utils.action_space import enumerate_action_space, extended_action_space
 from utils.rl_utils import load_model_params
@@ -42,19 +43,35 @@ class Agent:
         self.action_space, self.action_indices = extended_action_space(split_choices,
                                                                        self.scenario_params['compression_rates'])
         self.n_actions = len(self.action_space)
-        self.agent_type = 'ddqn' if self.rl_algorithm == 1 else 'a2c'
+        # rl_algorithm: 1 -> ddqn, 2 -> a2c, 3 -> ppo. Kept as explicit branches (rather than an
+        # 'else' catch-all as before) now that there are three algorithms to distinguish.
+        if self.rl_algorithm == 1:
+            self.agent_type = 'ddqn'
+        elif self.rl_algorithm == 2:
+            self.agent_type = 'a2c'
+        else:
+            self.agent_type = 'ppo'
+
         if self.agent_type == 'ddqn':
             self.agent = DDQNAgent(self.scenario_params, self.n_states, self.n_actions, self.allowed_splits,
                                    self.num_nodes, self.flops_per_block, split_indices)
 
-        else:
+        elif self.agent_type == 'a2c':
             self.agent = A2CAgent(self.scenario_params, self.n_states, self.n_actions, self.allowed_splits,
                                    self.num_nodes, self.flops_per_block, split_indices)
             self.lr_actor = self.scenario_params['lr_actor']
             self.lr_critic = self.scenario_params['lr_critic']
 
+        else:
+            # PPOAgent's Actor/Critic each build and own their own optimizer at construction time (from
+            # scenario_params['ppo_lr_actor'] / ['ppo_lr_critic']), so - unlike a2c - no separate lr_actor/
+            # lr_critic bookkeeping is needed here; define_agent_attributes() does not need to (re)create
+            # optimizers for ppo either, see below.
+            self.agent = PPOAgent(self.scenario_params, self.n_states, self.n_actions, self.allowed_splits,
+                                   self.num_nodes, self.flops_per_block, split_indices)
 
-    def execute(self, time, episode_count, dnn_model, episode_params, output):
+
+    def execute(self, time, episode_count, dnn_model, episode_params, output, done=False):
         """
         Function that simulates the behavior of the agent.
         Args:
@@ -63,6 +80,11 @@ class Agent:
             dnn_model (pytorch model): The DNN model.
             episode_params (dict): The params specific to the episode packed in a dict.
             output (tensor): The pytorch tensor capturing the input image after transformation.
+            done (bool): Whether this call corresponds to the final time step of the episode. Only
+                consumed by PPO (its on-policy rollout needs to know episode boundaries to correctly mask
+                bootstrapping in GAE - see ppo.py). Ignored by ddqn/a2c, which do not need it. The caller
+                (the outer per-episode time loop) already knows when it is on the last time step, so it is
+                the natural place to supply this rather than inferring it here from scenario_params.
 
         Returns:
             The final split config and the top1 acc confidence to be used for inference.
@@ -78,8 +100,10 @@ class Agent:
             # train the agent based on the type of algorithm to run
             if self.agent_type == 'ddqn':
                 action, action_idx, top1_acc_conf = self.train_ddqn_agent(time, dnn_model, episode_params, output)
-            else:
+            elif self.agent_type == 'a2c':
                 action, action_idx, top1_acc_conf = self.train_a2c_agent(time, dnn_model, episode_params, output)
+            else:
+                action, action_idx, top1_acc_conf = self.train_ppo_agent(time, dnn_model, episode_params, output, done)
         return action['split'], action['compression'], action_idx, top1_acc_conf
 
     def train_a2c_agent(self, time, dnn_model, episode_params, output):
@@ -235,10 +259,85 @@ class Agent:
 
         return action, action_idx, top1_acc_conf
 
+    def train_ppo_agent(self, time, dnn_model, episode_params, output, done=False):
+        """
+        Function that trains the agent using the PPO algorithm.
+
+        Unlike train_ddqn_agent/train_a2c_agent, this method does not manually manage the replay buffer,
+        loss computation, or optimizer steps inline - PPOAgent (rl/ppo.py) encapsulates all of that behind
+        store_transition() and update(), since PPO's update needs a full chronologically-ordered rollout
+        (for GAE) and multiple epochs over it, rather than a single fixed-size random minibatch like a2c's
+        inline training above. This method's job is just to: act, log the transition, and trigger update()
+        once enough on-policy samples have been collected.
+
+        Args:
+            time (int): The time step within the episode.
+            dnn_model (pytorch model): The DNN model.
+            episode_params (dict): The params specific to the episode packed in a dict.
+            output (tensor): The pytorch tensor capturing the input image after transformation.
+            done (bool): Whether this is the final time step of the current episode (see execute()).
+
+        Returns:
+            The final split config, its index, and the top1 acc confidence to be used for inference.
+            As a side effect, when an update is triggered, appends {'time': time, 'loss': ...} entries to
+            self.agent.actor_loss / self.agent.critic_loss, matching train_a2c_agent's logging convention.
+        """
+        state = self.agent.get_agent_state(episode_params, self.flops_per_block)
+        action, action_idx = self.agent.choose_action(self.action_space, state)
+        inference_time, ue_en_comp, ue_en_comm, top1_acc_conf = self.agent.perform_action(action, self.allowed_splits_blocks,
+                                                                           dnn_model, episode_params, output)
+        # extract index of full action that was SELECTED (action_idx from choose_action indexes into the
+        # feasible action_space passed in, not the global action_indices mapping - same reasoning as a2c
+        # and ddqn above)
+        for k, v in self.action_indices.items():
+            if v == action:
+                action_idx = k
+                break
+        reward = self.agent.get_instant_reward(inference_time, ue_en_comp, ue_en_comm, top1_acc_conf)
+        # log the reward
+        self.agent.reward.append({'time': time, 'reward': reward})
+        # update reward counter and compute cumulative average
+        self.agent.reward_counter += 1
+        self.agent.cumulative_reward = reward / self.agent.reward_counter
+
+        # push (state, action, value, reward, done) into the on-policy rollout buffer; log_prob is
+        # deliberately not passed here (or stored at all) - it is recomputed fresh inside update() from the
+        # actor's pre-update weights, to avoid carrying an autograd-attached tensor across this call
+        # boundary (see rl/ppo.py's module docstring)
+        self.agent.store_transition(reward, done)
+
+        # trigger a PPO update once the on-policy rollout has reached the configured length. Falls back to
+        # the buffer's full capacity if 'ppo_rollout_length' isn't set in scenario_params, but a dedicated,
+        # smaller rollout length (e.g. 128-2048, decoupled from ddqn's much larger off-policy buffer_size)
+        # is recommended - see rl/ppo.py and ReplayBuffer.get_all()'s docstring for why the buffer's
+        # capacity must be sized to match whatever rollout length is used here.
+        rollout_length = self.scenario_params.get('ppo_rollout_length', self.agent.replay_buffer.capacity)
+        if self.agent.replay_buffer.check_provide_samples(rollout_length):
+            if done:
+                # episode boundary: nothing to bootstrap from
+                last_value = torch.zeros(1)
+            else:
+                next_state = self.agent.get_agent_state(episode_params, self.flops_per_block)
+                with torch.no_grad():
+                    last_value = self.agent.critic(next_state.clone().detach().float())
+            actor_loss_val, critic_loss_val = self.agent.update(last_value)
+            # log actor/critic loss for this time step, mirroring a2c's logging convention above. update()
+            # returns (None, None) if the buffer somehow ended up empty (shouldn't happen given the
+            # check_provide_samples guard, but guarded against here rather than logging a None loss)
+            if actor_loss_val is not None:
+                self.agent.actor_loss.append({'time': time, 'loss': actor_loss_val})
+                self.agent.critic_loss.append({'time': time, 'loss': critic_loss_val})
+
+        return action, action_idx, top1_acc_conf
+
     def define_agent_attributes(self):
         """
         Function that defines attributes specific to the agent algorithm.
         For ddqn, it defines the optimizer and initializes/loads the params of the target agent.
+        For a2c, it defines the actor/critic optimizers and loads the model.
+        For ppo, it only loads the model - PPOAgent's Actor/Critic already own their optimizers (built at
+        construction time from scenario_params['ppo_lr_actor']/['ppo_lr_critic']), so there is nothing to
+        (re)create here every call, unlike a2c.
         Returns:
 
         """
@@ -261,10 +360,13 @@ class Agent:
                                                                         self.episode_count - 1))
                 # set target agent to evaluation mode (no training)
                 self.target_agent.eval()
-        else:
+        elif self.agent_type == 'a2c':
             # both actor and critic need individual optimizers
             self.actor_optimizer = optim.Adam(params=self.agent.actor.parameters(), lr=self.lr_actor)
             self.critic_optimizer = optim.Adam(params=self.agent.critic.parameters(), lr=self.lr_critic)
             # then load models (inference case should be covered in this method)
             self.agent.load_model_a2c(self.episode_count)
-
+        else:
+            # ppo: optimizers already live on self.agent.actor/self.agent.critic (see class docstring
+            # above); only the model params need loading/restoring here, mirroring load_model_a2c.
+            self.agent.load_model_ppo(self.episode_count)
