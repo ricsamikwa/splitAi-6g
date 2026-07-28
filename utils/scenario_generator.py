@@ -46,7 +46,6 @@ def pack_parameters(filename):
     weight_accuracy = float(config['ALGORITHM']['WEIGHT_ACCURACY'])
     top1_flag = int(config['ALGORITHM']['TOP1_FLAG'])
     top1_bins = json.loads(config['ALGORITHM']['TOP1_BINS'])
-    param_path = config['ALGORITHM']['PARAM_PATH']
 
     n_hidden_layer = int(config['DRL_HYPERPARAMETERS']['N_HIDDEN_LAYER'])
     batch_size = int(config['DRL_HYPERPARAMETERS']['BATCH_SIZE'])
@@ -63,6 +62,16 @@ def pack_parameters(filename):
     lr_critic = float(config['DRL_HYPERPARAMETERS']['LR_CRITIC'])
     entropy = int(config['DRL_HYPERPARAMETERS']['ENTROPY'])
     entropy_factor = float(config['DRL_HYPERPARAMETERS']['ENTROPY_FACTOR'])
+
+    ppo_lr_actor = float(config['DRL_HYPERPARAMETERS']['PPO_LR_ACTOR'])
+    ppo_lr_critic = float(config['DRL_HYPERPARAMETERS']['PPO_LR_CRITIC'])
+    ppo_clip_epsilon = float(config['DRL_HYPERPARAMETERS']['PPO_CLIP_EPSILON'])
+    ppo_gae_lambda = float(config['DRL_HYPERPARAMETERS']['PPO_GAE_LAMBDA'])
+    ppo_value_loss_coef = float(config['DRL_HYPERPARAMETERS']['PPO_VALUE_LOSS_COEF'])
+    ppo_max_grad_norm = float(config['DRL_HYPERPARAMETERS']['PPO_MAX_GRAD_NORM'])
+    ppo_batch_size = int(config['DRL_HYPERPARAMETERS']['PPO_BATCH_SIZE'])
+    ppo_epochs = int(config['DRL_HYPERPARAMETERS']['PPO_EPOCHS'])
+    ppo_rollout_length = int(config['DRL_HYPERPARAMETERS']['PPO_ROLLOUT_LENGTH'])
 
 
     params = {
@@ -81,7 +90,6 @@ def pack_parameters(filename):
         'weight_accuracy': weight_accuracy,
         'top1_flag': top1_flag,
         'top1_bins': top1_bins,
-        'param_path': param_path,
 
         'n_hidden_layer': n_hidden_layer,
         'batch_size': batch_size,
@@ -98,7 +106,17 @@ def pack_parameters(filename):
         'lr_actor': lr_actor,
         'lr_critic': lr_critic,
         'entropy': entropy,
-        'entropy_factor': entropy_factor
+        'entropy_factor': entropy_factor,
+
+        'ppo_lr_actor': ppo_lr_actor,
+        'ppo_lr_critic': ppo_lr_critic,
+        'ppo_clip_epsilon': ppo_clip_epsilon,
+        'ppo_gae_lambda': ppo_gae_lambda,
+        'ppo_value_loss_coef': ppo_value_loss_coef,
+        'ppo_max_grad_norm': ppo_max_grad_norm,
+        'ppo_batch_size': ppo_batch_size,
+        'ppo_epochs': ppo_epochs,
+        'ppo_rollout_length': ppo_rollout_length
 
     }
     return params

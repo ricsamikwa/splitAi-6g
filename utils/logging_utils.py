@@ -18,8 +18,10 @@ def write_logs(scenario_params, episode, data, model):
     elif scenario_params['split_algorithm'] == 2:
         if scenario_params['rl_algorithm'] == 1:
             folder = 'rl/ddqn'
-        else:
+        elif scenario_params['rl_algorithm'] == 2:
             folder = 'rl/a2c'
+        else:
+            folder = 'rl/ppo'
     elif scenario_params['split_algorithm'] == 3:
         folder = 'optimum'
     elif scenario_params['split_algorithm'] == 4:
@@ -74,7 +76,7 @@ def write_logs(scenario_params, episode, data, model):
             writeToCsv(model.agent.reward, filename, folder)
             fol = '{}/epsilon'.format(folder)
             logKPIs([model.agent.epsilon], 'epsilon', episode_count, fol)
-        else:
+        elif scenario_params['rl_algorithm'] == 2:  # a2c
             save_model_params(model.agent.actor, 'a2c', 'actor', scenario_params, episode_count)
             save_model_params(model.agent.critic, 'a2c', 'critic', scenario_params, episode_count)
             filename = 'loss/actor_loss_ep{}'.format(episode_count)
@@ -87,6 +89,27 @@ def write_logs(scenario_params, episode, data, model):
             writeToCsv(model.agent.reward, filename, folder)
             filename = 'entropy/entropy_ep{}'.format(episode_count)
             writeToCsv(model.agent.entropies, filename, folder)
+        else:    # ppo
+            save_model_params(model.agent.actor, 'ppo', 'actor', scenario_params, episode_count)
+            save_model_params(model.agent.critic, 'ppo', 'critic', scenario_params, episode_count)
+            filename = 'reward/reward_ep{}'.format(episode_count)
+            writeToCsv(model.agent.reward, filename, folder)
+            # Unlike ddqn/a2c (which train on nearly every time step, since their batch/mini-batch sizes
+            # are small relative to an episode), ppo only trains once its on-policy rollout buffer reaches
+            # ppo_rollout_length (see agent.py/ppo.py) - typically much larger than a single episode's
+            # length. actor_loss/critic_loss can therefore legitimately be empty for a given episode if no
+            # update was triggered during it; guard against writeToCsv's data[0] lookup crashing on that.
+            if model.agent.actor_loss:
+                filename = 'loss/actor_loss_ep{}'.format(episode_count)
+                writeToCsv(model.agent.actor_loss, filename, folder)
+            if model.agent.critic_loss:
+                filename = 'loss/critic_loss_ep{}'.format(episode_count)
+                writeToCsv(model.agent.critic_loss, filename, folder)
+            # NOTE: model.agent.entropies for ppo is still a list of raw floats (appended per minibatch
+            # inside ppo.py's update()), not the {'time': ..., 'entropy': ...} dicts a2c logs and
+            # writeToCsv()/csv.DictWriter expect (it calls data[0].keys()). Left out of logging here to
+            # avoid a crash - say the word if you'd like ppo.py's entropy logging brought in line with
+            # a2c's dict format the same way actor_loss/critic_loss were, and I'll wire it through here too.
 
 
 def logKPIs(data, kpi_type, episode_count, folder):
