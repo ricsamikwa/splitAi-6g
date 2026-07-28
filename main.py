@@ -200,11 +200,14 @@ for ep in range(start_episode, scenario_params['n_episodes'] + 1):
                                                           episode_params, current_output)
         elif scenario_params['split_algorithm'] == 2:   # rl agent
             # agent determines the split and compression rate every time_interval seconds
-            split_config, compression_rate, split_config_idx, top_1 = agent.execute(k, ep, model, episode_params, current_output)
+            done = True if k == scenario_params['episode_duration'] else False
+            split_config, compression_rate, split_config_idx, top_1 = agent.execute(k, ep, model, episode_params, current_output, done)
             if scenario_params['rl_algorithm'] == 1:
                 folder = 'rl/ddqn'
-            else:
+            elif scenario_params['rl_algorithm'] == 2:
                 folder = 'rl/a2c'
+            else:
+                folder = 'rl/ppo'
             #print('Energy credit consumed {} Split config {}'.format(agent.agent.energy_credit_consumed, split_config))
         elif scenario_params['split_algorithm'] == 3:   # optimal solution
             split_config, compression_rate, split_config_idx, top_1 = opt.generate_optimal_split(k, ep, model, episode_params, current_output)
