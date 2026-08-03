@@ -72,13 +72,8 @@ mkdir -p logs logs/rl
 # Format:
 # experiment_name|clip_epsilon|gae_lambda|epochs
 EXPERIMENTS=(
-  "default|0.2|0.95|4"
-  "clip_0p1|0.1|0.95|4"
-  "clip_0p3|0.3|0.95|4"
-  "lambda_0p90|0.2|0.90|4"
-  "lambda_0p99|0.2|0.99|4"
-  "epochs_3|0.2|0.95|3"
-  "epochs_8|0.2|0.95|8"
+"clip_0p2_10k|0.2|0.95|4"
+"clip_0p1_10k|0.1|0.95|4"
 )
 
 for experiment in "${EXPERIMENTS[@]}"; do
