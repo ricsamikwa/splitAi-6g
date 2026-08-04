@@ -73,7 +73,6 @@ mkdir -p logs logs/rl
 # experiment_name|clip_epsilon|gae_lambda|epochs
 EXPERIMENTS=(
 "clip_0p2_10k|0.2|0.95|4"
-"clip_0p1_10k|0.1|0.95|4"
 )
 
 for experiment in "${EXPERIMENTS[@]}"; do
