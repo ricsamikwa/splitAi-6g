@@ -3,7 +3,7 @@ set -euo pipefail
 
 cd "$(dirname "$0")"
 
-GPU_ID=1
+GPU_ID=0
 CONFIG_FILE="config.ini"
 PPO_RL_ALGORITHM=3
 
