@@ -2,12 +2,12 @@
 split_generator.py
 
 Utility for sampling a random split configuration for model partitioning.
-This module wraps around the full action space enumerator (action_space.py) 
+This module wraps around the full action space enumerator (action_space.py)
 to ensure consistency between random baselines and the RL environment.
 
 Note:
     Some nodes may not be allocated any layers (start_layer == end_layer),
-    allowing flexible configurations where fewer than num_nodes actively 
+    allowing flexible configurations where fewer than num_nodes actively
     compute layers.
 
     Node 0 (UE) is always assigned at least one layer to ensure proper
@@ -20,6 +20,7 @@ import torch.nn.functional as F
 from utils.action_space import enumerate_action_space, extended_action_space
 from utils.inference_utils import compute_inference
 
+
 class Baseline:
     def __init__(self, scenario_params, allowed_splits, num_nodes, flops_per_block, allowed_splits_blocks):
         self.scenario_params = scenario_params
@@ -29,7 +30,7 @@ class Baseline:
         self.allowed_splits_blocks = allowed_splits_blocks
         self.max_energy_credit = self.scenario_params['max_energy_credit']
         self.max_inference_latency = self.scenario_params['max_inference_latency']
-        if self.scenario_params['split_algorithm'] == 4:    # in case of a fixed split
+        if self.scenario_params['split_algorithm'] == 4:  # in case of a fixed split
             self.split = [(0, 0, 6), (1, 6, 10), (2, 10, 14), (3, 14, 18)]
         else:
             self.split = [(0, 0, 18), (1, 18, 18), (2, 18, 18), (3, 18, 18)]
@@ -44,8 +45,8 @@ class Baseline:
         self.total_flops_on_ue = 0  # captures the cumulative flops computed on the ue until now
         for key, value in self.flops_per_block.items():
             self.total_flops += value
-        self.objective = None   # this variable is only for the greedy heuristic
-        self.n_violations = 0   # only for random
+        self.objective = None  # this variable is only for the greedy heuristic
+        self.n_violations = 0  # only for random
 
     def random(self, allowed_splits, num_nodes, allow_empty_nodes, dnn_model, episode_params, output):
         split_idx = None
@@ -89,71 +90,85 @@ class Baseline:
 
     def heuristic(self, allowed_splits, num_nodes, allow_empty_nodes, dnn_model, episode_params, output):
         """
+        Simple reactive threshold heuristic (not GA-based, no search).
+
+        Holds the split FIXED at the same static partition FIXED uses ([(0,0,6),(1,6,10),(2,10,14),
+        (3,14,18)]), set once on the first call, and only ever adapts the compression rate - one discrete
+        step per time step, in the direction indicated by the REALIZED inference_time from the previous
+        step's real compute_inference() call, exactly like random() and the rest of this class use to
+        evaluate the configuration they've picked (never a raw channel/throughput signal read directly).
+
+        Each step: (1) run the currently-held (split, compression) through compute_inference() to get this
+        step's real inference_time/energy/accuracy - this is what gets returned and logged for this step;
+        (2) compare inference_time against heuristic_margin_fraction * max_inference_latency (and the
+        energy-credit budget) to decide, for the NEXT step only, whether to step compression one level
+        DOWN (more aggressive compression, if currently over budget) or one level UP (less distortion, if
+        comfortably under budget) - never more than one step, and never touching the split at all.
+
+        This heuristic never previews, searches, or compares candidate configurations before acting - it
+        only ever reacts, after the fact, to how the configuration it already committed to performed one
+        step ago. That makes it structurally weaker than both the GA-based search this replaces (which
+        could compare many candidates before committing) and DRL (which selects its action for the CURRENT
+        state directly, from a policy trained across the whole state distribution, rather than lagging
+        behind a single scalar threshold one step at a time).
+
         Args:
             allowed_splits (list): Layer indices where splitting is safe without model refactoring
-                                   (e.g., [0, 3, 6, 10, 14, 18]).
+                                   (e.g., [0, 3, 6, 10, 14, 18]). Unused by this heuristic (split is fixed)
+                                   but kept in the signature for a consistent call interface across baselines.
             num_nodes (int): Number of computation nodes to split the model across.
+            allow_empty_nodes (bool): Whether nodes may be assigned zero layers.
+            dnn_model (pytorch model): The DNN model.
+            episode_params (dict): The params specific to the episode packed in a dict.
+            output (tensor): The pytorch tensor capturing the input image after transformation.
 
         Returns:
-            list: A list of tuples (node_id, start_layer, end_layer) for each node.
+            tuple: (split, compression_rate, split_idx, top1_accuracy_confidence) for the configuration
+                actually used THIS time step (i.e. before any threshold-triggered adjustment for next step).
         """
         split_idx = None
-        #self.compression_rate = np.random.choice(self.scenario_params['compression_rates'])
-        # first determine the top1 accuracy confidence & objective value for the default split ONLY for the first instance
-        if self.top1_accuracy_confidence is None:
-            # compute the top1 accuracy confidence for the default action
-            inference_time, ue_en_comp, ue_en_comm, expected_output = compute_inference(self.split, dnn_model,
-                                                                                        episode_params,
-                                                                                        output, self.compression_rate)
-            self.top1_accuracy_confidence = self.return_top1_accuracy_confidence(expected_output)
-            self.objective = ((self.scenario_params['weight_inference_time'] * inference_time) +
-                            ((1 - self.scenario_params['weight_inference_time']) * (ue_en_comp + ue_en_comm))
-                            - (self.scenario_params['weight_accuracy'] * self.top1_accuracy_confidence))
-        # Build full action space once
-        feasible_splits, split_indices = enumerate_action_space(allowed_splits, num_nodes, allow_empty_nodes)
-        feasible_split_compression, action_indices_extended = extended_action_space(feasible_splits,
-                                                                                    self.scenario_params[
-                                                                                        'compression_rates'])
-        # Sample one action (split + compression) uniformly
-        idx = np.random.randint(len(feasible_split_compression))
+        compression_rates = sorted(self.scenario_params['compression_rates'])
+        split_options = [[(0,0,3),(1,3,10),(2,10,14),(3,14,18)], [(0, 0, 6), (1, 6, 10), (2, 10, 14), (3, 14, 18)]]
 
-        selected_split_compression = feasible_split_compression[idx]
-        #print(selected_split_compression)
-        # compute the flops to be offloaded due to this selected split
-        selected_split = selected_split_compression['split']
-        selected_compression = selected_split_compression['compression']
-        flops_offloaded, flops_on_ue = self.get_flops_offloaded(selected_split)
-        # compute the inference due to this selected split + compression
-        inference_time, ue_en_comp, ue_en_comm, out = compute_inference(selected_split, dnn_model, episode_params,
-                                                                        output, selected_compression)
-        # compute top1 accuracy confidence due to this split + compression
-        top1_accuracy_confidence = self.return_top1_accuracy_confidence(out)
-        # compute the objective due to this split + compression
-        objective = ((self.scenario_params['weight_inference_time'] * inference_time) +
-                            ((1 - self.scenario_params['weight_inference_time']) * (ue_en_comp + ue_en_comm))
-                            - (self.scenario_params['weight_accuracy'] * self.top1_accuracy_confidence))
-        # compute and check constraints
-        energy_credit_criteria, energy_credit_consumed = self.check_energy_credit_budget(flops_offloaded)
-        latency_criteria = self.check_latency_criteria(inference_time)
-        accuracy_criteria = self.check_accuracy_confidence_criteria(top1_accuracy_confidence)
-        # if both criteria are satisfied, then selected_split is the final split, else do nothing or continue with default split
-        if energy_credit_criteria and latency_criteria and accuracy_criteria:
-        # constraints satisfied, now check new objective is less than previous
-            if objective < self.objective:
-                self.split = selected_split
-                self.compression_rate = selected_compression
-                # update the flops offloaded, flops on ue and energy credit usage
-                self.update_energy_credit_usage(flops_offloaded, flops_on_ue)
-                # update the top1 accuracy confidence
-                self.top1_accuracy_confidence = top1_accuracy_confidence
-        else:
-            self.flops_offloaded = 0.0
-        # extract index of split config
+        # fixed split, set once on first call; compression starts at full quality and is only ever
+        # adjusted reactively from here on
+        if self.top1_accuracy_confidence is None:
+            self.split = split_options[np.random.choice(2)]
+            self.compression_rate = compression_rates[-1]
+
+        feasible_splits, split_indices = enumerate_action_space(allowed_splits, num_nodes, allow_empty_nodes)
+
+        # evaluate the currently-held configuration for real - this is what actually gets used/logged for
+        # this time step
+        used_compression_rate = self.compression_rate
+        flops_offloaded, flops_on_ue = self.get_flops_offloaded(self.split)
+        inference_time, ue_en_comp, ue_en_comm, out = compute_inference(
+            self.split, dnn_model, episode_params, output, used_compression_rate)
+        top1_acc = self.return_top1_accuracy_confidence(out)
+
+        energy_credit_criteria, _ = self.check_energy_credit_budget(flops_offloaded)
+        margin_fraction = self.scenario_params.get('heuristic_margin_fraction', 0.3)
+        over_budget = (inference_time > margin_fraction * self.max_inference_latency) or (not energy_credit_criteria)
+
+        # decide, for NEXT step only, whether to step compression down (more aggressive) or up (less
+        # distortion) by exactly one discrete level - based purely on what was just measured, never a
+        # preview of what the alternative would have produced
+        current_idx = compression_rates.index(used_compression_rate)
+        if over_budget and current_idx > 0:
+            self.compression_rate = compression_rates[current_idx - 1]
+        elif (not over_budget) and current_idx < len(compression_rates) - 1:
+            self.compression_rate = compression_rates[current_idx + 1]
+        # else: already at the boundary in the needed direction - hold as-is
+
+        self.update_energy_credit_usage(flops_offloaded, flops_on_ue)
+        self.top1_accuracy_confidence = top1_acc
+
+        # extract index of split config (unchanged pattern)
         for k, v in split_indices.items():
             if v == self.split:
                 split_idx = k
 
-        return self.split, self.compression_rate, split_idx, self.top1_accuracy_confidence
+        return self.split, used_compression_rate, split_idx, self.top1_accuracy_confidence
 
     def fixed_split(self, allowed_splits, num_nodes, allow_empty_nodes, dnn_model, episode_params, output):
         split_idx = None
@@ -214,7 +229,8 @@ class Baseline:
         Returns:
             The result of the constraint being satisfied or not, and the energy credit consumed.
         """
-        energy_credit_consumed = (flops_offloaded + self.total_flops_offloaded) / (self.total_flops + self.total_flops_on_ue)
+        energy_credit_consumed = (flops_offloaded + self.total_flops_offloaded) / (
+                    self.total_flops + self.total_flops_on_ue)
         if energy_credit_consumed <= self.max_energy_credit / 100:
             return True, energy_credit_consumed
         else:
@@ -238,12 +254,13 @@ class Baseline:
         # first check if the new accuracy confidence is less than the previous one
         if top1_acc_confidence < self.top1_accuracy_confidence:
             # then check if the difference is within the desired percentage decrease
-            if (self.top1_accuracy_confidence - top1_acc_confidence) <= (self.scenario_params['accuracy_decrease'] / 100):
+            if (self.top1_accuracy_confidence - top1_acc_confidence) <= (
+                    self.scenario_params['accuracy_decrease'] / 100):
                 return True
             else:
                 return False
         else:
-            return True # new accuracy confidence is greater than the previous one
+            return True  # new accuracy confidence is greater than the previous one
 
     def return_top1_accuracy_confidence(self, out):
         with torch.no_grad():
@@ -280,7 +297,6 @@ class Baseline:
                     raise ValueError('Wrong mapping of blocks.')
             flops_offloaded = self.total_flops - flops_on_ue  # flops offloaded for this specific split config
             return flops_offloaded, flops_on_ue
-
 
         # # Randomly pick internal split points
         # allowed_splits = sorted(allowed_splits)
@@ -325,7 +341,6 @@ class Baseline:
         #     splits.append((node_id, start, end))
 
         # return splits
-    
 
 # if __name__ == "__main__":
 #     allowed_splits = [0, 3, 6, 10, 14, 18]
@@ -335,4 +350,3 @@ class Baseline:
 #     for _ in range(5):
 #         split = generate_random_split(allowed_splits, num_nodes, allow_empty_nodes=True)
 #         print(split)
-    

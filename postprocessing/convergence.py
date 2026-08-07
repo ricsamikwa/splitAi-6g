@@ -28,7 +28,7 @@ def plot_metrics_together(metric1, metric2, df1, df2, outfile, folder):
 
 
 def plot_metric(metric, df, outfile, folder):
-    window = 200
+    window = 500
     fig, ax = plt.subplots()
     roll_mean_metric = df[metric].rolling(window=window).mean()
     plt.plot(df['episode'], roll_mean_metric, color='#072140', label='{}'.format(folder))
@@ -38,8 +38,8 @@ def plot_metric(metric, df, outfile, folder):
     ax.grid()
     #if metric == 'reward':
     #    plt.yscale('log')
-    plt.savefig('results/journal/{}_{}.png'.format(folder, outfile))
-    plt.savefig('results/journal/{}_{}.svg'.format(folder, outfile))
+    plt.savefig('results/journal/{}_{}_clip0.2_10k_window{}.png'.format(folder, outfile, window))
+    plt.savefig('results/journal/{}_{}_clip0.2_10k_window{}.svg'.format(folder, outfile, window))
     plt.show()
 
 def generate_metric(folder, n_episodes, order_to_convert, metric):
@@ -76,8 +76,8 @@ def main():
 
     params = generate_scenario()
     # specify the number of episodes to be plotted
-    n_episodes = 5000
-    order_to_convert = 1000
+    n_episodes = 10000
+    order_to_convert = 10000
 
     #---- for DDQN -----
     # folder = 'rl/ddqn'
@@ -87,12 +87,22 @@ def main():
     # df_accuracy = generate_metric(folder, n_episodes, order_to_convert, 'top1')
 
     # ---- for A2C -----
-    folder = 'rl/a2c'
+    # folder = 'rl/a2c'
+    # df_actor_loss = generate_metric(folder, n_episodes, order_to_convert, 'actor_loss')
+    # df_critic_loss = generate_metric(folder, n_episodes, order_to_convert, 'critic_loss')
+    # df_reward = generate_metric(folder, n_episodes, order_to_convert, 'reward')
+    # df_advantage = generate_metric(folder, n_episodes, order_to_convert, 'advantage')
+    # df_entropy = generate_metric(folder, n_episodes, order_to_convert, 'entropy')
+
+    # ---- for PPO -----
+    # reward and actor/critic loss only for now: advantage/entropy aren't logged in the
+    # {'time': ..., <metric>: ...} dict format generate_metric()/read_single_col_data() expect for ppo yet
+    # (see logging_utils.py's note in the ppo branch of write_logs) - say the word if you want those wired
+    # up the same way actor_loss/critic_loss were, and this section can be extended to match A2C's in full.
+    folder = 'rl/ppo'
     df_actor_loss = generate_metric(folder, n_episodes, order_to_convert, 'actor_loss')
     df_critic_loss = generate_metric(folder, n_episodes, order_to_convert, 'critic_loss')
     df_reward = generate_metric(folder, n_episodes, order_to_convert, 'reward')
-    df_advantage = generate_metric(folder, n_episodes, order_to_convert, 'advantage')
-    df_entropy = generate_metric(folder, n_episodes, order_to_convert, 'entropy')
 
     # ---- for DDQN -----
     # plot_metric('loss', df_loss, 'loss', folder)
@@ -100,11 +110,16 @@ def main():
     #plot_metric('top1', df_accuracy, 'top1', folder)
 
     # call this function to generate loss and reward charts separately for A2C
+    # plot_metric('actor_loss', df_actor_loss, 'actor_loss', folder)
+    # plot_metric('critic_loss', df_critic_loss, 'critic_loss', folder)
+    # plot_metric('reward', df_reward, 'reward', folder)
+    # plot_metric('advantage', df_advantage, 'advantage', folder)
+    # plot_metric('entropy', df_entropy, 'entropy', folder)
+
+    # call this function to generate loss and reward charts separately for PPO
     plot_metric('actor_loss', df_actor_loss, 'actor_loss', folder)
     plot_metric('critic_loss', df_critic_loss, 'critic_loss', folder)
     plot_metric('reward', df_reward, 'reward', folder)
-    plot_metric('advantage', df_advantage, 'advantage', folder)
-    plot_metric('entropy', df_entropy, 'entropy', folder)
 
     # call this function to plot both loss and reward in the same chart
     #plot_metrics_together('mean_loss', 'mean_reward', df_loss, df_reward, 'loss_reward', folder)
