@@ -384,8 +384,8 @@ def plot_kpis_all_episodes(df_inference_time_list, df_ue_energy_comp_list, df_ue
         ax.legend(loc='upper left', ncols=1)
         ax.grid()
         #plt.yscale('log')
-        #plt.savefig('results/journal/performance_split_algorithms.png')
-        #plt.savefig('results/journal/performance_split_algorithms.svg')
+        plt.savefig('results/journal/performance_split_algorithms_all.png')
+        plt.savefig('results/journal/performance_split_algorithms_all.svg')
         plt.show()
     else:
         window = 1
@@ -609,7 +609,7 @@ def main():
 
     n_episodes_to_plot = 1500
     #n_episodes = {'optimum': 9, 'random': 200, 'rl/ddqn': 5000}
-    n_episodes = {'optimum': 9, 'rl/ddqn': 5000, 'rl/a2c': 5000, 'rl/ppo': 5000, 'random': 200, 'fixed': 9, 'ue': 1, 'heuristic': 234}
+    n_episodes = {'optimum': 9, 'rl/ddqn': 5000, 'rl/a2c': 5000, 'rl/ppo': 5000, 'random': 200, 'fixed': 9, 'ue': 1, 'heuristic': 300}
     #n_episodes = {'optimum': 1, 'rl/ddqn': 1500, 'random': 15, 'fixed': 1}
     algorithms = ['optimum', 'rl/ddqn', 'rl/a2c', 'rl/ppo', 'random', 'fixed', 'ue', 'heuristic',]
     #algorithms = ['optimum', 'rl/ddqn', 'random', 'fixed']

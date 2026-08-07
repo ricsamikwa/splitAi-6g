@@ -90,13 +90,16 @@ class Baseline:
 
     def heuristic(self, allowed_splits, num_nodes, allow_empty_nodes, dnn_model, episode_params, output):
         """
-        Simple reactive threshold heuristic (not GA-based, no search).
+        Simple reactive threshold heuristic.
 
-        Holds the split FIXED at the same static partition FIXED uses ([(0,0,6),(1,6,10),(2,10,14),
-        (3,14,18)]), set once on the first call, and only ever adapts the compression rate - one discrete
-        step per time step, in the direction indicated by the REALIZED inference_time from the previous
-        step's real compute_inference() call, exactly like random() and the rest of this class use to
-        evaluate the configuration they've picked (never a raw channel/throughput signal read directly).
+        Selects one of two candidate fixed splits - a shallow partition ([(0,0,3),(1,3,10),(2,10,14),
+        (3,14,18)], 3 layers on the device) or a deep partition ([(0,0,6),(1,6,10),(2,10,14),(3,14,18)],
+        6 layers on the device, matching FIXED's split) - UNIFORMLY AT RANDOM on the first call, and holds
+        that choice fixed for the remainder of the run: the split itself is never reconsidered or adjusted
+        afterward, regardless of how conditions change. Only the compression rate is ever adapted - one
+        discrete step per time step, in the direction indicated by the REALIZED inference_time from the
+        current step's real compute_inference() call, exactly like random() and the rest of this class use
+        to evaluate the configuration they've picked (never a raw channel/throughput signal read directly).
 
         Each step: (1) run the currently-held (split, compression) through compute_inference() to get this
         step's real inference_time/energy/accuracy - this is what gets returned and logged for this step;
@@ -105,16 +108,17 @@ class Baseline:
         DOWN (more aggressive compression, if currently over budget) or one level UP (less distortion, if
         comfortably under budget) - never more than one step, and never touching the split at all.
 
-        This heuristic never previews, searches, or compares candidate configurations before acting - it
-        only ever reacts, after the fact, to how the configuration it already committed to performed one
-        step ago. That makes it structurally weaker than both the GA-based search this replaces (which
-        could compare many candidates before committing) and DRL (which selects its action for the CURRENT
-        state directly, from a policy trained across the whole state distribution, rather than lagging
-        behind a single scalar threshold one step at a time).
+        This heuristic never previews, searches, or compares candidate configurations before acting - its
+        split choice is a one-time coin flip uninformed by state, and its compression adjustment only ever
+        reacts, after the fact, to how the currently-held configuration just performed. That makes it
+        structurally weaker than DRL (which selects a full configuration - split and compression - for the
+        CURRENT state directly, from a policy trained across the whole state distribution, rather than
+        locking in a split at random and lagging behind a single scalar threshold on compression alone).
 
         Args:
             allowed_splits (list): Layer indices where splitting is safe without model refactoring
-                                   (e.g., [0, 3, 6, 10, 14, 18]). Unused by this heuristic (split is fixed)
+                                   (e.g., [0, 3, 6, 10, 14, 18]). Unused by this heuristic (the split is
+                                   drawn from the two hardcoded candidates above, not from allowed_splits)
                                    but kept in the signature for a consistent call interface across baselines.
             num_nodes (int): Number of computation nodes to split the model across.
             allow_empty_nodes (bool): Whether nodes may be assigned zero layers.
@@ -124,7 +128,8 @@ class Baseline:
 
         Returns:
             tuple: (split, compression_rate, split_idx, top1_accuracy_confidence) for the configuration
-                actually used THIS time step (i.e. before any threshold-triggered adjustment for next step).
+                actually used THIS time step (i.e. before any threshold-triggered compression adjustment
+                for next step).
         """
         split_idx = None
         compression_rates = sorted(self.scenario_params['compression_rates'])
