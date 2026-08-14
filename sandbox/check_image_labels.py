@@ -38,16 +38,16 @@ NUM_IMAGES = 10
 # ------------------------------------------------------------
 
 GROUND_TRUTH_LABELS = {
-    1: 0,   # replace
-    2: 0,   # replace
-    3: 0,   # replace
-    4: 0,   # replace
-    5: 0,   # replace
-    6: 0,   # replace
-    7: 0,   # replace
-    8: 0,   # replace
-    9: 0,   # replace
-    10: 0,  # replace
+    1: 0,
+    2: 217,
+    3: 481,
+    4: 477,
+    5: 497,
+    6: 566,
+    7: 867,
+    8: 412,
+    9: 574,
+    10: 701,
 }
 
 
