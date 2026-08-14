@@ -55,16 +55,16 @@ PER_IMAGE_CSV = "compression_accuracy_per_image.csv"
 # ============================================================
 
 GROUND_TRUTH_LABELS = {
-    1: 1,   # <-- replace
-    2: 2,   # <-- replace
-    3: 3,   # <-- replace
-    4: 4,   # <-- replace
-    5: 5,   # <-- replace
-    6: 6,   # <-- replace
-    7: 7,   # <-- replace
-    8: 8,   # <-- replace
-    9: 9,   # <-- replace
-    10: 10,  # <-- replace
+    1: 0,
+    2: 217,
+    3: 481,
+    4: 477,
+    5: 497,
+    6: 566,
+    7: 867,
+    8: 412,
+    9: 574,
+    10: 701,
 }
 
 
