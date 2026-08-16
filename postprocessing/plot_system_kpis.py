@@ -609,7 +609,7 @@ def main():
 
     n_episodes_to_plot = 1500
     #n_episodes = {'optimum': 9, 'random': 200, 'rl/ddqn': 5000}
-    n_episodes = {'optimum': 9, 'rl/ddqn': 5000, 'rl/a2c': 5000, 'rl/ppo': 5000, 'random': 200, 'fixed': 9, 'ue': 1, 'heuristic': 300}
+    n_episodes = {'optimum': 9, 'rl/ddqn': 5000, 'rl/a2c': 5000, 'rl/ppo': 5000, 'random': 200, 'fixed': 9, 'ue': 1, 'heuristic': 125}
     #n_episodes = {'optimum': 1, 'rl/ddqn': 1500, 'random': 15, 'fixed': 1}
     algorithms = ['optimum', 'rl/ddqn', 'rl/a2c', 'rl/ppo', 'random', 'fixed', 'ue', 'heuristic',]
     #algorithms = ['optimum', 'rl/ddqn', 'random', 'fixed']
