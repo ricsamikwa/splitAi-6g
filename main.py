@@ -224,7 +224,7 @@ for ep in range(start_episode, scenario_params['n_episodes'] + 1):
             folder = 'ue'
         else:
             folder = 'heuristic'
-            split_config, compression_rate, split_config_idx, top_1 = baseline.heuristic(allowed_splits,
+            split_config, compression_rate, split_config_idx, top_1 = baseline.heuristic_energy_only(allowed_splits,
                                                                                                    num_nodes, True,
                                                                                                    model,
                                                                                                    episode_params,
