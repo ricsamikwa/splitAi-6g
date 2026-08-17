@@ -1,14 +1,12 @@
 import os
 import sys
 import csv
-import random
 
 import torch
 import torch.nn.functional as F
 import torchvision.transforms as transforms
 
 from PIL import Image
-from pathlib import Path
 
 
 # ============================================================
@@ -67,50 +65,31 @@ COMPRESSION_RATES = [
 
 
 # ============================================================
-# Dataset
-#
-# 10 samples per class x 10 classes = 100 images.
-#
-# Increase to 20 for 200 images, etc.
+# Original 10 input images
 # ============================================================
 
-VAL_DIR = Path(
-    "data/imagenette2-160/val"
-)
+INPUT_DIR = "input"
 
-SAMPLES_PER_CLASS = 10
-
-# Fixed seed makes the randomly selected subset reproducible.
-SEED = 42
+NUM_IMAGES = 10
 
 
 # ============================================================
-# Imagenette synset -> ImageNet-1K output index
+# Ground-truth labels for original input images
 #
-# These are the indices expected by an ImageNet-1K classifier.
+# input1.JPEG ... input10.JPEG
 # ============================================================
 
-IMAGENETTE_TO_IMAGENET = {
-
-    "n01440764": 0,      # tench
-
-    "n02102040": 217,    # English springer
-
-    "n02979186": 482,    # cassette player
-
-    "n03000684": 491,    # chain saw
-
-    "n03028079": 497,    # church
-
-    "n03394916": 566,    # French horn
-
-    "n03417042": 569,    # garbage truck
-
-    "n03425413": 571,    # gas pump
-
-    "n03445777": 574,    # golf ball
-
-    "n03888257": 701,    # parachute
+GROUND_TRUTH_LABELS = {
+    1: 0,
+    2: 217,
+    3: 481,
+    4: 477,
+    5: 497,
+    6: 566,
+    7: 867,
+    8: 412,
+    9: 574,
+    10: 701,
 }
 
 
@@ -163,8 +142,6 @@ preprocess = transforms.Compose([
 
 # ============================================================
 # Load model
-#
-# This is unchanged from your previous script.
 # ============================================================
 
 def load_model():
@@ -178,13 +155,17 @@ def load_model():
         map_location=DEVICE
     )
 
-    model_dict.update(weights)
+    model_dict.update(
+        weights
+    )
 
     model.load_state_dict(
         model_dict
     )
 
-    model.to(DEVICE)
+    model.to(
+        DEVICE
+    )
 
     model.eval()
 
@@ -192,123 +173,108 @@ def load_model():
 
 
 # ============================================================
-# Load reproducible random Imagenette validation subset
+# Load original 10 test images
 # ============================================================
 
 def load_test_images():
 
-    random.seed(SEED)
-
     images = []
 
-    image_id = 0
-
     print()
-    print("=" * 80)
-    print("LOADING IMAGENETTE VALIDATION SUBSET")
+
     print("=" * 80)
 
-    if not VAL_DIR.exists():
+    print(
+        "LOADING ORIGINAL TEST IMAGES"
+    )
 
-        raise FileNotFoundError(
-            f"Dataset not found: {VAL_DIR}\n"
-            "Run first:\n"
-            "python sandbox/download_imagenette.py"
+    print("=" * 80)
+
+    for i in range(
+        1,
+        NUM_IMAGES + 1
+    ):
+
+        filename = os.path.join(
+            INPUT_DIR,
+            f"input{i}.JPEG"
         )
 
-    # --------------------------------------------------------
-    # Sample independently from each of the 10 classes
-    # --------------------------------------------------------
+        # ----------------------------------------------------
+        # Check image exists
+        # ----------------------------------------------------
 
-    for synset, target in IMAGENETTE_TO_IMAGENET.items():
-
-        class_dir = (
-            VAL_DIR / synset
-        )
-
-        if not class_dir.exists():
+        if not os.path.exists(
+            filename
+        ):
 
             print(
-                f"WARNING: class directory "
-                f"{class_dir} not found."
+                f"Warning: {filename} "
+                f"not found, skipping."
             )
 
             continue
 
-        files = []
+        # ----------------------------------------------------
+        # Check label exists
+        # ----------------------------------------------------
 
-        for extension in [
-            "*.JPEG",
-            "*.jpeg",
-            "*.JPG",
-            "*.jpg",
-            "*.png"
-        ]:
-
-            files.extend(
-                class_dir.glob(extension)
-            )
-
-        files = sorted(
-            set(files)
-        )
-
-        if not files:
+        if i not in GROUND_TRUTH_LABELS:
 
             print(
-                f"WARNING: no images found "
-                f"for {synset}"
+                f"Warning: no ground-truth "
+                f"label for input{i}.JPEG, "
+                f"skipping."
             )
 
             continue
 
-        number_to_sample = min(
-            SAMPLES_PER_CLASS,
-            len(files)
+        # ----------------------------------------------------
+        # Load image
+        # ----------------------------------------------------
+
+        img = Image.open(
+            filename
+        ).convert(
+            "RGB"
         )
 
-        selected = random.sample(
-            files,
-            number_to_sample
+        tensor = (
+            preprocess(img)
+            .unsqueeze(0)
+            .to(DEVICE)
+        )
+
+        target = (
+            GROUND_TRUTH_LABELS[i]
+        )
+
+        images.append(
+            (
+                i,
+                tensor,
+                target,
+                filename
+            )
         )
 
         print(
-            f"{synset}: "
-            f"{number_to_sample} images "
-            f"-> ImageNet class {target}"
+            f"input{i}.JPEG -> "
+            f"ImageNet class {target}"
         )
 
-        for filename in selected:
-
-            img = Image.open(
-                filename
-            ).convert("RGB")
-
-            tensor = (
-                preprocess(img)
-                .unsqueeze(0)
-                .to(DEVICE)
-            )
-
-            images.append(
-                (
-                    image_id,
-                    tensor,
-                    target,
-                    str(filename)
-                )
-            )
-
-            image_id += 1
-
-    print("-" * 80)
+    print(
+        "-" * 80
+    )
 
     print(
         f"Total images loaded: "
         f"{len(images)}"
     )
 
-    print("=" * 80)
+    print(
+        "=" * 80
+    )
 
     return images
 
@@ -331,6 +297,7 @@ def run_split_with_nodes(
         )
     )
 
+
     # --------------------------------------------------------
     # UE
     # --------------------------------------------------------
@@ -340,6 +307,7 @@ def run_split_with_nodes(
         flops_per_cycle=4.0,
         power=5.0
     )
+
 
     # --------------------------------------------------------
     # Network
@@ -351,6 +319,7 @@ def run_split_with_nodes(
         flops_per_cycle=8.0
     )
 
+
     # --------------------------------------------------------
     # Reference uncompressed feature size
     # --------------------------------------------------------
@@ -360,6 +329,7 @@ def run_split_with_nodes(
         flops_per_cycle=4.0,
         power=5.0
     )
+
 
     feat_full, _, _ = ue_full.compute(
 
@@ -378,9 +348,11 @@ def run_split_with_nodes(
         rho=1.0,
     )
 
+
     Bf, Cf, Hf, Wf = (
         feat_full.shape
     )
+
 
     bytes_full = (
         Bf
@@ -389,6 +361,7 @@ def run_split_with_nodes(
         * Wf
         * 4
     )
+
 
     # --------------------------------------------------------
     # Actual compressed UE output
@@ -411,9 +384,11 @@ def run_split_with_nodes(
         rho=rho,
     )
 
+
     Bc, Cc, Hc, Wc = (
         feat_comp.shape
     )
+
 
     bytes_tx = (
         Bc
@@ -423,6 +398,7 @@ def run_split_with_nodes(
         * 4
     )
 
+
     # --------------------------------------------------------
     # Communication time
     # --------------------------------------------------------
@@ -431,6 +407,7 @@ def run_split_with_nodes(
         bytes_tx,
         BANDWIDTH_MBPS
     )
+
 
     # --------------------------------------------------------
     # Network-side inference
@@ -453,6 +430,7 @@ def run_split_with_nodes(
         rho=rho,
     )
 
+
     return (
         net_out,
         bytes_tx,
@@ -471,6 +449,7 @@ def main():
 
     images = load_test_images()
 
+
     if not images:
 
         print(
@@ -479,15 +458,20 @@ def main():
 
         return
 
+
     print()
 
-    print("=" * 90)
+    print(
+        "=" * 90
+    )
 
     print(
         "Split + Compression Accuracy Evaluation"
     )
 
-    print("=" * 90)
+    print(
+        "=" * 90
+    )
 
     print(
         f"Device:              {DEVICE}"
@@ -495,15 +479,6 @@ def main():
 
     print(
         f"Number images:       {len(images)}"
-    )
-
-    print(
-        f"Samples per class:   "
-        f"{SAMPLES_PER_CLASS}"
-    )
-
-    print(
-        f"Random seed:         {SEED}"
     )
 
     print(
@@ -520,10 +495,10 @@ def main():
 
 
     # ========================================================
-    # Store baseline predictions
+    # Baseline predictions
     #
     # rho = 1.0 is used to determine whether compression
-    # changes the predicted class.
+    # changes the Top-1 predicted class.
     # ========================================================
 
     baseline_predictions = {}
@@ -533,7 +508,7 @@ def main():
     summary_results = []
 
 
-    # Individual-image results
+    # Individual image results
     per_image_results = []
 
 
@@ -545,7 +520,9 @@ def main():
 
         print()
 
-        print("=" * 115)
+        print(
+            "=" * 115
+        )
 
         print(
             f"Split index {split_idx} "
@@ -553,11 +530,13 @@ def main():
             f"conv layer {split_idx})"
         )
 
-        print("=" * 115)
+        print(
+            "=" * 115
+        )
 
 
         # ====================================================
-        # Baseline predictions: rho = 1
+        # Baseline prediction for rho = 1
         # ====================================================
 
         for (
@@ -583,10 +562,12 @@ def main():
                 rho=1.0,
             )
 
+
             probs = F.softmax(
                 logits,
                 dim=1
             )
+
 
             (
                 top1_prob,
@@ -594,6 +575,7 @@ def main():
             ) = probs.max(
                 dim=1
             )
+
 
             baseline_predictions[
                 (
@@ -670,19 +652,21 @@ def main():
                     top1_idx.item()
                 )
 
+
                 confidence = (
                     top1_prob.item()
                 )
 
 
                 # --------------------------------------------
-                # Actual classification accuracy
+                # Classification accuracy
                 # --------------------------------------------
 
                 is_correct = (
                     predicted_class
                     == target
                 )
+
 
                 if is_correct:
 
@@ -722,23 +706,27 @@ def main():
                     confidence
                 )
 
+
                 total_bytes_tx += (
                     bytes_tx
                 )
+
 
                 total_bytes_full += (
                     bytes_full
                 )
 
+
                 total_comm_time += (
                     comm_time
                 )
+
 
                 total += 1
 
 
                 # --------------------------------------------
-                # Store per-image result
+                # Save per-image result
                 # --------------------------------------------
 
                 per_image_results.append({
@@ -892,7 +880,7 @@ def main():
                 f"{class_flip_rate:6.2f}% | "
 
                 f"Correct="
-                f"{correct:3d}/{total:3d} | "
+                f"{correct:2d}/{total:2d} | "
 
                 f"Reduction="
                 f"{data_reduction:6.2f}%"
@@ -905,11 +893,17 @@ def main():
 
     print()
 
-    print("=" * 135)
+    print(
+        "=" * 135
+    )
 
-    print("FINAL SUMMARY")
+    print(
+        "FINAL SUMMARY"
+    )
 
-    print("=" * 135)
+    print(
+        "=" * 135
+    )
 
 
     header = (
@@ -924,13 +918,16 @@ def main():
 
         f"{'Flip Rate (%)':>13} | "
 
-        f"{'Correct':>11} | "
+        f"{'Correct':>9} | "
 
         f"{'Reduction (%)':>13}"
     )
 
 
-    print(header)
+    print(
+        header
+    )
+
 
     print(
         "-" * len(header)
@@ -951,8 +948,8 @@ def main():
 
             f"{r['class_flip_rate_pct']:13.2f} | "
 
-            f"{r['correct_images']:3d}/"
-            f"{r['total_images']:<7d} | "
+            f"{r['correct_images']:2d}/"
+            f"{r['total_images']:<6d} | "
 
             f"{r['data_reduction_pct']:13.2f}"
         )
@@ -1018,9 +1015,13 @@ def main():
 
     print()
 
-    print("=" * 80)
+    print(
+        "=" * 80
+    )
 
-    print("Results saved:")
+    print(
+        "Results saved:"
+    )
 
     print(
         f"  Aggregate: "
@@ -1032,7 +1033,9 @@ def main():
         f"{PER_IMAGE_CSV}"
     )
 
-    print("=" * 80)
+    print(
+        "=" * 80
+    )
 
 
 if __name__ == "__main__":
