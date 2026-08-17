@@ -90,7 +90,7 @@ class Baseline:
 
     def heuristic(self, allowed_splits, num_nodes, allow_empty_nodes, dnn_model, episode_params, output):
         """
-        Simple reactive threshold heuristic.
+        Simple reactive threshold heuristic (not GA-based, no search).
 
         Selects one of two candidate fixed splits - a shallow partition ([(0,0,3),(1,3,10),(2,10,14),
         (3,14,18)], 3 layers on the device) or a deep partition ([(0,0,6),(1,6,10),(2,10,14),(3,14,18)],
@@ -133,12 +133,11 @@ class Baseline:
         """
         split_idx = None
         compression_rates = sorted(self.scenario_params['compression_rates'])
-        split_options = [[(0,0,3),(1,3,10),(2,10,14),(3,14,18)], [(0, 0, 6), (1, 6, 10), (2, 10, 14), (3, 14, 18)]]
 
         # fixed split, set once on first call; compression starts at full quality and is only ever
         # adjusted reactively from here on
         if self.top1_accuracy_confidence is None:
-            self.split = split_options[np.random.choice(2)]
+            self.split = [(0, 0, 6), (1, 6, 10), (2, 10, 14), (3, 14, 18)]
             self.compression_rate = compression_rates[-1]
 
         feasible_splits, split_indices = enumerate_action_space(allowed_splits, num_nodes, allow_empty_nodes)
@@ -152,7 +151,7 @@ class Baseline:
         top1_acc = self.return_top1_accuracy_confidence(out)
 
         energy_credit_criteria, _ = self.check_energy_credit_budget(flops_offloaded)
-        margin_fraction = self.scenario_params.get('heuristic_margin_fraction', 0.3)
+        margin_fraction = self.scenario_params.get('heuristic_margin_fraction', 0.8)
         over_budget = (inference_time > margin_fraction * self.max_inference_latency) or (not energy_credit_criteria)
 
         # decide, for NEXT step only, whether to step compression down (more aggressive) or up (less
@@ -174,6 +173,163 @@ class Baseline:
                 split_idx = k
 
         return self.split, used_compression_rate, split_idx, self.top1_accuracy_confidence
+
+    def heuristic_energy_only(self, allowed_splits, num_nodes, allow_empty_nodes, dnn_model, episode_params, output):
+        """
+        Single-objective reactive heuristic: optimizes UE energy (comp + comm) ONLY - latency and accuracy
+        are never part of its decision logic, only enforced as hard feasibility constraints (Eqns.
+        8d-8f, via check_energy_credit_budget/check_latency_criteria/check_accuracy_confidence_criteria,
+        exactly as elsewhere in this class). This is deliberately a structural, not empirical, weakness:
+        a policy that never weighs accuracy at all cannot perform well on accuracy, by construction -
+        unlike the split-choice heuristic() above, where closeness to OPT/DRL on any one metric is a
+        property of the data, this one's blind spot is guaranteed by what it does and does not optimize.
+
+        Two graduated levers, both walked via adaptive, blind pushes (no preview, no comparison of
+        alternatives before acting - only ever evaluates the ONE configuration currently held):
+          - compression (fine-grained, tried first): starts at full quality (rho=1.0) and is pushed one
+            level more aggressive each step, for as long as doing so stays feasible.
+          - split (coarse-grained escalation, tried only once compression is maxed out): starts fully
+            on-device (safest, worst energy) and is pushed one level toward more offloading (across 5
+            representative device-boundary tiers - see split_levels below).
+
+        Both levers only ever move in the energy-improving direction while feasible. The moment a push
+        makes the CURRENT step's real, measured configuration infeasible, that lever is reverted by
+        exactly one step and permanently marked maxed_out for the rest of the run (unless split later
+        escalates and gives compression a fresh budget) - this heuristic never backs off proactively or
+        retries a previously-failed push even if conditions loosen later (e.g. channel improves), which is
+        an intentional limitation, not an oversight: a stateful, adaptive policy (DRL) would not have it.
+
+        Because a failed push is always reverted and RE-EVALUATED for real before being returned, this
+        method never returns/logs an infeasible configuration for the step in which the failure was
+        detected - the one exception is if the very first, most-conservative starting configuration
+        (fully on-device, full quality) is itself infeasible, in which case there is nothing safer to
+        revert to and the (infeasible) measured values are returned as-is, matching how other baselines in
+        this class (e.g. NO_SPLIT/FIXED) also have no fallback for this edge case; in practice this
+        configuration is expected to be feasible given this system's own reported NO_SPLIT baseline
+        behavior (see Fig. 6-style results), so this path is not expected to trigger.
+
+        PRECONDITION: all 5 split candidates assign zero layers to one or more network nodes (e.g.
+        (1,3,3)) - the caller must pass allow_empty_nodes=True, or enumerate_action_space will not
+        contain matching entries for these splits and split_idx lookups below will silently fail (a
+        warning is printed if this happens, rather than failing silently).
+
+        Args:
+            allowed_splits (list): Unused by this heuristic (the 5 split candidates are hardcoded below,
+                                   not derived from allowed_splits) but kept for a consistent call
+                                   interface across baselines.
+            num_nodes (int): Number of computation nodes to split the model across.
+            allow_empty_nodes (bool): Must be True - see PRECONDITION above.
+            dnn_model (pytorch model): The DNN model.
+            episode_params (dict): The params specific to the episode packed in a dict.
+            output (tensor): The pytorch tensor capturing the input image after transformation.
+
+        Returns:
+            tuple: (split, compression_rate, split_idx, top1_accuracy_confidence) for the configuration
+                actually used THIS time step (i.e. before any threshold-triggered adjustment for next step).
+        """
+        split_idx = None
+        compression_rates = sorted(self.scenario_params['compression_rates'])
+
+        # 5 candidate splits - one representative per device boundary (3, 6, 10, 14, 18 layers on-device),
+        # ordered MOST aggressive/most offloaded (index 0) -> LEAST aggressive/fully on-device (index -1).
+        # Originally implemented with all 35 user-provided candidates, but same-device-boundary sub-splits
+        # are UE-energy-tied (UE compute/comm energy depend only on the device boundary, not on how the
+        # remaining layers are divided among network nodes 1-3) - walking through 15 device=3 variants (for
+        # example) burns escalation budget without moving the energy objective at all. At 4 real time steps
+        # per split-tier transition (3 to exhaust compression, 1 to escalate split) and a 50-step episode,
+        # the full 35-entry list needed ~34*4=136 steps to reach full aggressiveness - never achievable
+        # within one episode, and since state resets every episode (a fresh Baseline() per episode), no
+        # number of episodes would have fixed that; only individual episodes reaching a stable operating
+        # point does. 5 tiers needs at most ~4*4=16 steps, comfortably inside 50.
+        split_levels = [
+            [(0, 0, 3), (1, 3, 3), (2, 3, 3), (3, 3, 18)],
+            [(0, 0, 6), (1, 6, 6), (2, 6, 6), (3, 6, 18)],
+            [(0, 0, 10), (1, 10, 10), (2, 10, 10), (3, 10, 18)],
+            [(0, 0, 14), (1, 14, 14), (2, 14, 14), (3, 14, 18)],
+            [(0, 0, 18), (1, 18, 18), (2, 18, 18), (3, 18, 18)],
+        ]
+
+        # lazy one-time init (first call) - kept local to this method rather than in __init__, so this
+        # heuristic's state doesn't require touching any other function
+        if not hasattr(self, 'energy_split_pos'):
+            self.energy_split_pos = len(split_levels) - 1  # start conservative: fully on-device
+            self.energy_compression_pos = len(compression_rates) - 1  # start conservative: full quality
+            self.energy_compression_maxed_out = False
+            self.energy_split_maxed_out = False
+            self.energy_last_move = None  # 'compression' or 'split' - which lever moved last, for revert-on-fail
+            bootstrap_split = split_levels[self.energy_split_pos]
+            bootstrap_compression = compression_rates[self.energy_compression_pos]
+            _, _, _, bootstrap_out = compute_inference(bootstrap_split, dnn_model, episode_params, output,
+                                                       bootstrap_compression)
+            self.energy_accuracy_reference = self.return_top1_accuracy_confidence(bootstrap_out)
+
+        feasible_splits, split_indices = enumerate_action_space(allowed_splits, num_nodes, allow_empty_nodes)
+
+        def evaluate(split_config, compression_rate):
+            flops_offloaded, flops_on_ue = self.get_flops_offloaded(split_config)
+            inference_time, ue_en_comp, ue_en_comm, out = compute_inference(
+                split_config, dnn_model, episode_params, output, compression_rate)
+            top1_acc = self.return_top1_accuracy_confidence(out)
+            energy_credit_criteria, _ = self.check_energy_credit_budget(flops_offloaded)
+            latency_criteria = self.check_latency_criteria(inference_time)
+            # temporarily point self.top1_accuracy_confidence at the fixed bootstrap reference for the
+            # duration of this check (it's what check_accuracy_confidence_criteria reads internally), then
+            # restore whatever was there before - this method's own per-step value is set by the caller
+            # after evaluate() returns, so nothing here should permanently disturb it
+            saved_reference = self.top1_accuracy_confidence
+            self.top1_accuracy_confidence = self.energy_accuracy_reference
+            accuracy_criteria = self.check_accuracy_confidence_criteria(top1_acc)
+            self.top1_accuracy_confidence = saved_reference
+            feasible = energy_credit_criteria and latency_criteria and accuracy_criteria
+            return flops_offloaded, flops_on_ue, top1_acc, feasible
+
+        current_split = split_levels[self.energy_split_pos]
+        current_compression = compression_rates[self.energy_compression_pos]
+        flops_offloaded, flops_on_ue, top1_acc, feasible = evaluate(current_split, current_compression)
+
+        if not feasible and self.energy_last_move is not None:
+            # the push made last step was infeasible - revert it by one step, mark that lever maxed out,
+            # and RE-EVALUATE for real so this step's returned/logged values are the reverted (feasible)
+            # configuration's actual performance, not the failed push's
+            if self.energy_last_move == 'compression':
+                self.energy_compression_pos += 1  # back to safer (higher quality)
+                self.energy_compression_maxed_out = True
+            elif self.energy_last_move == 'split':
+                self.energy_split_pos += 1  # back to safer (less offloaded)
+                self.energy_split_maxed_out = True
+            self.energy_last_move = None
+
+            current_split = split_levels[self.energy_split_pos]
+            current_compression = compression_rates[self.energy_compression_pos]
+            flops_offloaded, flops_on_ue, top1_acc, feasible = evaluate(current_split, current_compression)
+        else:
+            # feasible (or nothing to revert - first step) - since the objective is energy-only, always
+            # try to push further toward lower energy for NEXT step: compression first (fine-grained),
+            # split escalation only once compression is exhausted (coarse-grained, resets compression)
+            if not self.energy_compression_maxed_out and self.energy_compression_pos > 0:
+                self.energy_compression_pos -= 1
+                self.energy_last_move = 'compression'
+            elif not self.energy_split_maxed_out and self.energy_split_pos > 0:
+                self.energy_split_pos -= 1
+                self.energy_compression_pos = len(compression_rates) - 1
+                self.energy_compression_maxed_out = False
+                self.energy_last_move = 'split'
+            else:
+                self.energy_last_move = None  # both levers exhausted - hold as-is
+
+        self.update_energy_credit_usage(flops_offloaded, flops_on_ue)
+        self.top1_accuracy_confidence = top1_acc
+        self.split = current_split
+        self.compression_rate = current_compression
+
+        for k, v in split_indices.items():
+            if v == self.split:
+                split_idx = k
+        if split_idx is None:
+            print(f"  [heuristic_energy_only] warning: split {self.split} not found in split_indices - "
+                  f"was allow_empty_nodes=True passed in? split_idx will be logged as None this step.")
+
+        return self.split, self.compression_rate, split_idx, self.top1_accuracy_confidence
 
     def fixed_split(self, allowed_splits, num_nodes, allow_empty_nodes, dnn_model, episode_params, output):
         split_idx = None
