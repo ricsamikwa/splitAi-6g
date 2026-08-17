@@ -3,7 +3,7 @@ set -euo pipefail
 
 cd "$(dirname "$0")"
 
-GPU_ID=0
+GPU_ID=1
 CONFIG_FILE="config.ini"
 
 LATENCY_PARAM_FOLDER=2000
