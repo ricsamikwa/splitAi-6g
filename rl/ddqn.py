@@ -10,7 +10,6 @@ import csv
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from scipy.constants import value
 
 from utils.rl_utils import load_model_params
 from utils.inference_utils import compute_inference

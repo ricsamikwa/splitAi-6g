@@ -3,7 +3,6 @@ agent.py
 
 Defines the generic RL agent and its associated methods to train or infer the RL algorithm
 """
-
 from rl.ddqn import DDQNAgent, QValues
 from rl.a2c import A2CAgent
 from rl.ppo import PPOAgent
@@ -104,6 +103,9 @@ class Agent:
                 action, action_idx, top1_acc_conf = self.train_a2c_agent(time, dnn_model, episode_params, output)
             else:
                 action, action_idx, top1_acc_conf = self.train_ppo_agent(time, dnn_model, episode_params, output, done)
+        else:
+            # implement inference here, no training, just return the selected action and top1 due to the checkpoint policy
+            state = self.agent.get_agent_state(episode_params, self.flops_per_block)
         return action['split'], action['compression'], action_idx, top1_acc_conf
 
     def train_a2c_agent(self, time, dnn_model, episode_params, output):

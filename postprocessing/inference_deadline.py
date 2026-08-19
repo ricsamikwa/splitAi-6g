@@ -4,8 +4,17 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 
-from postprocessing.network_throughput import return_ci_95, return_ci_90
+from postprocessing.network_throughput import return_ci_95, return_ci_90, _plot_errorbar_series
 from postprocessing.plot_system_kpis import return_order, read_kpis_from_files, parse_episode_number
+
+# Evenly-spaced x-offsets (in seconds) for each series, symmetric around 0 - same linspace-based scheme
+# as network_throughput.py's _SERIES_OFFSETS, but sized for THIS axis: inference_deadline_list points are
+# spaced 0.025 apart (0.225, 0.25, 0.275, ...), vs. network_throughput's 50 MB/s spacing, so the offsets
+# here are proportionally much smaller. The six hand-picked offsets this replaces (-0.006/-0.003/0/+0.001/
+# +0.003/+0.006) had the same uneven-spacing issue network_throughput.py's did before that fix.
+_SERIES_ORDER = ['opt', 'ddqn', 'a2c', 'ppo', 'heuristic', 'random', 'fixed']
+_JITTER_SPREAD = 0.0075  # +/- seconds from center; total spread stays well under the 0.025 point spacing
+_SERIES_OFFSETS = dict(zip(_SERIES_ORDER, np.linspace(-_JITTER_SPREAD, _JITTER_SPREAD, len(_SERIES_ORDER))))
 
 
 def parse_kpis(folder, n_episodes, inference_deadline):
@@ -303,22 +312,22 @@ def plot_kpis_vs_inference_deadline(df_all_inference_time, df_all_ue_energy_comp
         top1_mean_per_deadline_fixed.append(df_top1_fixed['mean'].mean())
 
         # finally heuristic
-        # df_inference_time_hr = df_inference_time_hr_list[i]
-        # df_ue_energy_comp_hr = df_ue_energy_comp_hr_list[i]
-        # df_ue_energy_comm_hr = df_ue_energy_comm_hr_list[i]
-        # df_top1_hr = df_top1_hr_list[i]
-        # df_inference_time_hr['mean'] = df_inference_time_hr.mean(axis=1)
-        # inference_time_mean_per_deadline_hr.append(df_inference_time_hr['mean'].mean())
-        # df_ue_energy_comp_hr['mean'] = df_ue_energy_comp_hr.mean(axis=1)
-        # ue_energy_comp_mean_per_deadline_hr.append(df_ue_energy_comp_hr['mean'].mean())
-        # ue_energy_comp_hr_sd = df_ue_energy_comp_hr['mean'].std()
-        # ue_energy_comp_hr_ci = return_ci_90(ue_energy_comp_hr_sd)
-        # ue_energy_comp_sd_per_deadline_hr.append(ue_energy_comp_hr_sd)
-        # ue_energy_comp_ci_per_deadline_hr.append(ue_energy_comp_hr_ci)
-        # df_ue_energy_comm_hr['mean'] = df_ue_energy_comm_hr.mean(axis=1)
-        # ue_energy_comm_mean_per_deadline_hr.append(df_ue_energy_comm_hr['mean'].mean())
-        # df_top1_hr['mean'] = df_top1_hr.mean(axis=1)
-        # top1_mean_per_deadline_hr.append(df_top1_hr['mean'].mean())
+        df_inference_time_hr = df_inference_time_hr_list[i]
+        df_ue_energy_comp_hr = df_ue_energy_comp_hr_list[i]
+        df_ue_energy_comm_hr = df_ue_energy_comm_hr_list[i]
+        df_top1_hr = df_top1_hr_list[i]
+        df_inference_time_hr['mean'] = df_inference_time_hr.mean(axis=1)
+        inference_time_mean_per_deadline_hr.append(df_inference_time_hr['mean'].mean())
+        df_ue_energy_comp_hr['mean'] = df_ue_energy_comp_hr.mean(axis=1)
+        ue_energy_comp_mean_per_deadline_hr.append(df_ue_energy_comp_hr['mean'].mean())
+        ue_energy_comp_hr_sd = df_ue_energy_comp_hr['mean'].std()
+        ue_energy_comp_hr_ci = return_ci_90(ue_energy_comp_hr_sd)
+        ue_energy_comp_sd_per_deadline_hr.append(ue_energy_comp_hr_sd)
+        ue_energy_comp_ci_per_deadline_hr.append(ue_energy_comp_hr_ci)
+        df_ue_energy_comm_hr['mean'] = df_ue_energy_comm_hr.mean(axis=1)
+        ue_energy_comm_mean_per_deadline_hr.append(df_ue_energy_comm_hr['mean'].mean())
+        df_top1_hr['mean'] = df_top1_hr.mean(axis=1)
+        top1_mean_per_deadline_hr.append(df_top1_hr['mean'].mean())
     # sum_ue_energy_per_deadline_ddqn = np.add(ue_energy_comp_mean_per_deadline_ddqn, ue_energy_comm_mean_per_deadline_ddqn)
     # sum_ue_energy_per_deadline_opt = np.add(ue_energy_comp_mean_per_deadline_opt, ue_energy_comm_mean_per_deadline_opt)
     # sum_ue_energy_per_deadline_random = np.add(ue_energy_comp_mean_per_deadline_random, ue_energy_comm_mean_per_deadline_random)
@@ -360,65 +369,30 @@ def plot_kpis_vs_inference_deadline(df_all_inference_time, df_all_ue_energy_comp
     # ax.plot(inference_deadline_list, inference_time_mean_per_deadline_opt, color='#072140', marker='o', label='opt')
     # ax.plot(inference_deadline_list, inference_time_mean_per_deadline_ddqn, color='#165DB1', marker='o', label='ddqn')
     # ax.plot(inference_deadline_list, inference_time_mean_per_deadline_random, color='#9ABCE4', marker='o', label='random')
-    plt.errorbar(x=np.array(inference_deadline_list) - 0.006, y=ue_energy_comp_mean_per_deadline_opt,
-                 yerr=ue_energy_comp_ci_per_deadline_opt, color="#072140",  # line + marker color
-                 ecolor="#072140",  # error bar color
-                 elinewidth=2,  # thickness
-                 capsize=4,  # cap size
-                 capthick=2,
-                 linestyle='-',
-                 fmt='o', label='opt')
-    plt.errorbar(x=np.array(inference_deadline_list) - 0.003, y=ue_energy_comp_mean_per_deadline_ddqn,
-                 yerr=ue_energy_comp_ci_per_deadline_ddqn, color="#114584",  # line + marker color
-                 ecolor="#114584",  # error bar color
-                 elinewidth=2,  # thickness
-                 capsize=4,  # cap size
-                 linestyle='-',
-                 capthick=2, fmt='o', label='ddqn')
-    plt.errorbar(x=inference_deadline_list, y=ue_energy_comp_mean_per_deadline_a2c,
-                 yerr=ue_energy_comp_ci_per_deadline_a2c, color="#165DB1",  # line + marker color
-                 ecolor="#165DB1",  # error bar color
-                 elinewidth=2,  # thickness
-                 capsize=4,  # cap size
-                 linestyle='-',
-                 capthick=2, fmt='o', label='a2c')
-    plt.errorbar(x=np.array(inference_deadline_list) + 0.001, y=ue_energy_comp_mean_per_deadline_ppo,
-                 yerr=ue_energy_comp_ci_per_deadline_ppo, color="#475058",  # line + marker color
-                 ecolor="#475058",  # error bar color
-                 elinewidth=2,  # thickness
-                 capsize=4,  # cap size
-                 linestyle='-',
-                 capthick=2, fmt='o', label='ppo')
-    # plt.errorbar(x=np.array(inference_deadline_list) + 0.001, y=ue_energy_comp_mean_per_deadline_hr,
-    #              yerr=ue_energy_comp_ci_per_deadline_hr, color="salmon",  # line + marker color
-    #              ecolor="salmon",  # error bar color
-    #              elinewidth=2,  # thickness
-    #              capsize=4,  # cap size
-    #              linestyle='-',
-    #              capthick=2, fmt='o', label='heuristic')
-    plt.errorbar(x=np.array(inference_deadline_list) + 0.003, y=ue_energy_comp_mean_per_deadline_random,
-                 yerr=ue_energy_comp_ci_per_deadline_random, color="#9ABCE4",  # line + marker color
-                 ecolor="#9ABCE4",  # error bar color
-                 elinewidth=2,  # thickness
-                 capsize=4,  # cap size
-                 linestyle='-',
-                 capthick=2, fmt='o', label='random')
-    plt.errorbar(x=np.array(inference_deadline_list) + 0.006, y=ue_energy_comp_mean_per_deadline_fixed,
-                 yerr=ue_energy_comp_ci_per_deadline_fixed, color="#8F81EA",  # line + marker color
-                 ecolor="#8F81EA",  # error bar color
-                 elinewidth=2,  # thickness
-                 capsize=4,  # cap size
-                 linestyle='-',
-                 capthick=2, fmt='o', label='fixed')
-
+    _plot_errorbar_series(inference_deadline_list, ue_energy_comp_mean_per_deadline_opt,
+                           ue_energy_comp_ci_per_deadline_opt, "#072140", 'opt', _SERIES_OFFSETS['opt'])
+    _plot_errorbar_series(inference_deadline_list, ue_energy_comp_mean_per_deadline_ddqn,
+                           ue_energy_comp_ci_per_deadline_ddqn, "#114584", 'ddqn', _SERIES_OFFSETS['ddqn'])
+    _plot_errorbar_series(inference_deadline_list, ue_energy_comp_mean_per_deadline_a2c,
+                           ue_energy_comp_ci_per_deadline_a2c, "#165DB1", 'a2c', _SERIES_OFFSETS['a2c'])
+    _plot_errorbar_series(inference_deadline_list, ue_energy_comp_mean_per_deadline_ppo,
+                           ue_energy_comp_ci_per_deadline_ppo, "#475058", 'ppo', _SERIES_OFFSETS['ppo'])
+    _plot_errorbar_series(inference_deadline_list, ue_energy_comp_mean_per_deadline_hr,
+                           ue_energy_comp_ci_per_deadline_hr, "#9B468D", 'heuristic', _SERIES_OFFSETS['heuristic'])
+    _plot_errorbar_series(inference_deadline_list, ue_energy_comp_mean_per_deadline_random,
+                           ue_energy_comp_ci_per_deadline_random, "#9ABCE4", 'random', _SERIES_OFFSETS['random'])
+    _plot_errorbar_series(inference_deadline_list, ue_energy_comp_mean_per_deadline_fixed,
+                           ue_energy_comp_ci_per_deadline_fixed, "#8F81EA", 'fixed', _SERIES_OFFSETS['fixed'])
+    print(ue_energy_comp_mean_per_deadline_hr)
+    print(ue_energy_comp_mean_per_deadline_fixed)
     ax.set_xlabel('Inference deadline (s)')
     ax.set_ylabel('UE energy comp (J)')
     #ax.set_ylabel('Inference time (s)')
     #ax.set_ylabel('Top 1 accuracy confidence (%)')
     plt.grid()
     plt.legend()
-    plt.savefig('results/journal/comp_energy_vs_deadlines_ppo.png')
-    plt.savefig('results/journal/comp_energy_vs_deadlines_ppo.svg')
+    #plt.savefig('results/journal/comp_energy_vs_deadlines_all.png')
+    #plt.savefig('results/journal/comp_energy_vs_deadlines_all.svg')
     plt.show()
 
 def main():
@@ -481,12 +455,12 @@ def main():
         df_ue_energy_comm_list_ppo.append(df_ue_energy_comm)
         df_top1_list_ppo.append(df_top1)
 
-        # df_inference_time, df_ue_energy_comp, df_ue_energy_comm, _, _, df_top1 = parse_kpis('heuristic', 300,
-        #                                                                                     deadline)
-        # df_inference_time_list_hr.append(df_inference_time)
-        # df_ue_energy_comp_list_hr.append(df_ue_energy_comp)
-        # df_ue_energy_comm_list_hr.append(df_ue_energy_comm)
-        # df_top1_list_hr.append(df_top1)
+        df_inference_time, df_ue_energy_comp, df_ue_energy_comm, _, _, df_top1 = parse_kpis('heuristic', 10,
+                                                                                             deadline)
+        df_inference_time_list_hr.append(df_inference_time)
+        df_ue_energy_comp_list_hr.append(df_ue_energy_comp)
+        df_ue_energy_comm_list_hr.append(df_ue_energy_comm)
+        df_top1_list_hr.append(df_top1)
 
         df_inference_time, df_ue_energy_comp, df_ue_energy_comm, _, _, df_top1 = parse_kpis('optimum', 9, deadline)
         df_inference_time_list_opt.append(df_inference_time)
