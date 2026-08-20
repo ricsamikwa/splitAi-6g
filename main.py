@@ -109,7 +109,10 @@ for ep in range(start_episode, scenario_params['n_episodes'] + 1):
         # ------------------------ Read params from file ---------------------------------------------------
         # for now, the same randomly generated set of parameters are used for all episodes
         # first, read radio parameters from file based on the episode number
-        path = 'input/episode_parameters/radio_parameters_moving_{}.csv'.format(file_number)
+        if scenario_params['inference'] == 0:
+            path = 'input/episode_parameters/radio_parameters_moving_{}.csv'.format(file_number)   # for training cases
+        else:
+            path = 'input/episode_parameters/radio_parameters_moving_generalize{}.csv'.format(file_number)  # for testing generalization
         df_radio_params = pd.read_csv(path)
         # then read other params
         df = read_params_from_file(episode=file_number, num_nodes=num_nodes, scenario_params = scenario_params)
