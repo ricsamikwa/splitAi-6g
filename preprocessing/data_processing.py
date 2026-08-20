@@ -14,11 +14,12 @@ def split_and_store_dataset(df):
     for i in range(1, num_input_files + 1):
         last_idx = i * episode_duration
         df_sub = df[running_idx:last_idx]
-        df_sub.to_csv('input/episode_parameters/radio_parameters_moving_{}.csv'.format(i))
+        df_sub.to_csv('input/episode_parameters/radio_parameters_moving_generalize{}.csv'.format(i))
         running_idx = last_idx
 
 def read_trace_file():
-    path = 'input/episode_parameters/radio_parameters_moving.csv'
+    # path to the main file to load
+    path = 'input/episode_parameters/UE_1-comb_generalize.csv'
     size = 450  # 950 for the production dataset
     # save headers in a list
     headers = ['Timestamp', 'Longitude', 'Latitude', 'Speed', 'Operatorname', 'CellID', 'NetworkMode', 'RSRP', 'RSRQ',
@@ -31,9 +32,10 @@ def read_trace_file():
     #df = df.drop_duplicates(subset=['Timestamp'], keep='last', ignore_index=True)
     #print(df['Timestamp'])
     #print(df)
-    df_subset = df[:size]
+    df.dropna(axis="rows")
+    df_subset = df[6:size+6]
     #print(df_subset)
-    df_subset.to_csv('input/episode_parameters/radio_parameters_moving_clean.csv')
+    df_subset.to_csv('input/episode_parameters/UE_1-comb_generalize_clean.csv')
     return df_subset
 
 def plot_radio_metrics(df):
@@ -92,5 +94,5 @@ if __name__ == '__main__':
     path_parent = os.path.dirname(os.getcwd())
     os.chdir(path_parent)
     df_subset = read_trace_file()
-    #split_and_store_dataset(df_subset)
+    split_and_store_dataset(df_subset)
     #plot_radio_metrics(df_subset)
