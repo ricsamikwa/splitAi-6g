@@ -190,23 +190,37 @@ class Baseline:
             level more aggressive each step, for as long as doing so stays feasible.
           - split (coarse-grained escalation, tried only once compression is maxed out): starts fully
             on-device (safest, worst energy) and is pushed one level toward more offloading (across 5
-            representative device-boundary tiers - see split_levels below).
+            representative device-boundary tiers - see split_levels below). If the most aggressive tier
+            (index 0) fails even after exhausting compression, a pool of 14 alternate device=3 sub-splits
+            (tier0_alternates) is tried before giving up - see the split-lever search below for why.
 
-        Both levers only ever move in the energy-improving direction while feasible. The moment a push
-        makes the CURRENT step's real, measured configuration infeasible, that lever is reverted by
-        exactly one step and permanently marked maxed_out for the rest of the run (unless split later
-        escalates and gives compression a fresh budget) - this heuristic never backs off proactively or
-        retries a previously-failed push even if conditions loosen later (e.g. channel improves), which is
-        an intentional limitation, not an oversight: a stateful, adaptive policy (DRL) would not have it.
+        Both levers only ever move in the energy-improving direction while feasible. When a push makes the
+        CURRENT step's real, measured configuration infeasible, this heuristic does NOT immediately give up
+        on that lever - feasibility (particularly latency) is roughly monotonic in offloading amount, not
+        binary at a single point, so a failure at one tier does not rule out a MORE aggressive tier also
+        failing or succeeding. Instead, it keeps pushing further in the same direction, within the same
+        step, until either a feasible position is found or the lever bottoms out at its most aggressive
+        setting with nothing having worked - only then is it reverted to the last confirmed-feasible
+        position and marked maxed_out for the rest of the run (unless split later escalates and gives
+        compression a fresh budget). This bounded within-step search (at most a handful of additional real
+        evaluations, only ever for the single lever currently escalating) stays reactive and single-
+        direction - it never compares alternatives across levers or previews future states - but it does
+        raise the worst-case number of real evaluations in a step above the roughly 1-2 of a simple revert.
+        Regardless of how far the search goes, this heuristic still never backs off proactively or retries
+        a lever already marked maxed_out even if conditions loosen later (e.g. channel improves) - that
+        remains an intentional limitation: a stateful, adaptive policy (DRL) would not have it.
 
-        Because a failed push is always reverted and RE-EVALUATED for real before being returned, this
-        method never returns/logs an infeasible configuration for the step in which the failure was
-        detected - the one exception is if the very first, most-conservative starting configuration
-        (fully on-device, full quality) is itself infeasible, in which case there is nothing safer to
-        revert to and the (infeasible) measured values are returned as-is, matching how other baselines in
-        this class (e.g. NO_SPLIT/FIXED) also have no fallback for this edge case; in practice this
-        configuration is expected to be feasible given this system's own reported NO_SPLIT baseline
-        behavior (see Fig. 6-style results), so this path is not expected to trigger.
+        Because every attempt (including each step of the search) is a real, measured evaluation, and only
+        a confirmed-feasible configuration is ever adopted for the step's return value, this method never
+        returns/logs an infeasible configuration for the step in which a failure was detected - unless the
+        search is genuinely exhausted (no feasible configuration anywhere in split_levels/tier0_alternates
+        x compression_rates, confirmed via diagnostic trace to occur at the tightest deadlines/lowest
+        throughput), in which case it falls back to FIXED's own configuration (FIXED_SPLIT, FIXED_COMPRESSION
+        - see definitions below) rather than searching further, giving a well-defined floor: no worse than
+        the naive static baseline. If even FIXED's configuration is infeasible that step, the (infeasible)
+        measured values are returned as-is, matching how FIXED itself has no fallback for this edge case -
+        the deadlock-reset path (see the "both levers maxed out" branch below) ensures this does not
+        persist across steps, retrying fresh rather than freezing.
 
         PRECONDITION: all 5 split candidates assign zero layers to one or more network nodes (e.g.
         (1,3,3)) - the caller must pass allow_empty_nodes=True, or enumerate_action_space will not
@@ -230,17 +244,6 @@ class Baseline:
         split_idx = None
         compression_rates = sorted(self.scenario_params['compression_rates'])
 
-        # 5 candidate splits - one representative per device boundary (3, 6, 10, 14, 18 layers on-device),
-        # ordered MOST aggressive/most offloaded (index 0) -> LEAST aggressive/fully on-device (index -1).
-        # Originally implemented with all 35 user-provided candidates, but same-device-boundary sub-splits
-        # are UE-energy-tied (UE compute/comm energy depend only on the device boundary, not on how the
-        # remaining layers are divided among network nodes 1-3) - walking through 15 device=3 variants (for
-        # example) burns escalation budget without moving the energy objective at all. At 4 real time steps
-        # per split-tier transition (3 to exhaust compression, 1 to escalate split) and a 50-step episode,
-        # the full 35-entry list needed ~34*4=136 steps to reach full aggressiveness - never achievable
-        # within one episode, and since state resets every episode (a fresh Baseline() per episode), no
-        # number of episodes would have fixed that; only individual episodes reaching a stable operating
-        # point does. 5 tiers needs at most ~4*4=16 steps, comfortably inside 50.
         split_levels = [
             [(0, 0, 3), (1, 3, 3), (2, 3, 3), (3, 3, 18)],
             [(0, 0, 6), (1, 6, 6), (2, 6, 6), (3, 6, 18)],
@@ -248,6 +251,26 @@ class Baseline:
             [(0, 0, 14), (1, 14, 14), (2, 14, 14), (3, 14, 18)],
             [(0, 0, 18), (1, 18, 18), (2, 18, 18), (3, 18, 18)],
         ]
+
+        tier0_alternates = [
+            [(0, 0, 3), (1, 3, 3), (2, 3, 6), (3, 6, 18)],
+            [(0, 0, 3), (1, 3, 3), (2, 3, 10), (3, 10, 18)],
+            [(0, 0, 3), (1, 3, 3), (2, 3, 14), (3, 14, 18)],
+            [(0, 0, 3), (1, 3, 3), (2, 3, 18), (3, 18, 18)],
+            [(0, 0, 3), (1, 3, 6), (2, 6, 6), (3, 6, 18)],
+            [(0, 0, 3), (1, 3, 6), (2, 6, 10), (3, 10, 18)],
+            [(0, 0, 3), (1, 3, 6), (2, 6, 14), (3, 14, 18)],
+            [(0, 0, 3), (1, 3, 6), (2, 6, 18), (3, 18, 18)],
+            [(0, 0, 3), (1, 3, 10), (2, 10, 10), (3, 10, 18)],
+            [(0, 0, 3), (1, 3, 10), (2, 10, 14), (3, 14, 18)],
+            [(0, 0, 3), (1, 3, 10), (2, 10, 18), (3, 18, 18)],
+            [(0, 0, 3), (1, 3, 14), (2, 14, 14), (3, 14, 18)],
+            [(0, 0, 3), (1, 3, 14), (2, 14, 18), (3, 18, 18)],
+            [(0, 0, 3), (1, 3, 18), (2, 18, 18), (3, 18, 18)],
+        ]
+
+        FIXED_SPLIT = [(0, 0, 6), (1, 6, 10), (2, 10, 14), (3, 14, 18)]
+        FIXED_COMPRESSION = 0.5
 
         # lazy one-time init (first call) - kept local to this method rather than in __init__, so this
         # heuristic's state doesn't require touching any other function
@@ -257,6 +280,9 @@ class Baseline:
             self.energy_compression_maxed_out = False
             self.energy_split_maxed_out = False
             self.energy_last_move = None  # 'compression' or 'split' - which lever moved last, for revert-on-fail
+            self.energy_tier0_alt_split = None  # set once a tier0_alternates entry is found feasible; see below
+            self.energy_reset_priority = 'split'  # alternates each 'both maxed out, still infeasible' recovery - see below
+            self.energy_using_fixed_anchor = False  # see FIXED_SPLIT/FIXED_COMPRESSION and the top-level eval below
             bootstrap_split = split_levels[self.energy_split_pos]
             bootstrap_compression = compression_rates[self.energy_compression_pos]
             _, _, _, bootstrap_out = compute_inference(bootstrap_split, dnn_model, episode_params, output,
@@ -281,27 +307,122 @@ class Baseline:
             accuracy_criteria = self.check_accuracy_confidence_criteria(top1_acc)
             self.top1_accuracy_confidence = saved_reference
             feasible = energy_credit_criteria and latency_criteria and accuracy_criteria
+            # if not feasible:
+            #     print(f"  [energy_only] infeasible attempt; "
+            #           f"split_pos={self.energy_split_pos}, compression_pos={self.energy_compression_pos}, "
+            #           f"latency_ok={latency_criteria}, accuracy_ok={accuracy_criteria}, credit_ok={energy_credit_criteria}, "
+            #           f"inference_time={inference_time:.4f}, max_inference_latency={self.max_inference_latency}")
             return flops_offloaded, flops_on_ue, top1_acc, feasible
 
-        current_split = split_levels[self.energy_split_pos]
-        current_compression = compression_rates[self.energy_compression_pos]
+        def split_for_pos(pos):
+            # tier 0 (most aggressive) may have an adopted alternate sub-split active - see
+            # tier0_alternates above and the split-lever search below for where this gets set
+            if pos == 0 and self.energy_tier0_alt_split is not None:
+                return self.energy_tier0_alt_split
+            return split_levels[pos]
+
+        def try_split(split_config):
+            nonlocal flops_offloaded, flops_on_ue, top1_acc, feasible, current_split, current_compression
+            current_split = split_config
+            self.energy_compression_pos = len(compression_rates) - 1
+            current_compression = compression_rates[self.energy_compression_pos]
+            flops_offloaded, flops_on_ue, top1_acc, feasible = evaluate(current_split, current_compression)
+            while self.energy_compression_pos > 0 and not feasible:
+                self.energy_compression_pos -= 1
+                current_compression = compression_rates[self.energy_compression_pos]
+                flops_offloaded, flops_on_ue, top1_acc, feasible = evaluate(current_split, current_compression)
+            return feasible
+
+        if self.energy_using_fixed_anchor:
+            current_split = FIXED_SPLIT
+            current_compression = FIXED_COMPRESSION
+        else:
+            current_split = split_for_pos(self.energy_split_pos)
+            current_compression = compression_rates[self.energy_compression_pos]
         flops_offloaded, flops_on_ue, top1_acc, feasible = evaluate(current_split, current_compression)
 
         if not feasible and self.energy_last_move is not None:
-            # the push made last step was infeasible - revert it by one step, mark that lever maxed out,
-            # and RE-EVALUATE for real so this step's returned/logged values are the reverted (feasible)
-            # configuration's actual performance, not the failed push's
-            if self.energy_last_move == 'compression':
-                self.energy_compression_pos += 1  # back to safer (higher quality)
-                self.energy_compression_maxed_out = True
-            elif self.energy_last_move == 'split':
-                self.energy_split_pos += 1  # back to safer (less offloaded)
-                self.energy_split_maxed_out = True
+            lever = self.energy_last_move
             self.energy_last_move = None
 
-            current_split = split_levels[self.energy_split_pos]
-            current_compression = compression_rates[self.energy_compression_pos]
-            flops_offloaded, flops_on_ue, top1_acc, feasible = evaluate(current_split, current_compression)
+            if lever == 'compression':
+                while self.energy_compression_pos > 0 and not feasible:
+                    self.energy_compression_pos -= 1
+                    current_compression = compression_rates[self.energy_compression_pos]
+                    flops_offloaded, flops_on_ue, top1_acc, feasible = evaluate(current_split, current_compression)
+                if not feasible:
+                    self.energy_compression_pos = len(compression_rates) - 1
+                    current_split = FIXED_SPLIT
+                    current_compression = FIXED_COMPRESSION
+                    flops_offloaded, flops_on_ue, top1_acc, feasible = evaluate(current_split, current_compression)
+                    self.energy_compression_maxed_out = True
+                    self.energy_split_maxed_out = True
+                    self.energy_using_fixed_anchor = True  # subsequent steps' top-level eval also tests FIXED
+                    self.energy_tier0_alt_split = None  # leaving tier 0 (if we were there) - clear any override
+                    # if not feasible:
+                    #     print(f"  [energy_only] FALLBACK STILL INFEASIBLE (compression): fell back to FIXED's "
+                    #           f"configuration and it is STILL infeasible under current step's conditions - "
+                    #           f"returning this step's (infeasible) measured values. Will retry fresh next "
+                    #           f"step via the deadlock-reset path.")
+            elif lever == 'split':
+                # CAPPED HERE DELIBERATELY: this searches split_levels (5 tiers) x compression (4 levels),
+                # plus tier0_alternates (14 device=3 sub-splits) x compression if tier 0 itself fails -
+                # already close to 80 evaluations in the worst case. Confirmed via diagnostic trace that
+                # even this can still fail to find anything feasible at the tightest deadlines (0.225s),
+                # where OPT's full 137-action search finds something this reduced space does not. Rather
+                # than keep widening the search toward OPT's own exhaustiveness - which would undermine
+                # the entire point of HEURISTIC as a baseline structurally weaker than DRL/OPT, not just
+                # weaker until every gap is patched - failure past this point is treated as a legitimate,
+                # well-defined outcome: fall back to the safe starting configuration specifically (see
+                # below), not wherever this search happened to stop.
+                while self.energy_split_pos > 0 and not feasible:
+                    self.energy_split_pos -= 1
+                    feasible = try_split(split_for_pos(self.energy_split_pos))
+                bottomed_out_at_zero = (self.energy_split_pos == 0 and not feasible)
+                if bottomed_out_at_zero:
+                    # tier 0's representative (or a previously-adopted alternate) failed even after
+                    # exhausting compression at this tier - before giving up, try the other device=3
+                    # sub-split variants (see tier0_alternates above), each ALSO with its own compression
+                    # sweep via try_split (not just at one fixed level) - these are UE-energy-tied to the
+                    # primary representative but NOT latency-tied, since how the remaining layers are
+                    # divided among network nodes 1-3 changes each node's processing/communication load -
+                    # confirmed via diagnostic trace as the actual gap at very tight deadlines.
+                    for alt_split in tier0_alternates:
+                        feasible = try_split(alt_split)
+                        if feasible:
+                            self.energy_tier0_alt_split = alt_split
+                            break
+                if not feasible:
+                    # Search is now genuinely exhausted (by construction this only happens after reaching
+                    # split_pos=0, since the loop above only stops on feasible or pos==0 - see the docstring
+                    # for why "last_good_pos" (wherever this particular escalation attempt started from) is
+                    # NOT used here: it is just one step back from wherever we started, not a position
+                    # confirmed feasible under CURRENT conditions, and the earlier design that used it could
+                    # itself report FALLBACK STILL INFEASIBLE.
+                    #
+                    # CHANGED: evaluates FIXED_SPLIT/FIXED_COMPRESSION (see definition above) rather than
+                    # the fully-on-device "safe starting" configuration - gives HEURISTIC a well-defined,
+                    # directly comparable floor (no worse than the naive static baseline) precisely at the
+                    # deadlines/throughputs where this reduced search space can be exhaustively infeasible.
+                    # self.energy_split_pos/compression_pos are still reset to the safe starting indices so
+                    # future escalation attempts start from the normal search, not from FIXED specifically.
+                    self.energy_split_pos = len(split_levels) - 1
+                    self.energy_compression_pos = len(compression_rates) - 1
+                    current_split = FIXED_SPLIT
+                    current_compression = FIXED_COMPRESSION
+                    flops_offloaded, flops_on_ue, top1_acc, feasible = evaluate(current_split, current_compression)
+                    self.energy_split_maxed_out = True
+                    self.energy_using_fixed_anchor = True  # subsequent steps' top-level eval also tests FIXED
+                    self.energy_tier0_alt_split = None  # leaving tier 0 - clear any override for a fresh start later
+                    # if not feasible:
+                    #     # even FIXED's own configuration is infeasible this step (possible at the very
+                    #     # tightest deadlines) - the deadlock fix (see the "both levers maxed out" branch
+                    #     # below) already handles this by resetting maxed_out flags and retrying fresh next
+                    #     # step, rather than freezing here permanently.
+                    #     print(f"  [energy_only] FALLBACK STILL INFEASIBLE (split): fell back to FIXED's "
+                    #           f"configuration and it is STILL infeasible under current step's conditions - "
+                    #           f"returning this step's (infeasible) measured values. Will retry fresh next "
+                    #           f"fresh next step via the deadlock-reset path.")
         else:
             # feasible (or nothing to revert - first step) - since the objective is energy-only, always
             # try to push further toward lower energy for NEXT step: compression first (fine-grained),
@@ -309,13 +430,35 @@ class Baseline:
             if not self.energy_compression_maxed_out and self.energy_compression_pos > 0:
                 self.energy_compression_pos -= 1
                 self.energy_last_move = 'compression'
+                self.energy_using_fixed_anchor = False  # moving past the anchor to a position-based test
             elif not self.energy_split_maxed_out and self.energy_split_pos > 0:
                 self.energy_split_pos -= 1
                 self.energy_compression_pos = len(compression_rates) - 1
                 self.energy_compression_maxed_out = False
                 self.energy_last_move = 'split'
+                self.energy_using_fixed_anchor = False  # moving past the anchor to a position-based test
+            elif feasible:
+                if self.energy_using_fixed_anchor:
+                    self.energy_compression_maxed_out = False
+                    self.energy_split_maxed_out = False
+                # both levers genuinely exhausted AND the current position is feasible (and NOT anchored) -
+                # this is the legitimate converged/optimal resting state, hold as-is
+                self.energy_last_move = None
             else:
-                self.energy_last_move = None  # both levers exhausted - hold as-is
+                current_split = FIXED_SPLIT
+                current_compression = FIXED_COMPRESSION
+                flops_offloaded, flops_on_ue, top1_acc, feasible = evaluate(current_split, current_compression)
+                # if not feasible:
+                #     print(f"  [energy_only] FALLBACK STILL INFEASIBLE (deadlock-recovery): fell back to "
+                #           f"FIXED's configuration and it is STILL infeasible under current step's "
+                #           f"conditions - returning this step's (infeasible) measured values.")
+                if self.energy_reset_priority == 'split':
+                    self.energy_split_maxed_out = False
+                    self.energy_reset_priority = 'compression'
+                else:
+                    self.energy_compression_maxed_out = False
+                    self.energy_reset_priority = 'split'
+                self.energy_last_move = None
 
         self.update_energy_credit_usage(flops_offloaded, flops_on_ue)
         self.top1_accuracy_confidence = top1_acc
@@ -325,9 +468,9 @@ class Baseline:
         for k, v in split_indices.items():
             if v == self.split:
                 split_idx = k
-        if split_idx is None:
-            print(f"  [heuristic_energy_only] warning: split {self.split} not found in split_indices - "
-                  f"was allow_empty_nodes=True passed in? split_idx will be logged as None this step.")
+        # if split_idx is None:
+        #     print(f"  [heuristic_energy_only] warning: split {self.split} not found in split_indices - "
+        #           f"was allow_empty_nodes=True passed in? split_idx will be logged as None this step.")
 
         return self.split, self.compression_rate, split_idx, self.top1_accuracy_confidence
 
