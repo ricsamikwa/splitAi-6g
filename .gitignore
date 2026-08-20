@@ -8,10 +8,18 @@ __pycache__/
 *.pth
 *.pt
 *.onnx
+*.ckpt
+*.safetensors
 
 # Ignore all csv files
 *.csv
+!mobilenetv2_experiment/results/*.csv
 
 # Ignore png and svg files
 *.png
 *.svg
+
+# Local experiment environments, caches, and generated outputs
+.venv/
+.uv-cache/
+.uv-python/
