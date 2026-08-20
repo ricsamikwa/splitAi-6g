@@ -42,11 +42,11 @@ Run the comparison used for the paper table with:
 python mobilenetv2_experiment/compare_random_opt.py \
   --runs 10 \
   --steps 10 \
-  --seed 7 \
+  --seed 1001 \
   --device auto
 ```
 
-This performs 100 inference evaluations per method using ten labelled images, RANDOM seeds 7--16, and time-varying radio and compute traces. OPT searches all 5,317 actions, RANDOM samples from the same action list, and LOCAL executes the complete model on the UE. Accuracy is calculated by comparing the predicted ImageNet class with the ground-truth class. Total UE energy is the sum of UE computation and communication energy.
+This performs 100 inference evaluations per method using ten labelled images, RANDOM seeds 1001--1010, and time-varying radio and compute traces. OPT searches all 5,317 actions, RANDOM samples from the same action list, and LOCAL executes the complete model on the UE. Accuracy is calculated by comparing the predicted ImageNet class with the ground-truth class. Total UE energy is the sum of UE computation and communication energy.
 
 The experiment uses the same main assumptions as the VGG evaluation: four compute nodes, compression factors `1.0`, `0.75`, `0.50`, and `0.25`, UE power of 5 W, maximum energy credit of 90%, and the repository's radio and system traces. OPT uses latency and accuracy weights of `0.1` and `0.3`, respectively, with a maximum latency of 2 s.
 
@@ -56,7 +56,7 @@ For a simple RANDOM-only pipeline test, run:
 python mobilenetv2_experiment/run_experiment.py \
   --weights default \
   --steps 10 \
-  --seed 7 \
+  --seed 1001 \
   --device auto
 ```
 

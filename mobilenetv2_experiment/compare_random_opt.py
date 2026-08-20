@@ -47,7 +47,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--steps", type=int, default=10)
     parser.add_argument("--runs", type=int, default=10)
-    parser.add_argument("--seed", type=int, default=7)
+    parser.add_argument("--seed", type=int, default=1001)
     parser.add_argument("--device", choices=("auto", "cpu", "cuda"), default="auto")
     parser.add_argument("--radio-csv", type=Path, default=ROOT / "input/episode_parameters/radio_parameters_moving_1.csv")
     parser.add_argument("--system-csv", type=Path, default=ROOT / "input/episode_parameters/2000/system_parameters_1.csv")
