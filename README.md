@@ -2,58 +2,81 @@
 
 splitai-6g is a research framework for **layer-wise partitioning of deep neural networks (DNNs)** across heterogeneous computation nodes in **6G edge-cloud environments**. The project focuses on **energy-efficient and low-latency collaborative inference**, where DNN layers can be dynamically split and deployed on user equipment (UE), gNB, Edge, or Core.
 
+## Overview
+
+![SplitAI-6G project overview](input/overview.png)
+
 ## Features
 
-- Layer-based DNN partitioning with multi-node support  
-- Optimization framework minimizing total inference latency and UE energy consumption  
-- FLOPs-based computation time and energy modeling  
-- Communication cost modeling with UE-specific energy  
-- Energy credit mechanism for managing UE energy budget during collaborative inference  
-- Reinforcement learning (RL) environment for adaptive split decisions  
+- Layer-based DNN partitioning with multi-node support
+- Optimization framework minimizing total inference latency and UE energy consumption
+- FLOPs-based computation time and energy modeling
+- Communication cost modeling with UE-specific energy
+- Energy credit mechanism for managing UE energy budget during collaborative inference
+- Reinforcement learning (RL) environment for adaptive split and compression decisions, with three
+  supported algorithms: **DDQN**, **A2C**, and **PPO**
+- Non-RL baseline algorithms for comparison: an optimal (exhaustive-search) solver, a single-objective
+  energy-minimizing heuristic, random split selection, a fixed split configuration, and a UE-only
+  (no-split) baseline
+- Post-processing tooling for training convergence, KPI comparison across algorithms and operating
+  conditions, and evaluation of DRL policy robustness/generalization to new data
 
 ## Repository Structure
 
 - **splitAi-6g/**
   - **models/**
-    - `vgg16_model.py` → VGG16 model definition  
+    - `vgg16_model.py` → VGG16 model definition
     - `convert_pretrained_vgg16.py` → Script to convert and save pretrained VGG16 weights
   - **nodes/**
-    - `ue_node.py` → UE class handling compute & energy  
-    - `network_node.py` → Network compute node class (gNB/Edge/Core)  
+    - `ue_node.py` → UE class handling compute & energy
+    - `network_node.py` → Network compute node class (gNB/Edge/Core)
   - **utils/**
-    - `action_space.py` → Generates the feasible split configurations 
+    - `action_space.py` → Generates the feasible split configurations
     - `comm_utils.py` → Communication latency and energy modeling utilities
     - `energy_utils.py` → UE-specific energy consumption functions
-    - `flop_utils.py` → FLOPs computation time calculation  
-    - `flops_profile.py` → FLOPs per-layer (segment) profiler using flattened VGG16 layers  
-    - `inference_utils.py` → Computes the inference time and ue energy for the selected split config   
+    - `flop_utils.py` → FLOPs computation time calculation
+    - `flops_profile.py` → FLOPs per-layer (segment) profiler using flattened VGG16 layers
+    - `inference_utils.py` → Computes the inference time and ue energy for the selected split config
     - `logging_utils.py` → Functions related to reading and writing experiment logs
     - `optimum.py` → Solves the optimization problem and returns the optimal split for the given inputs
     - `param_generator.py` → Generates random CPU frequencies, FLOPs, bandwidth
     - `rl_utils.py` → RL-specific utility functions
     - `scenario_generator.py` → Reads and packs scenario params from config file
-    - `split_generator.py` → Generates random multi-node split configurations
+    - `split_generator.py` → Non-RL baseline algorithms: random split generation, the energy-minimizing
+      heuristic, the fixed split configuration, and the UE-only (no-split) baseline
   - **rl/**
     - **initial_models/** → stores initial model params for a given number of states and actions
-    - `generate_model_params.py` → script to instantiate RL model architecture and save initial model params 
-    - `ddqn.py` → defines the ddqn algorithm and associated functions and parameters
-    - `agent.py` → defines the RL agent and associated functions to execute training or inference
-    - `replay_buffer.py` → defines the replay buffer to store experiences for ddqn algorithm
+    - `generate_model_params.py` → script to instantiate RL model architecture and save initial model params
+    - `ddqn.py` → defines the DDQN algorithm and associated functions and parameters
+    - `a2c.py` → defines the A2C algorithm and associated functions and parameters
+    - `ppo.py` → defines the PPO algorithm (clipped surrogate objective, GAE) and associated functions and parameters
+    - `agent.py` → defines the RL agent and associated functions to execute training or inference across DDQN, A2C, and PPO
+    - `replay_buffer.py` → defines the replay/rollout buffer used to store experiences for the DDQN and PPO algorithms
   - **logs/**
     - **random/** → stores kpis and logs of a random split generator
-    - **rl/** → stores kpis and logs of rl-based algorithm
+    - **rl/** → stores kpis and logs of rl-based algorithms
       - **ddqn/**
+        - **models/** → stores the model params at the end of each training episode
+      - **a2c/**
+        - **models/** → stores the model params at the end of each training episode
+      - **ppo/**
         - **models/** → stores the model params at the end of each training episode
     - **optimum/** → stores kpis and logs of the optimal solution
   - **postprocessing/**
     - `plot_system_kpis.py` → script that reads, parses and plots system kpis
+    - `network_throughput.py` → plots KPIs (inference time, UE energy, accuracy) across algorithms as a function of network throughput
+    - `inference_deadline.py` → plots KPIs across algorithms as a function of the maximum tolerable inference deadline
+    - `convergence.py` → plots training convergence (reward, actor loss, critic loss) for the RL algorithms
+    - `generalization.py` → evaluates DRL policy robustness/generalization: aggregate percentage error
+      (MAPE and symmetric MAPE) of each DRL algorithm relative to OPT on a held-out dataset, and relative
+      to each algorithm's own training-distribution performance
   - **results/**
-  - `main.py` → End-to-end collaborative inference evaluation  
-  - `README.md` → Project documentation  
+  - `main.py` → End-to-end collaborative inference evaluation
+  - `README.md` → Project documentation
 
 ## Pretrained Weights Setup
 
-Before running the main collaborative inference script, you need to convert and save pretrained VGG16 weights for the custom model.  
+Before running the main collaborative inference script, you need to convert and save pretrained VGG16 weights for the custom model.
 This step only needs to be run **once**:
 
 ```bash
@@ -75,3 +98,17 @@ After setting up the pretrained weights, you can run the SplitAI collaborative i
 ```bash
 python3 main.py
 ```
+
+The algorithm used (RL-based, or one of the non-RL baselines) and, for RL runs, which of DDQN/A2C/PPO to
+use, are set via `config.ini` (see `SPLIT_ALGORITHM` and `RL_ALGORITHM`).
+
+## Post-processing and Evaluation
+
+After running `main.py` for the desired algorithm(s), the `postprocessing/` scripts read the resulting
+logs to produce the comparison figures and robustness/generalization evaluation described above, e.g.:
+
+```bash
+python3 postprocessing/generalization.py --algorithms ddqn a2c ppo
+```
+
+See each script's module docstring for the specific log locations it expects.

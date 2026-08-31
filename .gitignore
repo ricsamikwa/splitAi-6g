@@ -17,6 +17,7 @@ __pycache__/
 
 # Ignore png and svg files
 *.png
+!input/overview.png
 *.svg
 
 # Local experiment environments, caches, and generated outputs
