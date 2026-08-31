@@ -1,8 +1,8 @@
 # splitAi-6g
 
-splitai-6g is a research framework for **layer-wise partitioning of deep neural networks (DNNs)** across heterogeneous computation nodes in **6G edge-cloud environments**. The project focuses on **energy-efficient and low-latency collaborative inference**, where DNN layers can be dynamically split and deployed on user equipment (UE), gNB, Edge, or Core.
+splitai-6g is an implementation of our proposed framework **EnSplit+** for **layer-wise partitioning of Deep Neural Networks (DNNs)** across heterogeneous computation nodes in **6G edge-cloud environments**. The framework focuses on **energy-efficient and low-latency collaborative inference**, where DNN layers are dynamically split and deployed across User Equipment (UE), gNB, Edge, and Core, factoring in subscriber-level energy credit control. **EnSplit+** additionally supports discrete UE-side compression levels, capturing the resulting trade-off between compression and application accuracy.
 
-## Overview
+## Overview of **EnSplit+**
 
 ![SplitAI-6G project overview](input/overview.png)
 
@@ -13,13 +13,52 @@ splitai-6g is a research framework for **layer-wise partitioning of deep neural 
 - FLOPs-based computation time and energy modeling
 - Communication cost modeling with UE-specific energy
 - Energy credit mechanism for managing UE energy budget during collaborative inference
-- Reinforcement learning (RL) environment for adaptive split and compression decisions, with three
+- Deep Reinforcement learning (DRL) environment for adaptive split and compression decisions, with three
   supported algorithms: **DDQN**, **A2C**, and **PPO**
 - Non-RL baseline algorithms for comparison: an optimal (exhaustive-search) solver, a single-objective
   energy-minimizing heuristic, random split selection, a fixed split configuration, and a UE-only
   (no-split) baseline
 - Post-processing tooling for training convergence, KPI comparison across algorithms and operating
   conditions, and evaluation of DRL policy robustness/generalization to new data
+
+## RL Algorithms
+ 
+**EnSplit+** learns the joint split-point and compression-level decision using DRL.
+Three algorithms are implemented and directly comparable within the same training and evaluation
+pipeline:
+ 
+- **DDQN** (Double Deep Q-Network) — a value-based, off-policy algorithm trained from a replay buffer of
+  past experience. Serves as the primary, most extensively evaluated RL baseline in this project.
+- **A2C** (Advantage Actor-Critic) — an on-policy, policy-gradient algorithm that jointly learns a policy
+  and a value function from freshly collected rollouts.
+- **PPO** (Proximal Policy Optimization) — an on-policy algorithm using a clipped surrogate objective and
+  Generalized Advantage Estimation (GAE) to bound how far each policy update can move, aimed at more
+  stable training than standard policy-gradient methods.
+## Benchmarks
+ 
+DDQN, A2C, and PPO are each evaluated against a common set of non-RL baselines:
+ 
+- **OPT** — an exhaustive-search solver that returns the true optimal split and compression configuration
+  for a given state, used as the ground-truth reference (performance upper bound) throughout this project.
+- **HEURISTIC** — a lightweight, reactive, single-objective algorithm that greedily minimizes UE energy
+  consumption subject to hard latency, accuracy, and energy-credit constraints, with no learning and no
+  lookahead.
+- **RANDOM** — samples a split and compression configuration at random each time step.
+- **FIXED** — always uses the same, pre-determined split and compression configuration.
+- **UE-only (no-split)** — executes the full model on-device, with no offloading.
+## Key Findings
+ 
+- The learned DRL policies (DDQN, A2C, PPO) consistently outperform the non-RL baselines in jointly
+  balancing the inference latency-energy and compression-accuracy trade-offs, across the range of network
+  throughput and latency-deadline conditions evaluated.
+- Even a carefully designed, adaptive HEURISTIC baseline is structurally limited relative to the learned
+  policies, particularly under tight latency deadlines and time-varying channel conditions, where a
+  reactive search process cannot always identify a good configuration before conditions change again.
+- Generalization behavior differs across the RL algorithms and depends on what is being generalized to:
+  PPO's bounded policy updates are associated with better generalization to unseen operating points within
+  the training distribution, while consistency across independent samples of the training distribution
+  itself does not show the same clear ordering across algorithms. This remains an area of ongoing
+  evaluation in the project.
 
 ## Repository Structure
 
