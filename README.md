@@ -85,6 +85,7 @@ DDQN, A2C, and PPO are each evaluated against a common set of non-RL baselines:
       heuristic, the fixed split configuration, and the UE-only (no-split) baseline
   - **rl/**
     - **initial_models/** → stores initial model params for a given number of states and actions
+    - **inference_checkpoints/** → stores inference checkpoints for DRL robustness evaluation
     - `generate_model_params.py` → script to instantiate RL model architecture and save initial model params
     - `ddqn.py` → defines the DDQN algorithm and associated functions and parameters
     - `a2c.py` → defines the A2C algorithm and associated functions and parameters
