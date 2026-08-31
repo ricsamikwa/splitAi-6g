@@ -391,9 +391,9 @@ def plot_kpis_vs_inference_deadline(df_all_inference_time, df_all_ue_energy_comp
     #ax.set_ylabel('Top 1 accuracy confidence (%)')
     plt.grid()
     plt.legend()
-    #plt.savefig('results/journal/comp_energy_vs_deadlines_all.png')
-    #plt.savefig('results/journal/comp_energy_vs_deadlines_all.svg')
-    plt.show()
+    plt.savefig('results/journal/comp_energy_vs_deadlines_all.png')
+    plt.savefig('results/journal/comp_energy_vs_deadlines_all.svg')
+    #plt.show()
 
 def main():
     # change the parent path to run this script independently
@@ -455,7 +455,7 @@ def main():
         df_ue_energy_comm_list_ppo.append(df_ue_energy_comm)
         df_top1_list_ppo.append(df_top1)
 
-        df_inference_time, df_ue_energy_comp, df_ue_energy_comm, _, _, df_top1 = parse_kpis('heuristic', 10,
+        df_inference_time, df_ue_energy_comp, df_ue_energy_comm, _, _, df_top1 = parse_kpis('heuristic', 300,
                                                                                              deadline)
         df_inference_time_list_hr.append(df_inference_time)
         df_ue_energy_comp_list_hr.append(df_ue_energy_comp)

@@ -5,7 +5,6 @@ Defines the RL agent running the DDQN algorithm and its associated parameters to
 """
 import numpy as np
 import random
-import math
 import csv
 import torch
 import torch.nn as nn
@@ -14,6 +13,8 @@ import torch.nn.functional as F
 from utils.rl_utils import load_model_params
 from utils.inference_utils import compute_inference
 from rl.replay_buffer import ReplayBuffer
+
+DDQN_CHECKPOINT = 'ddqn_main_inference.pt'
 
 class DDQNAgent(nn.Module):
     def __init__(self, scenario_params, n_states, n_actions, allowed_splits, num_nodes, flops_per_block, split_indices):
@@ -75,11 +76,14 @@ class DDQNAgent(nn.Module):
         return self.layer3(x)
 
     def load_model(self, episode_count, nn_type):
-        if episode_count > 1:
-            agent = load_model_params('ddqn', nn_type, self.scenario_params, episode_count - 1)
-            self.load_state_dict(agent)
+        if not self.scenario_params['inference']:
+            if episode_count > 1:
+                agent = load_model_params('ddqn', nn_type, self.scenario_params, episode_count - 1)
+                self.load_state_dict(agent)
+            else:
+                self.load_state_dict(torch.load('rl/initial_models/main_params_ddqn.pt'))
         else:
-            self.load_state_dict(torch.load('rl/initial_models/main_params_ddqn.pt'))
+            self.load_state_dict(torch.load('rl/inference_checkpoints/{}'.format(DDQN_CHECKPOINT)))
 
     def get_agent_state(self, episode_params, flops_per_block):
         state = np.zeros((self.n_states,))

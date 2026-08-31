@@ -88,9 +88,7 @@ class Agent:
         Returns:
             The final split config and the top1 acc confidence to be used for inference.
         """
-        action = None
         action_idx = None
-        top1_acc_conf = None
         self.episode_count = episode_count
         # define the agent attributes
         self.define_agent_attributes()
@@ -105,7 +103,22 @@ class Agent:
                 action, action_idx, top1_acc_conf = self.train_ppo_agent(time, dnn_model, episode_params, output, done)
         else:
             # implement inference here, no training, just return the selected action and top1 due to the checkpoint policy
+            # first compute the input state
             state = self.agent.get_agent_state(episode_params, self.flops_per_block)
+            # depending on the type of algorithm and policy, choose action based on current agent knowledge
+            if self.agent_type == 'ddqn':
+                action = self.agent.choose_action(self.action_space, state)
+            else:
+                action, action_idx = self.agent.choose_action(self.action_space, state)
+            # execute the action
+            inference_time, ue_en_comp, ue_en_comm, top1_acc_conf = self.agent.perform_action(action,
+                                                                                              self.allowed_splits_blocks,
+                                                                                              dnn_model, episode_params,
+                                                                                              output)
+            for k, v in self.action_indices.items():
+                if v == action:
+                    action_idx = k
+                    break
         return action['split'], action['compression'], action_idx, top1_acc_conf
 
     def train_a2c_agent(self, time, dnn_model, episode_params, output):

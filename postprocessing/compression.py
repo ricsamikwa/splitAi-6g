@@ -173,7 +173,7 @@ def plot_compression_vs_accuracy(df_compression_list, df_top1_accuracy_list, df_
     df_fixed_ue_energy_comp_list = []
 
     # for optimum
-    for i in range(0, 1):
+    for i in range(0, n_episodes['optimum']):
         x, y, z, w, k = return_metrics_list_per_episode(i, df_opt_compression, df_opt_top1_accuracy, df_opt_split_idx,
                                                      df_opt_ue_energy_comm, df_opt_ue_energy_comp)
         df_opt_compression_list.extend(x)
@@ -316,32 +316,32 @@ def plot_compression_vs_accuracy(df_compression_list, df_top1_accuracy_list, df_
     #     palette=palette
     # )
     # for top1 accuracy confidence
-    # sns.barplot(
-    #     data=df_all,
-    #     x="compression",
-    #     y="top1",
-    #     hue="algorithm",
-    #     estimator="mean",
-    #     errorbar=("ci", 95),
-    #     palette=palette
-    # )
-    # for ue_energy_comp
     sns.barplot(
         data=df_all,
         x="compression",
-        y="ue_energy_comp",
+        y="top1",
         hue="algorithm",
         estimator="mean",
         errorbar=("ci", 95),
         palette=palette
     )
+    # for ue_energy_comp
+    # sns.barplot(
+    #     data=df_all,
+    #     x="compression",
+    #     y="ue_energy_comp",
+    #     hue="algorithm",
+    #     estimator="mean",
+    #     errorbar=("ci", 95),
+    #     palette=palette
+    # )
     handles, labels = ax.get_legend_handles_labels()
     ax.legend(handles[:6], labels[:6], title="Algorithm")
     #plt.xticks(rotation=45)
     #plt.suptitle('')
     plt.grid()
-    plt.savefig('results/journal/comp_vs_rho_all.png')
-    plt.savefig('results/journal/comp_vs_rho_all.svg')
+    plt.savefig('results/journal/top1_vs_rho_all.png')
+    plt.savefig('results/journal/top1_vs_rho_all.svg')
     plt.show()
 
 
@@ -359,7 +359,7 @@ def main():
     #algorithms = ['optimum', 'rl/ddqn', 'random']
     algorithms = ['optimum', 'rl/ddqn', 'rl/a2c', 'rl/ppo', 'random', 'heuristic', 'fixed']
     #n_episodes = {'optimum': 9, 'rl/ddqn': 2000, 'random': 200}
-    n_episodes = {'optimum': 1, 'rl/ddqn': 5000, 'rl/a2c': 5000, 'rl/ppo': 5000, 'random': 200, 'heuristic': 300, 'fixed': 9}
+    n_episodes = {'optimum': 1, 'rl/ddqn': 5000, 'rl/a2c': 5000, 'rl/ppo': 5000, 'random': 200, 'heuristic': 99, 'fixed': 9}
     df_compression_list = []    # for each specified algorithm in 'algorithms'
     df_top1_accuracy_list = []  # for each specified algorithm in 'algorithms'
     df_split_idx_list = []      # for each specified algorithm in 'algorithms'

@@ -4,16 +4,15 @@ a2c.py
 Defines the RL agent running the A2C algorithm and its associated parameters to train or infer the RL algorithm
 """
 
-import numpy as np
-import random
-import math
-import csv
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
 from utils.rl_utils import load_model_params
 from rl.ddqn import DDQNAgent
+
+A2C_ACTOR_CHECKPOINT = 'a2c_actor_inference.pt'
+A2C_CRITIC_CHECKPOINT = 'a2c_critic_inference.pt'
 
 class A2CAgent(DDQNAgent, nn.Module):
     def __init__(self, scenario_params, n_states, n_actions, allowed_splits, num_nodes, flops_per_block, split_indices):
@@ -30,14 +29,18 @@ class A2CAgent(DDQNAgent, nn.Module):
 
 
     def load_model_a2c(self, episode_count):
-        if episode_count > 1:
-            agent = load_model_params('a2c', 'actor', self.scenario_params, episode_count - 1)
-            self.actor.load_state_dict(agent)
-            agent = load_model_params('a2c', 'critic', self.scenario_params, episode_count - 1)
-            self.critic.load_state_dict(agent)
+        if not self.scenario_params['inference']:
+            if episode_count > 1:
+                agent = load_model_params('a2c', 'actor', self.scenario_params, episode_count - 1)
+                self.actor.load_state_dict(agent)
+                agent = load_model_params('a2c', 'critic', self.scenario_params, episode_count - 1)
+                self.critic.load_state_dict(agent)
+            else:
+                self.actor.load_state_dict(torch.load('rl/initial_models/actor_params_a2c.pt'))
+                self.critic.load_state_dict(torch.load('rl/initial_models/critic_params_a2c.pt'))
         else:
-            self.actor.load_state_dict(torch.load('rl/initial_models/actor_params_a2c.pt'))
-            self.critic.load_state_dict(torch.load('rl/initial_models/critic_params_a2c.pt'))
+            self.actor.load_state_dict(torch.load('rl/inference_checkpoints/{}'.format(A2C_ACTOR_CHECKPOINT)))
+            self.critic.load_state_dict(torch.load('rl/inference_checkpoints/{}'.format(A2C_CRITIC_CHECKPOINT)))
 
 
     def choose_action(self, playable_actions, state):

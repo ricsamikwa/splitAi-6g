@@ -35,6 +35,8 @@ from utils.rl_utils import load_model_params
 from rl.ddqn import DDQNAgent
 from rl.replay_buffer import PPOExperience, extract_tensors
 
+PPO_ACTOR_CHECKPOINT = 'ppo_actor_inference.pt'
+PPO_CRITIC_CHECKPOINT = 'ppo_critic_inference.pt'
 
 class PPOAgent(DDQNAgent, nn.Module):
     def __init__(self, scenario_params, n_states, n_actions, allowed_splits, num_nodes, flops_per_block, split_indices):
@@ -72,14 +74,18 @@ class PPOAgent(DDQNAgent, nn.Module):
         self.entropies = []
 
     def load_model_ppo(self, episode_count):
-        if episode_count > 1:
-            agent = load_model_params('ppo', 'actor', self.scenario_params, episode_count - 1)
-            self.actor.load_state_dict(agent)
-            agent = load_model_params('ppo', 'critic', self.scenario_params, episode_count - 1)
-            self.critic.load_state_dict(agent)
+        if not self.scenario_params['inference']:
+            if episode_count > 1:
+                agent = load_model_params('ppo', 'actor', self.scenario_params, episode_count - 1)
+                self.actor.load_state_dict(agent)
+                agent = load_model_params('ppo', 'critic', self.scenario_params, episode_count - 1)
+                self.critic.load_state_dict(agent)
+            else:
+                self.actor.load_state_dict(torch.load('rl/initial_models/actor_params_ppo.pt'))
+                self.critic.load_state_dict(torch.load('rl/initial_models/critic_params_ppo.pt'))
         else:
-            self.actor.load_state_dict(torch.load('rl/initial_models/actor_params_ppo.pt'))
-            self.critic.load_state_dict(torch.load('rl/initial_models/critic_params_ppo.pt'))
+            self.actor.load_state_dict(torch.load('rl/inference_checkpoints/{}'.format(PPO_ACTOR_CHECKPOINT)))
+            self.critic.load_state_dict(torch.load('rl/inference_checkpoints/{}'.format(PPO_CRITIC_CHECKPOINT)))
 
     def choose_action(self, playable_actions, state):
         state_t = state.clone().detach().float()

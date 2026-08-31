@@ -14,14 +14,31 @@ Note:
     handling of the raw input image.
 """
 
+import os
+import csv
 import numpy as np
 import torch
 import torch.nn.functional as F
 from utils.action_space import enumerate_action_space, extended_action_space
 from utils.inference_utils import compute_inference
 
+# PLACEHOLDER - fill in the folder where the per-timestep good-step log (heuristic_energy_only's
+# fraction-of-good-steps diagnostic) should be saved. One combined file accumulates ALL timesteps across
+# the whole run (e.g. 50 steps x 300 episodes = 15000 rows), not one file per episode like this class's
+# other CSV logging - see _log_energy_good_step() below.
+ENERGY_GOOD_STEP_LOG_FOLDER = "logs/heuristic"
+ENERGY_GOOD_STEP_LOG_FILENAME = "energy_heuristic_good_steps_log.csv"
+
 
 class Baseline:
+    # Class-level (not instance-level) counter for the running step index across the ENTIRE run, so it
+    # keeps incrementing across the many fresh Baseline() instances constructed per episode, rather than
+    # resetting every episode the way the instance-level energy_* counters do (see hasattr lazy-init in
+    # heuristic_energy_only()). Always mutate this via Baseline._energy_log_global_step, never
+    # self._energy_log_global_step - the latter would silently create a new INSTANCE attribute instead of
+    # updating the shared class-level one.
+    _energy_log_global_step = 0
+
     def __init__(self, scenario_params, allowed_splits, num_nodes, flops_per_block, allowed_splits_blocks):
         self.scenario_params = scenario_params
         self.allowed_splits = allowed_splits
@@ -244,6 +261,17 @@ class Baseline:
         split_idx = None
         compression_rates = sorted(self.scenario_params['compression_rates'])
 
+        # 5 candidate splits - one representative per device boundary (3, 6, 10, 14, 18 layers on-device),
+        # ordered MOST aggressive/most offloaded (index 0) -> LEAST aggressive/fully on-device (index -1).
+        # Originally implemented with all 35 user-provided candidates, but same-device-boundary sub-splits
+        # are UE-energy-tied (UE compute/comm energy depend only on the device boundary, not on how the
+        # remaining layers are divided among network nodes 1-3) - walking through 15 device=3 variants (for
+        # example) burns escalation budget without moving the energy objective at all. At 4 real time steps
+        # per split-tier transition (3 to exhaust compression, 1 to escalate split) and a 50-step episode,
+        # the full 35-entry list needed ~34*4=136 steps to reach full aggressiveness - never achievable
+        # within one episode, and since state resets every episode (a fresh Baseline() per episode), no
+        # number of episodes would have fixed that; only individual episodes reaching a stable operating
+        # point does. 5 tiers needs at most ~4*4=16 steps, comfortably inside 50.
         split_levels = [
             [(0, 0, 3), (1, 3, 3), (2, 3, 3), (3, 3, 18)],
             [(0, 0, 6), (1, 6, 6), (2, 6, 6), (3, 6, 18)],
@@ -252,6 +280,15 @@ class Baseline:
             [(0, 0, 18), (1, 18, 18), (2, 18, 18), (3, 18, 18)],
         ]
 
+        # Targeted fallback pool: the other 14 device=3 sub-split variants (from the original 35-candidate
+        # list) NOT used as split_levels[0]'s representative. These are UE-energy-tied to split_levels[0]
+        # (same device boundary), but NOT latency-tied - how the remaining 15 layers are divided among
+        # network nodes 1-3 does affect latency, since it changes each node's processing/communication
+        # load. Confirmed via diagnostic trace: at very tight deadlines, ALL 20 combinations in the 5-tier
+        # x 4-compression space can be infeasible on latency even though OPT (searching the full 137-action
+        # space) finds something - this pool gives the search somewhere further to go specifically at the
+        # most aggressive tier, where the trace showed the failure concentrated, without slowing down the
+        # common case where 5 tiers is already enough (this pool is never touched unless tier 0 fails).
         tier0_alternates = [
             [(0, 0, 3), (1, 3, 3), (2, 3, 6), (3, 6, 18)],
             [(0, 0, 3), (1, 3, 3), (2, 3, 10), (3, 10, 18)],
@@ -269,6 +306,16 @@ class Baseline:
             [(0, 0, 3), (1, 3, 18), (2, 18, 18), (3, 18, 18)],
         ]
 
+        # FIXED's exact configuration (see fixed_split() elsewhere in this class) - used as the fallback
+        # target when the search below is genuinely exhausted (no feasible configuration found anywhere
+        # in split_levels/tier0_alternates x compression_rates). Not expressible as a split_levels index:
+        # FIXED's device=6 split spreads the remaining 12 layers across nodes 1/2/3 ((1,6,10),(2,10,14),
+        # (3,14,18)), whereas this class's own device=6 representative puts them all on node 3 alone
+        # ((1,6,6),(2,6,6),(3,6,18)) - a different configuration, so it must be evaluated directly rather
+        # than reached via split_for_pos(). At the tightest deadlines/lowest throughput, where diagnostics
+        # confirmed the reduced search space can be exhaustively infeasible, falling back to FIXED's own
+        # values (rather than the fully-on-device "safe starting" configuration used previously) gives
+        # HEURISTIC a well-defined, directly comparable floor: no worse than the naive static baseline.
         FIXED_SPLIT = [(0, 0, 6), (1, 6, 10), (2, 10, 14), (3, 14, 18)]
         FIXED_COMPRESSION = 0.5
 
@@ -283,6 +330,8 @@ class Baseline:
             self.energy_tier0_alt_split = None  # set once a tier0_alternates entry is found feasible; see below
             self.energy_reset_priority = 'split'  # alternates each 'both maxed out, still infeasible' recovery - see below
             self.energy_using_fixed_anchor = False  # see FIXED_SPLIT/FIXED_COMPRESSION and the top-level eval below
+            self.energy_good_step_count = 0
+            self.energy_total_step_count = 0
             bootstrap_split = split_levels[self.energy_split_pos]
             bootstrap_compression = compression_rates[self.energy_compression_pos]
             _, _, _, bootstrap_out = compute_inference(bootstrap_split, dnn_model, episode_params, output,
@@ -307,11 +356,11 @@ class Baseline:
             accuracy_criteria = self.check_accuracy_confidence_criteria(top1_acc)
             self.top1_accuracy_confidence = saved_reference
             feasible = energy_credit_criteria and latency_criteria and accuracy_criteria
-            # if not feasible:
-            #     print(f"  [energy_only] infeasible attempt; "
-            #           f"split_pos={self.energy_split_pos}, compression_pos={self.energy_compression_pos}, "
-            #           f"latency_ok={latency_criteria}, accuracy_ok={accuracy_criteria}, credit_ok={energy_credit_criteria}, "
-            #           f"inference_time={inference_time:.4f}, max_inference_latency={self.max_inference_latency}")
+            if not feasible:
+                print(f"  [energy_only] infeasible attempt; "
+                      f"split_pos={self.energy_split_pos}, compression_pos={self.energy_compression_pos}, "
+                      f"latency_ok={latency_criteria}, accuracy_ok={accuracy_criteria}, credit_ok={energy_credit_criteria}, "
+                      f"inference_time={inference_time:.4f}, max_inference_latency={self.max_inference_latency}")
             return flops_offloaded, flops_on_ue, top1_acc, feasible
 
         def split_for_pos(pos):
@@ -351,6 +400,7 @@ class Baseline:
                     current_compression = compression_rates[self.energy_compression_pos]
                     flops_offloaded, flops_on_ue, top1_acc, feasible = evaluate(current_split, current_compression)
                 if not feasible:
+                    self.energy_split_pos = len(split_levels) - 1
                     self.energy_compression_pos = len(compression_rates) - 1
                     current_split = FIXED_SPLIT
                     current_compression = FIXED_COMPRESSION
@@ -359,53 +409,24 @@ class Baseline:
                     self.energy_split_maxed_out = True
                     self.energy_using_fixed_anchor = True  # subsequent steps' top-level eval also tests FIXED
                     self.energy_tier0_alt_split = None  # leaving tier 0 (if we were there) - clear any override
-                    # if not feasible:
-                    #     print(f"  [energy_only] FALLBACK STILL INFEASIBLE (compression): fell back to FIXED's "
-                    #           f"configuration and it is STILL infeasible under current step's conditions - "
-                    #           f"returning this step's (infeasible) measured values. Will retry fresh next "
-                    #           f"step via the deadlock-reset path.")
+                    if not feasible:
+                        print(f"  [energy_only] FALLBACK STILL INFEASIBLE (compression): fell back to FIXED's "
+                              f"configuration and it is STILL infeasible under current step's conditions - "
+                              f"returning this step's (infeasible) measured values. Will retry fresh next "
+                              f"step via the deadlock-reset path.")
             elif lever == 'split':
-                # CAPPED HERE DELIBERATELY: this searches split_levels (5 tiers) x compression (4 levels),
-                # plus tier0_alternates (14 device=3 sub-splits) x compression if tier 0 itself fails -
-                # already close to 80 evaluations in the worst case. Confirmed via diagnostic trace that
-                # even this can still fail to find anything feasible at the tightest deadlines (0.225s),
-                # where OPT's full 137-action search finds something this reduced space does not. Rather
-                # than keep widening the search toward OPT's own exhaustiveness - which would undermine
-                # the entire point of HEURISTIC as a baseline structurally weaker than DRL/OPT, not just
-                # weaker until every gap is patched - failure past this point is treated as a legitimate,
-                # well-defined outcome: fall back to the safe starting configuration specifically (see
-                # below), not wherever this search happened to stop.
                 while self.energy_split_pos > 0 and not feasible:
                     self.energy_split_pos -= 1
                     feasible = try_split(split_for_pos(self.energy_split_pos))
                 bottomed_out_at_zero = (self.energy_split_pos == 0 and not feasible)
                 if bottomed_out_at_zero:
-                    # tier 0's representative (or a previously-adopted alternate) failed even after
-                    # exhausting compression at this tier - before giving up, try the other device=3
-                    # sub-split variants (see tier0_alternates above), each ALSO with its own compression
-                    # sweep via try_split (not just at one fixed level) - these are UE-energy-tied to the
-                    # primary representative but NOT latency-tied, since how the remaining layers are
-                    # divided among network nodes 1-3 changes each node's processing/communication load -
-                    # confirmed via diagnostic trace as the actual gap at very tight deadlines.
                     for alt_split in tier0_alternates:
                         feasible = try_split(alt_split)
                         if feasible:
                             self.energy_tier0_alt_split = alt_split
                             break
                 if not feasible:
-                    # Search is now genuinely exhausted (by construction this only happens after reaching
-                    # split_pos=0, since the loop above only stops on feasible or pos==0 - see the docstring
-                    # for why "last_good_pos" (wherever this particular escalation attempt started from) is
-                    # NOT used here: it is just one step back from wherever we started, not a position
-                    # confirmed feasible under CURRENT conditions, and the earlier design that used it could
-                    # itself report FALLBACK STILL INFEASIBLE.
-                    #
-                    # CHANGED: evaluates FIXED_SPLIT/FIXED_COMPRESSION (see definition above) rather than
-                    # the fully-on-device "safe starting" configuration - gives HEURISTIC a well-defined,
-                    # directly comparable floor (no worse than the naive static baseline) precisely at the
-                    # deadlines/throughputs where this reduced search space can be exhaustively infeasible.
-                    # self.energy_split_pos/compression_pos are still reset to the safe starting indices so
-                    # future escalation attempts start from the normal search, not from FIXED specifically.
+                    # Search is now genuinely exhausted
                     self.energy_split_pos = len(split_levels) - 1
                     self.energy_compression_pos = len(compression_rates) - 1
                     current_split = FIXED_SPLIT
@@ -414,15 +435,11 @@ class Baseline:
                     self.energy_split_maxed_out = True
                     self.energy_using_fixed_anchor = True  # subsequent steps' top-level eval also tests FIXED
                     self.energy_tier0_alt_split = None  # leaving tier 0 - clear any override for a fresh start later
-                    # if not feasible:
-                    #     # even FIXED's own configuration is infeasible this step (possible at the very
-                    #     # tightest deadlines) - the deadlock fix (see the "both levers maxed out" branch
-                    #     # below) already handles this by resetting maxed_out flags and retrying fresh next
-                    #     # step, rather than freezing here permanently.
-                    #     print(f"  [energy_only] FALLBACK STILL INFEASIBLE (split): fell back to FIXED's "
-                    #           f"configuration and it is STILL infeasible under current step's conditions - "
-                    #           f"returning this step's (infeasible) measured values. Will retry fresh next "
-                    #           f"fresh next step via the deadlock-reset path.")
+                    if not feasible:
+                        print(f"  [energy_only] FALLBACK STILL INFEASIBLE (split): fell back to FIXED's "
+                              f"configuration and it is STILL infeasible under current step's conditions - "
+                              f"returning this step's (infeasible) measured values. Will retry fresh next "
+                              f"fresh next step via the deadlock-reset path.")
         else:
             # feasible (or nothing to revert - first step) - since the objective is energy-only, always
             # try to push further toward lower energy for NEXT step: compression first (fine-grained),
@@ -448,10 +465,10 @@ class Baseline:
                 current_split = FIXED_SPLIT
                 current_compression = FIXED_COMPRESSION
                 flops_offloaded, flops_on_ue, top1_acc, feasible = evaluate(current_split, current_compression)
-                # if not feasible:
-                #     print(f"  [energy_only] FALLBACK STILL INFEASIBLE (deadlock-recovery): fell back to "
-                #           f"FIXED's configuration and it is STILL infeasible under current step's "
-                #           f"conditions - returning this step's (infeasible) measured values.")
+                if not feasible:
+                    print(f"  [energy_only] FALLBACK STILL INFEASIBLE (deadlock-recovery): fell back to "
+                          f"FIXED's configuration and it is STILL infeasible under current step's "
+                          f"conditions - returning this step's (infeasible) measured values.")
                 if self.energy_reset_priority == 'split':
                     self.energy_split_maxed_out = False
                     self.energy_reset_priority = 'compression'
@@ -468,11 +485,81 @@ class Baseline:
         for k, v in split_indices.items():
             if v == self.split:
                 split_idx = k
-        # if split_idx is None:
-        #     print(f"  [heuristic_energy_only] warning: split {self.split} not found in split_indices - "
-        #           f"was allow_empty_nodes=True passed in? split_idx will be logged as None this step.")
+        if split_idx is None:
+            print(f"  [heuristic_energy_only] warning: split {self.split} not found in split_indices - "
+                  f"was allow_empty_nodes=True passed in? split_idx will be logged as None this step.")
+
+        self.energy_total_step_count += 1
+        if self.energy_split_pos <= 1:
+            self.energy_good_step_count += 1
+        episode_duration = self.scenario_params.get('episode_duration', 50)
+        if self.energy_total_step_count % episode_duration == 0:
+            fraction = self.energy_good_step_count / self.energy_total_step_count
+            print(f"  [energy_only] episode summary: good_steps={self.energy_good_step_count}/"
+                  f"{self.energy_total_step_count} ({fraction:.1%}) - steps where the search reached a "
+                  f"configuration matching or beating FIXED's own UE energy (split_pos<=1), vs. steps that "
+                  f"settled for something worse (including, but not limited to, the FIXED fallback itself).")
+
+        # Save this timestep's row to the combined log BEFORE returning to the caller, per-timestep, so
+        # all 50 steps x 300 episodes = 15000 rows end up in one file rather than one file per episode.
+        Baseline._energy_log_global_step += 1
+        self._log_energy_good_step(good_step=(self.energy_split_pos <= 1))
 
         return self.split, self.compression_rate, split_idx, self.top1_accuracy_confidence
+
+    def get_energy_heuristic_good_step_fraction(self):
+        """
+        Returns the fraction of heuristic_energy_only() steps so far this episode where the search reached
+        a configuration matching or beating FIXED's own UE energy (self.energy_split_pos <= 1 at the time
+        the step's value was finalized). Returns None if heuristic_energy_only() hasn't been called yet
+        this episode (nothing to compute a fraction from). Optional companion to the printed per-episode
+        summary inside heuristic_energy_only() - use this if you want the value available programmatically
+        (e.g. to log it into a CSV) rather than parsing it out of console output.
+        """
+        if not hasattr(self, 'energy_total_step_count') or self.energy_total_step_count == 0:
+            return None
+        return self.energy_good_step_count / self.energy_total_step_count
+
+    def _log_energy_good_step(self, good_step):
+        """
+        Appends one row for the current timestep to the combined good-step log file (ENERGY_GOOD_STEP_
+        LOG_FOLDER / ENERGY_GOOD_STEP_LOG_FILENAME, defined near the top of this module). Unlike this
+        class's other CSV logging (one file per episode), this is ONE file across the whole run - every
+        call appends a row, so a 300-episode x 50-step run accumulates 15000 rows in a single file.
+
+        Opens the file fresh (creating the folder and writing a header) only on the very first call
+        (Baseline._energy_log_global_step == 1); every subsequent call appends without rewriting the header.
+        Fails loudly (raises) rather than silently if ENERGY_GOOD_STEP_LOG_FOLDER is still the placeholder,
+        so a forgotten placeholder can't silently produce a run with no diagnostic output.
+
+        Args:
+            good_step (bool): True if this step's split_pos <= 1 (genuinely matches or beats FIXED's own
+                UE energy), False otherwise - including cases that are technically "not anchored to FIXED"
+                but still worse than or equal to it (split_pos 2/3/4), which an earlier version of this
+                diagnostic mistakenly counted as good. See heuristic_energy_only() for the full rationale.
+        """
+        if ENERGY_GOOD_STEP_LOG_FOLDER == "PLACEHOLDER_FILL_IN_LOG_FOLDER_PATH":
+            raise ValueError(
+                "ENERGY_GOOD_STEP_LOG_FOLDER is still the placeholder value - set it near the top of "
+                "split_generator.py to the folder you want the good-step log saved to before running.")
+
+        os.makedirs(ENERGY_GOOD_STEP_LOG_FOLDER, exist_ok=True)
+        log_path = os.path.join(ENERGY_GOOD_STEP_LOG_FOLDER, ENERGY_GOOD_STEP_LOG_FILENAME)
+        write_header = (Baseline._energy_log_global_step == 1)  # only the very first row of the whole run
+
+        with open(log_path, 'a', newline='') as f:
+            writer = csv.writer(f)
+            if write_header:
+                writer.writerow(['global_step', 'episode_step', 'good_step', 'split_pos', 'compression_pos',
+                                 'using_fixed_anchor'])
+            writer.writerow([
+                Baseline._energy_log_global_step,
+                self.energy_total_step_count,
+                int(good_step),
+                self.energy_split_pos,
+                self.energy_compression_pos,
+                int(self.energy_using_fixed_anchor),
+            ])
 
     def fixed_split(self, allowed_splits, num_nodes, allow_empty_nodes, dnn_model, episode_params, output):
         split_idx = None
